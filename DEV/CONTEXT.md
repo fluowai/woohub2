@@ -51,6 +51,8 @@ Identidade derivada do handshake (cookie JWT ou API key). Nada de `userId`/`tena
 ## Limites conhecidos (declarados, não mascarados)
 
 - Rate limit em memória → suporta **réplica única** (topologia MVP).
-- Fila ainda não é durável (fase 4 pendente).
+- Fila `MessageJob` e flusher de uso também assumem **processo único**
+  (worker reivindica com lock otimista; uma segunda réplica duplicaria trabalho, não mensagens,
+  mas não foi testada).
 - Sem teste de carga → nenhuma promessa de capacidade de clientes.
 - Nenhuma proteção contra bloqueio do WhatsApp é prometida.

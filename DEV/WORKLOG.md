@@ -133,3 +133,51 @@ Robustez: `process.on("unhandledRejection")` loga e mantém o gateway de pé
 
 Verificação: `tsc` ok, `build` ok, `lint` **465 problemas (293 errors, 172 warnings)**
 — sem regressão. **Não executado**: teste com banco real (sem MySQL/Docker no ambiente).
+
+## Fase 4 — Fila durável, scheduler único e webhooks confiáveis
+
+Scheduler único (antes havia **dois** loops disputando a mesma fila de
+`ScheduledMessage`, o que podia enviar a mesma mensagem duas vezes):
+
+- `src/lib/cron.ts` **removido** e a chamada `initScheduler()` saiu de
+  `src/modules/whatsapp/manager.ts`.
+- `src/modules/whatsapp/scheduler.ts` é o único agendador: tick de 30 s, timezone
+  `process.env.TZ || "America/Sao_Paulo"`, avança `sendAt` do recorrente **antes** de
+  enfileirar (assim um restart não reenvia), marca `FAILED` quando o cron é inválido e
+  mantém `PENDING` enquanto a instância estiver offline (reavaliado no próximo tick).
+
+Fila durável (`MessageJob`, `src/lib/queue.ts`):
+
+- `enqueueSendJob` grava a intenção no banco; o worker (`startJobWorker`, 1 s) reivindica
+  com lock otimista (`PENDING → RUNNING` + `lockedBy/lockedAt`) — seguro com um único
+  processo, e `requeueStuckJobs` (a cada 60 ticks) recupera jobs órfãos de um crash.
+- Retries com backoff exponencial (5 s → 5 min) e `30 s` quando a instância está
+  indisponível; `DEAD` após `maxAttempts`; `FAILED` permanente quando a cota nega
+  (não adianta repetir).
+- Efeitos por `correlationId`: `scheduled:<id>` atualiza a linha de agendamento
+  (SENT/FAILED; recorrente já avançou o `sendAt`), `broadcast:<logId>` atualiza
+  `BroadcastRecipient`/`BroadcastLog` e emite `broadcast.progress`.
+- `resolveJobTenant` — `MessageJob.tenantId` é FK obrigatória, então uma sessão legada
+  sem empresa tem o tenant do dono provisionado no momento do enfileiramento.
+
+Broadcast passou a ser fila, não loop em memória:
+`POST /api/messages/[sessionId]/broadcast` cria o `BroadcastLog` + destinatários e
+enfileira **um job por destinatário** (com jitter) — reinício no meio do broadcast
+retoma de onde parou. `recipients` agora exige ao menos um item.
+
+Webhooks confiáveis (entrega durável):
+
+- `deliverWebhook` deixou de dormir dentro de um `for` com `setTimeout` (perdido no
+  restart): agora enfileira um job `type: "webhook"` por entrega, com
+  `correlationId webhook:<webhookId>:<eventId>` e `maxAttempts` do próprio webhook.
+- O worker executa **uma tentativa por job**, rele `url`/`secret` do banco na hora
+  (nada de credencial no payload, e webhook desativado/apagado descarta a entrega) e
+  usa a escada de backoff histórica 1 s / 5 s / 25 s antes de `DEAD`.
+- Cada tentativa continua registrando sua linha em `WebhookLog` com `eventId` estável
+  (mesma política de dedupe do consumidor).
+- Bootstrap em `src/server/index.ts` sobe o worker junto com o flusher de uso,
+  parando em SIGINT/SIGTERM.
+
+Verificação: `tsc` ok, `build` ok, `lint` **464 problemas (292 errors, 172 warnings)**
+(queda vinda da remoção de `cron.ts`) — sem regressão.
+**Não executado**: teste com banco real (sem MySQL/Docker no ambiente).

@@ -95,9 +95,9 @@ export async function dispatchWebhook(
                 continue;
             }
 
-            // Send webhook in background
-            deliverWebhook(webhook, payload).catch(err => {
-                logger.error("Webhook", `Webhook ${webhook.id} failed:`, err);
+            // Queue the delivery (the worker performs attempt 1 and any retries)
+            deliverWebhook(webhook, payload, { id: session.id, sessionId, tenantId: session.tenantId }).catch(err => {
+                logger.error("Webhook", `Failed to queue webhook ${webhook.id}:`, err);
             });
         }
     } catch (error) {
@@ -135,37 +135,56 @@ function jsonReplacer(key: string, value: any) {
  * Delivery policy: limited attempts with exponential backoff.
  * Every attempt (success or failure) is recorded with its own log row, so re-delivery is auditable.
  * The event id is stable across attempts, so consumers can deduplicate.
+ *
+ * Delivery runs through the durable queue (`MessageJob`), so retries survive a restart.
  */
 const WEBHOOK_MAX_ATTEMPTS = Math.max(1, parseInt(process.env.WEBHOOK_MAX_ATTEMPTS || "3", 10));
-const WEBHOOK_BACKOFF_MS = [1000, 5000, 25000];
 const WEBHOOK_TIMEOUT_MS = Math.max(1000, parseInt(process.env.WEBHOOK_TIMEOUT_MS || "10000", 10));
 
+export interface WebhookJobPayload {
+    webhookId: string;
+    body: WebhookPayload;
+}
+
 /**
- * Delivers a payload to a single webhook, retrying with backoff and recording each attempt.
+ * Queues one delivery job (attempt 1 is performed by the queue worker).
+ * The secret/URL are read from the webhook row at execution time, so the job never
+ * carries credentials and a deleted/disabled webhook stops receiving events.
  */
 async function deliverWebhook(
     webhook: { id: string; url: string; secret: string | null },
-    payload: WebhookPayload
+    payload: WebhookPayload,
+    session: { id: string; sessionId: string; tenantId: string | null }
 ): Promise<void> {
-    let lastError: string | null = null;
+    const { enqueueSendJob } = await import("./queue");
+    await enqueueSendJob({
+        tenantId: session.tenantId ?? "",
+        sessionPk: session.id,
+        instanceId: session.sessionId,
+        type: "webhook",
+        payload: { webhookId: webhook.id, body: payload },
+        correlationId: `webhook:${webhook.id}:${payload.id}`,
+        maxAttempts: WEBHOOK_MAX_ATTEMPTS,
+        priority: 300,
+    });
+}
 
-    for (let attempt = 1; attempt <= WEBHOOK_MAX_ATTEMPTS; attempt++) {
-        try {
-            await sendWebhookRequest(webhook.url, payload, webhook.secret, webhook.id, attempt);
-            return;
-        } catch (error) {
-            lastError = error instanceof Error ? error.message : String(error);
-            if (attempt < WEBHOOK_MAX_ATTEMPTS) {
-                const delay = WEBHOOK_BACKOFF_MS[Math.min(attempt - 1, WEBHOOK_BACKOFF_MS.length - 1)];
-                await new Promise((resolve) => setTimeout(resolve, delay));
-            }
-        }
+/**
+ * Executes ONE webhook attempt (called by the queue worker).
+ * Throws on failure so the worker applies its backoff/retry policy.
+ */
+export async function executeWebhookJob(payload: WebhookJobPayload, attempt: number): Promise<void> {
+    const webhook = await prisma.webhook.findUnique({
+        where: { id: payload.webhookId },
+        select: { id: true, url: true, secret: true, isActive: true },
+    });
+
+    if (!webhook || !webhook.isActive) {
+        logger.info("Webhook", `Webhook ${payload.webhookId} is gone or disabled, dropping delivery`);
+        return;
     }
 
-    logger.error(
-        "Webhook",
-        `Delivery ${payload.id} to webhook ${webhook.id} failed after ${WEBHOOK_MAX_ATTEMPTS} attempt(s): ${lastError}`
-    );
+    await sendWebhookRequest(webhook.url, payload.body, webhook.secret, webhook.id, attempt);
 }
 
 /**

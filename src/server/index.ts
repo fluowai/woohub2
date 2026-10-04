@@ -73,6 +73,15 @@ app.prepare().then(() => {
     })
     .catch(err => logger.error("Server", "Usage flusher failed to start:", err));
 
+  // Start durable outbound queue worker (MessageJob: scheduled messages, broadcasts)
+  import("../lib/queue")
+    .then(m => {
+      const stop = m.startJobWorker();
+      process.once("SIGINT", stop);
+      process.once("SIGTERM", stop);
+    })
+    .catch(err => logger.error("Server", "Queue worker failed to start:", err));
+
   // Cloudflare 520 Fix: increase keep-alive timeout so Node doesn't kill idle connections that Cloudflare expects to reuse
   // See: https://github.com/vercel/next.js/issues/48962
   server.keepAliveTimeout = 120 * 1000; // 120 seconds
