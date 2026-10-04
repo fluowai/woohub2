@@ -17,6 +17,7 @@ import { bindPpGuard } from "./store/ppguard";
 import { antispam } from "./antispam";
 import { logger } from "@/lib/logger";
 import { emitToInstance } from "@/lib/realtime";
+import { assertSendQuota } from "@/lib/quota";
 
 const MAX_RECONNECT_ATTEMPTS = 3;
 
@@ -31,6 +32,8 @@ export class WhatsAppInstance {
     config: any = {};
     startTime: Date | null = null;
     pairingCode: string | null = null;
+    /** Company that owns this instance (plan quotas). Loaded once at init. */
+    tenantId: string | null = null;
 
     isStopped: boolean = false;
     private reconnectCount: number = 0;
@@ -53,6 +56,7 @@ export class WhatsAppInstance {
             return;
         }
         this.config = sessionData?.config || {};
+        this.tenantId = sessionData.tenantId;
         const botConfig = (sessionData as any)?.botConfig;
 
         const { state, saveCreds } = await usePrismaAuthState(this.sessionId);
@@ -71,10 +75,12 @@ export class WhatsAppInstance {
             syncFullHistory: true,
         });
 
-        // Apply Anti-Spam Wrapper to sendMessage
+        // Plan send quota, then anti-spam, then the engine.
         const originalSendMessage = this.socket.sendMessage.bind(this.socket);
         const sessionId = this.sessionId;
+        const tenantIdOf = () => this.tenantId;
         this.socket.sendMessage = async function (jid: string, content: any, options?: any) {
+            await assertSendQuota(tenantIdOf());
             await antispam.enqueue(sessionId, jid, content);
             return originalSendMessage(jid, content, options);
         } as any;

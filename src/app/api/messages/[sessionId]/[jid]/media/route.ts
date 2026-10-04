@@ -2,6 +2,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
 import { ChatService } from "@/modules/whatsapp/chat.service";
+import { quotaErrorResponse } from "@/lib/quota";
 
 export async function POST(
     request: NextRequest,
@@ -59,6 +60,8 @@ export async function POST(
         return NextResponse.json({ status: true, message: "Operation successful", data: sent });
 
     } catch (e) {
+        const quotaError = quotaErrorResponse(e);
+        if (quotaError) return quotaError;
         console.error("Media send error", e);
         return NextResponse.json({ status: false, message: "Failed to send media", error: "Failed to send media" }, { status: 500 });
     }

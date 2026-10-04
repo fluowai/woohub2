@@ -20,6 +20,12 @@ if (!process.env.AUTH_SECRET) {
   process.exit(1);
 }
 
+// A stray rejection from a background send (quota denial, engine error) must not take
+// the whole gateway down: every instance is dropped with it. Log and keep serving.
+process.on("unhandledRejection", (reason) => {
+  logger.error("Server", "Unhandled promise rejection:", reason);
+});
+
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
@@ -57,6 +63,15 @@ app.prepare().then(() => {
 
   // Start Scheduler
   import("../modules/whatsapp/scheduler").then(m => m.startScheduler());
+
+  // Start quota usage flusher (public API request counters, flushed every minute)
+  import("../lib/quota")
+    .then(m => {
+      const stop = m.startUsageFlusher();
+      process.once("SIGINT", stop);
+      process.once("SIGTERM", stop);
+    })
+    .catch(err => logger.error("Server", "Usage flusher failed to start:", err));
 
   // Cloudflare 520 Fix: increase keep-alive timeout so Node doesn't kill idle connections that Cloudflare expects to reuse
   // See: https://github.com/vercel/next.js/issues/48962

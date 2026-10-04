@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import nodeCrypto from "node:crypto";
 import { authenticateRequest } from "@/lib/access";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
+import { checkRequestQuotaForTenant, quotaErrorResponse, trackRequest } from "@/lib/quota";
 import { logger } from "@/lib/logger";
 
 /**
@@ -139,6 +140,18 @@ export async function proxy(request: NextRequest) {
             if (result.context.apiKey) headers.set("x-woohub-key", result.context.apiKey.publicId);
             if (result.context.userId) headers.set("x-woohub-user", result.context.userId);
             headers.set("x-woohub-scopes", [...result.context.permissions].join(" "));
+
+            // Public API quota (plan request limit) — /api/v1 only, never the dashboard routes.
+            if (pathname.startsWith("/api/v1")) {
+                try {
+                    await checkRequestQuotaForTenant(result.context.tenantId);
+                } catch (error) {
+                    const mapped = quotaErrorResponse(error);
+                    if (mapped) return mapped;
+                    throw error;
+                }
+                trackRequest(result.context.tenantId);
+            }
 
             headers.set("X-RateLimit-Limit", String(RATE_LIMIT_PER_MINUTE));
             headers.set("X-RateLimit-Remaining", String(keyed.remaining));

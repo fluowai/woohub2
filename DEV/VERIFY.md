@@ -38,3 +38,19 @@ node scripts/migrate-tenancy.js
 - Sem MySQL local e sem daemon Docker → testes de integração com banco/implante não executados.
 - Sem gateway de pagamento configurado → checkout não é apresentado como funcional.
 - Nenhuma carga testada → nenhuma promessa de capacidade de clientes.
+
+## Smoke manual (após `migrate deploy` + login na sessão do navegador)
+
+```bash
+curl -s localhost:3000/api/tenants/usage -H "Cookie: authjs.session-token=<token>"
+curl -s localhost:3000/api/plans                      # catálogo (ativo)
+curl -s -X POST localhost:3000/api/plans -H "Content-Type: application/json" \
+  -d '{"code":"starter","name":"Starter","priceCents":0,"maxInstances":2,"sendLimit":1000}'
+curl -s -X POST localhost:3000/api/subscriptions -H "Content-Type: application/json" \
+  -d '{"tenantId":"...","planId":"...","status":"ACTIVE","periodDays":30}'
+curl -s -X POST localhost:3000/api/sessions -H "Content-Type: application/json" \
+  -d '{"name":"Teste"}'                               # 403 quando maxInstances atingido
+```
+
+Esperado: sem assinatura → modo piloto (sem limite); com assinatura → 402/403 com
+`code: quota_exceeded` ou `subscription_inactive`.

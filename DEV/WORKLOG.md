@@ -84,3 +84,52 @@ imports não usados, corrigidos na etapa seguinte).
 
 Verificação: `tsc` ok, `build` ok, `lint` **465 problemas (293 errors, 172 warnings)**
 (vs. 477/293/184 antes desta etapa e 473/296 no baseline upstream).
+
+## Fase 3 — Planos, cotas e assinaturas
+
+`src/lib/quota.ts`:
+
+- 3 modos explícitos por empresa: `pilot` (sem assinatura → sem cotas, piloto),
+  `active` (limites do plano) e `suspended` (assinatura vencida → 403
+  `subscription_inactive`).
+- Estados da assinatura: TRIALING/ACTIVE ativos; PAST_DUE ativo dentro da janela
+  de carência (`graceEndsAt`); CANCELED ativo até `currentPeriodEnd` quando
+  `cancelAtPeriodEnd`; demais → suspensa.
+- Contadores: `messages_sent` incrementado **uma vez, na aceitação do envio**;
+  `requests` (só `/api/v1`) contado em memória e gravado a cada 60 s
+  (`startUsageFlusher`, iniciado no bootstrap e descarregado no SIGINT/SIGTERM) —
+  no máximo 1 minuto de uso perdido num crash, sempre a favor do cliente;
+  `instances`/`users` são medidos ao vivo (sem drift).
+- Cache de assinatura de 30 s no caminho quente (sem SQL por requisição) e
+  `invalidateQuotaCache()` chamado em mudanças de plano/assinatura.
+
+Aplicações:
+
+- Envio de mensagens: wrapper de `socket.sendMessage` em
+  `src/modules/whatsapp/instance.ts` chama `assertSendQuota(tenantId)` antes do
+  anti-spam — cobre API, bot, agendador e autoresposta com uma única contagem.
+- Criação de instância: `POST /api/sessions` → `assertInstanceQuota` → 403/402.
+- Requisições públicas: `src/proxy.ts` chega a `checkRequestQuotaForTenant` em
+  `/api/v1` antes do handler (limites em cache, sem SQL no caminho quente).
+- Rotas de envio `send` e `media` traduzem `QuotaError` para 402/403
+  (as demais rotas legadas devolvem a mensagem com 500 — mapeamento limpo fica
+  no `/api/v1`, Fase 5).
+
+Endpoints novos:
+
+- `GET|POST /api/tenants/members` e `DELETE /api/tenants/members/[userId]`
+  (gestão de equipe com `members:read|write`, quota `maxUsers`, auditoria,
+  proteção contra remover o último dono).
+- `GET /api/tenants/usage` (plano, limites e uso do período).
+- `GET|POST /api/plans`, `PATCH /api/plans/[id]` (catálogo; criação/edição só
+  para SUPERADMIN; sem preços inventados — `priceCents` é definido pelo operador).
+- `GET|POST /api/subscriptions` e `PATCH /api/subscriptions/[tenantId]`
+  (ativação **manual auditada**, enquanto não há gateway de pagamento).
+- `/api/tenants`, `/api/plans` e `/api/subscriptions` entram nos prefixos
+  administrativos: chaves de cliente são recusadas neles.
+
+Robustez: `process.on("unhandledRejection")` loga e mantém o gateway de pé
+(uma negação de cota num envio em background não derruba todas as instâncias).
+
+Verificação: `tsc` ok, `build` ok, `lint` **465 problemas (293 errors, 172 warnings)**
+— sem regressão. **Não executado**: teste com banco real (sem MySQL/Docker no ambiente).

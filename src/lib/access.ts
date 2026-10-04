@@ -80,6 +80,9 @@ export function requiredScopeFor(pathname: string, method: string): ApiKeyScope 
     const adminPrefixes = [
         "/api/users",
         "/api/user",
+        "/api/tenants",
+        "/api/plans",
+        "/api/subscriptions",
         "/api/settings",
         "/api/system",
         "/api/notifications",
