@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Bell, Inbox, Trash2, CheckCheck, ChevronLeft, Info, AlertTriangle, CheckCircle, Settings, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
 interface Notification {
@@ -222,7 +223,7 @@ export default function InboxPage() {
                                     {/* Footer: time + href badge */}
                                     <div className="flex items-center gap-2 mt-2">
                                         <span className="text-[10px] text-muted-foreground">
-                                            {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
+                                            {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true, locale: ptBR })}
                                         </span>
                                         <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 font-normal">
                                             {n.type}

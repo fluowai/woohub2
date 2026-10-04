@@ -17,7 +17,7 @@ npm test               # testes automatizados (node:test + tsx)
 |---|---|---|
 | `tsc --noEmit` | passou | — |
 | `next build` | passou | — |
-| `eslint` | **falhou (preexistente)** 473 problemas / 296 errors | sem regressão: 464 problemas / 292 errors / 172 warnings após as fases 1-4 |
+| `eslint` | **falhou (preexistente)** 473 problemas / 296 errors | sem regressão: **463 problemas / 291 errors / 172 warnings** após as fases 1-6 |
 | testes automatizados | não existiam | criados na Fase 8 (`tests/`) |
 | migrações em banco real | não executadas | Docker daemon indisponível no ambiente |
 | integração com WhatsApp real | não executada | requer números de teste autorizados |
@@ -82,3 +82,20 @@ curl -s -i -X POST localhost:3000/api/v1/instances/$ID/messages \
 Esperado: envelope `{error:{code,message},request_id}` em 401 (chave inválida),
 403 (`insufficient_scope`), 409 (`instance_not_connected`), 402/403 (cota),
 429 (rate limit, com `Retry-After`). Chave sem o escopo certo nunca passa.
+
+## Smoke do painel (Fase 6)
+
+```bash
+# interfaces novas (exigem sessão no navegador)
+# /dashboard/billing  -> GET /api/tenants/usage, /api/subscriptions, /api/plans
+# /dashboard/team     -> GET/POST /api/tenants/members, DELETE /api/tenants/members/{userId}
+# /dashboard/api-keys -> GET/POST/DELETE /api/api-keys
+curl -s localhost:3000/api/plans            # qualquer sessão autenticada
+curl -s localhost:3000/api/tenants/usage    # consumo da empresa (modo piloto sem limites)
+curl -s localhost:3000/api/api-keys         # chaves da empresa (só o prefixo, nunca o segredo)
+```
+
+Esperado: catálogo de planos ativos, snapshot `mode: "pilot"` quando não há assinatura,
+lista de chaves com `display` redigido (`whk_...`) e criação devolvendo `key` **uma única
+vez**. Em navegador: páginas em pt-BR, menu com "Planos e uso", "Equipe" e "Chaves de API"
+(últimas duas visíveis só para `SUPERADMIN`/`OWNER`), tema laranja/branco/preto.

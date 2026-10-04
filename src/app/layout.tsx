@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const APP_DESCRIPTION = "Self-hosted WhatsApp Gateway with Multi-device support, Auto-replies, API integration, and session management dashboard.";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://wa-akg.app";
+const APP_DESCRIPTION = "Gateway de WhatsApp auto-hospedado: múltiplos números, respostas automáticas, API pública, webhooks e painel de gestão em português.";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 export const viewport: Viewport = {
   themeColor: [
@@ -28,7 +28,7 @@ export const viewport: Viewport = {
 };
 
 export async function generateMetadata(): Promise<Metadata> {
-  let appName = "WA-AKG";
+  let appName = "Woohub";
   try {
     // @ts-ignore
     const config = await prisma.systemConfig.findUnique({ where: { id: "default" } });
@@ -37,7 +37,7 @@ export async function generateMetadata(): Promise<Metadata> {
     console.error("Failed to fetch system config for metadata:", e);
   }
 
-  const appDefaultTitle = `${appName} | Premium WhatsApp Gateway`;
+  const appDefaultTitle = `${appName} | API de WhatsApp`;
 
   return {
     metadataBase: new URL(APP_URL),
@@ -49,9 +49,9 @@ export async function generateMetadata(): Promise<Metadata> {
     applicationName: appName,
     generator: "Next.js",
     keywords: [
-      "whatsapp gateway", "whatsapp api", "whatsapp bot", "whatsapp management",
-      "self-hosted", "wa gateway", "whatsapp multi-device", "auto-reply",
-      "whatsapp dashboard", "whatsapp web api"
+      "api whatsapp", "whatsapp api", "whatsapp bot", "gateway whatsapp", "gerenciamento whatsapp",
+      "self-hosted", "whatsapp multi-device", "resposta automática",
+      "painel whatsapp", "whatsapp web api"
     ],
     referrer: "origin-when-cross-origin",
     authors: [{ name: appName }],
@@ -71,7 +71,7 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     openGraph: {
       type: "website",
-      locale: "en_US",
+      locale: "pt_BR",
       siteName: appName,
       title: appDefaultTitle,
       description: APP_DESCRIPTION,
@@ -99,7 +99,7 @@ export default function RootLayout({
   const allowIndexing = process.env.NEXT_PUBLIC_ALLOW_INDEXING === "true";
 
   return (
-    <html lang="en" suppressHydrationWarning className="scroll-smooth">
+      <html lang="pt-BR" suppressHydrationWarning className="scroll-smooth">
       <head>
         {/* Conditional robots meta (noindex for staging/dev) */}
         {!allowIndexing && <meta name="robots" content="noindex, nofollow" />}

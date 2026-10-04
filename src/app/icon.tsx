@@ -15,7 +15,7 @@ export const contentType = "image/png";
 export default async function Icon() {
     // Default config
     let letter = "W";
-    let color = "#16a34a"; // green-600
+    let color = "#ea580c"; // orange-600 (Woohub)
 
     try {
         // Fetch system config

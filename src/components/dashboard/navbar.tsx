@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Bell, Inbox, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { io, Socket } from "socket.io-client";
@@ -160,18 +161,18 @@ export function Navbar({ appName }: NavbarProps) {
                     <PopoverContent className="w-80 p-0 rounded-2xl border border-border/50 shadow-2xl glass-panel" align="end">
                         <div className="p-4 border-b border-border/50 flex justify-between items-center bg-background/50">
                             <div>
-                                <h4 className="font-semibold leading-none text-foreground">Notifications</h4>
+                                <h4 className="font-semibold leading-none text-foreground">Notificações</h4>
                                 <p className="text-xs text-muted-foreground mt-1">
-                                    {unreadCount > 0 ? `You have ${unreadCount} unread updates.` : "No new notifications."}
+                                    {unreadCount > 0 ? `Você tem ${unreadCount} atualizações não lidas.` : "Nenhuma notificação nova."}
                                 </p>
                             </div>
                             <div className="flex items-center gap-1">
                                 <Button variant="ghost" size="sm" className="h-auto py-1 px-2 text-xs" onClick={() => { router.push("/dashboard/inbox"); setIsOpen(false); }}>
-                                    See all
+                                    Ver todas
                                 </Button>
                                 {unreadCount > 0 && (
                                     <Button variant="ghost" size="sm" onClick={() => markAsRead()} className="h-auto py-1 px-2 text-xs">
-                                        Mark all read
+                                        Marcar todas como lidas
                                     </Button>
                                 )}
                             </div>
@@ -183,7 +184,7 @@ export function Navbar({ appName }: NavbarProps) {
                                         <Inbox className="h-6 w-6 text-slate-400" />
                                     </div>
                                     <p className="text-sm font-medium">No new notifications</p>
-                                    <p className="text-xs text-muted-foreground max-w-[180px]">We'll notify you when something important arrives.</p>
+                                    <p className="text-xs text-muted-foreground max-w-[180px]">Avisaremos quando algo importante chegar.</p>
                                 </div>
                             ) : (
                                 <div className="divide-y">
@@ -204,7 +205,7 @@ export function Navbar({ appName }: NavbarProps) {
                                                         {n.message}
                                                     </p>
                                                     <p className="text-[10px] text-slate-400">
-                                                        {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
+                                                        {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true, locale: ptBR })}
                                                     </p>
                                                 </div>
                                                 <div className="flex items-center gap-2">

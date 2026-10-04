@@ -58,6 +58,21 @@ Identidade derivada do handshake (cookie JWT ou API key). Nada de `userId`/`tena
   Documentação: `GET /api/v1/openapi.json` (OpenAPI 3.1 pt-BR, público).
 - Envio de texto é síncrono; mídia por URL responde 202 e vai para a fila `MessageJob`.
 
+## Frontend (Fase 6)
+
+- Marca **Woohub**, idioma **pt-BR** (`src/app/layout.tsx`) e tema laranja/branco/preto em
+  `src/app/globals.css` (Tailwind v4, `--primary: oklch(0.646 0.222 41.116)`).
+- Páginas comerciais: `/dashboard/billing` (planos + assinatura + uso), `/dashboard/team`
+  (membros), `/dashboard/api-keys` (chaves, segredo exibido 1x). Entradas no menu com
+  `allowedRoles` (`sidebar-nav.tsx` / `mobile-nav.tsx`).
+- Pendências de tradução: `src/app/privacy`, `src/app/terms`, textos internos de
+  `src/lib/swagger.ts` e mensagens de erro de rotas legadas.
+- Créditos upstream preservados (MIT): links do GitHub WA-AKG, comentários de crédito e
+  `REPO_NAME` em `src/app/api/system/check-updates/route.ts`.
+- **Regra de ferramenta**: alterações de arquivo pela ferramenta de edição. Um script de
+  substituição em lote do shell corrompeu 5 arquivos (substituição global de caractere);
+  foram restaurados com `git checkout --` — não repetir.
+
 ## Limites conhecidos (declarados, não mascarados)
 
 - Rate limit em memória → suporta **réplica única** (topologia MVP).

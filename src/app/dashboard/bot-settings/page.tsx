@@ -24,7 +24,7 @@ export default function BotSettingsPage() {
     const { sessionId } = useSessionProvider();
 
     const [botConfig, setBotConfig] = useState({
-        botName: "WA-AKG Bot",
+        botName: "Woohub Bot",
         prefix: "#",
         enableSticker: true,
         enableVideoSticker: true,
@@ -194,7 +194,7 @@ export default function BotSettingsPage() {
                             <div className="grid gap-2">
                                 <Label>Bot Name</Label>
                                 <Input
-                                    placeholder="WA-AKG Bot"
+                                    placeholder="Woohub Bot"
                                     value={botConfig.botName}
                                     onChange={(e) => setBotConfig(prev => ({ ...prev, botName: e.target.value }))}
                                 />

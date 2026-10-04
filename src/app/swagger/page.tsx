@@ -47,7 +47,7 @@ export default function ApiDocsPage() {
             setAuthorized(true);
             setError("");
         } else {
-            setError("Invalid credentials");
+                    setError("Credenciais inválidas");
         }
     };
 
@@ -72,38 +72,38 @@ export default function ApiDocsPage() {
                 <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
                     <div className="text-center mb-6">
                         <h1 className="text-3xl font-bold text-gray-800 mb-2">
-                            WA-AKG API Documentation
+                            Woohub API Documentation
                         </h1>
                         <p className="text-gray-600 text-sm">
-                            Please authenticate to access Swagger UI
+                            Faça login para acessar a Swagger UI
                         </p>
                     </div>
 
                     <form onSubmit={handleLogin} className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Username
+                                Usuário
                             </label>
                             <input
                                 type="text"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                                placeholder="Enter username"
+                                placeholder="Digite o usuário"
                                 required
                             />
                         </div>
 
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Password
+                                Senha
                             </label>
                             <input
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                                placeholder="Enter password"
+                                placeholder="Digite a senha"
                                 required
                             />
                         </div>
@@ -118,15 +118,15 @@ export default function ApiDocsPage() {
                             type="submit"
                             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
                         >
-                            Access Documentation
+                            Acessar documentação
                         </button>
                     </form>
 
                     <div className="mt-6 text-center text-sm text-gray-500">
-                        <p>Default credentials:</p>
+                        <p>Credenciais padrão:</p>
                         <p className="font-mono mt-1">
-                            Username: <span className="font-semibold">admin</span> |
-                            Password: <span className="font-semibold">admin123</span>
+                            Usuário: <span className="font-semibold">admin</span> |
+                            Senha: <span className="font-semibold">admin123</span>
                         </p>
                     </div>
                 </div>
@@ -139,9 +139,9 @@ export default function ApiDocsPage() {
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 shadow-lg">
                 <div className="container mx-auto flex justify-between items-center">
                     <div>
-                        <h1 className="text-2xl font-bold">WA-AKG API Documentation</h1>
+                        <h1 className="text-2xl font-bold">Woohub API Documentation</h1>
                         <p className="text-blue-100 text-sm mt-1">
-                            Interactive API documentation with 58+ endpoints
+                            Documentação interativa com mais de 58 endpoints
                         </p>
                     </div>
                     <button

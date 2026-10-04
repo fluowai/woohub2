@@ -233,3 +233,49 @@ Comportamentos relevantes:
 Verificação: `tsc` ok, `build` ok (12 rotas `/api/v1*` registradas), `lint` **464
 problemas (292 errors, 172 warnings)** — código novo com `eslint` limpo.
 **Não executado**: chamada HTTP real contra banco (sem MySQL/Docker no ambiente).
+
+## Fase 6 (parcial) — marca Woohub, UI pt-BR e páginas comerciais
+
+Marca, idioma e tema:
+
+- `src/app/globals.css`: paleta Woohub (laranja/branco/preto). Light: `--background`
+  quente claro, `--primary: oklch(0.646 0.222 41.116)` (laranja), foreground/preto quente,
+  `--ring`/`--sidebar-primary` iguais ao primary; dark: `--primary: oklch(0.72 0.19 47)`.
+  `.text-gradient` trocado de azul para âmbar.
+- `src/app/layout.tsx`: `lang="pt-BR"`, `locale: "pt_BR"`, título `Woohub | API de WhatsApp`,
+  descrição e keywords em português, `APP_URL` caindo para `http://localhost:3000`.
+- `src/app/icon.tsx`: favicon `#ea580c` (laranja). Landing `src/app/page.tsx`, login,
+  cadastro, visão geral do dashboard, navbar (notificações) e sidebar/mobile-nav traduzidos.
+- `date-fns` com `ptBR` em `navbar.tsx` e `dashboard/inbox` (tempos relativos em português).
+- Menus: labels em pt-BR + entradas novas `Planos e uso` (`/dashboard/billing`), `Equipe`
+  (`/dashboard/team`) e `Chaves de API` (`/dashboard/api-keys`). `NavGroup` ganhou `id`
+  (o grupo principal é identificado por `id: "main"`, não pelo label) e `allowedRoles`
+  também no menu mobile.
+- Defaults de produto renomeados para Woohub (`appName`, `botName`, pacote de adesivo).
+  Créditos preservados: links do GitHub upstream, comentários de crédito e
+  `REPO_NAME = "WA-AKG"` no verificador de atualizações.
+
+Páginas comerciais novas (usam os endpoints da Fase 3):
+
+- `/dashboard/billing` — `GET /api/tenants/usage` (modo, plano, barras de requisições e
+  mensagens, limites), `GET /api/subscriptions` (assinatura e fim de período) e
+  `GET /api/plans` (catálogo com preço formatado em BRL). Sem checkout: o botão de plano
+  explica que a ativação é manual e auditada (nada de preço/fluxo inventado).
+- `/dashboard/team` — membros da empresa (`GET/POST /api/tenants/members`,
+  `DELETE /api/tenants/members/{userId}`), papéis rotulados em pt-BR, aviso de que o
+  usuário já precisa existir (a API só adiciona contas existentes).
+- `/dashboard/api-keys` — CRUD completo de chaves (`GET/POST/DELETE /api/api-keys`) com
+  escopos em checkboxes, validade opcional, cópia do segredo (exibido 1x) e revogação
+  com confirmação.
+
+Incidente registrado (para não repetir): scripts de substituição em lote executados pelo
+shell do PowerShell corromperam 5 arquivos (`api/settings/system`, `api/.../sticker`,
+`api/.../bot-config`, `dashboard/sticker`, `swagger/page`) com substituição global de um
+caractere por arquivo. Detectado pelo `tsc`; todos restaurados com `git checkout --` e as
+alterações reaplicadas uma a uma. **Regra daqui em diante: edição de arquivo só pela
+ferramenta de edição, nunca por script de substituição em lote.**
+
+Verificação: `tsc` ok, `build` ok (`/dashboard/billing`, `/dashboard/team` e
+`/dashboard/api-keys` registrados), `lint` **463 problemas (291 errors, 172 warnings)** —
+abaixo do baseline (464/292), páginas novas com `eslint` limpo.
+**Não executado**: navegação real em navegador/validação visual (sem ambiente gráfico).

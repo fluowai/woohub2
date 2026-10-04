@@ -21,15 +21,32 @@ Git portátil (MinGit) provisionado em `C:\Users\paulo\.local\mingit` para permi
 | 2. Empresas/migração/isolamento | entregue (`dac6e4f`): schema, autorização, Socket.IO, proxy, `scripts/migrate-tenancy.js` |
 | 3. Planos/cotas/assinaturas | entregue (`dea5abe`): `src/lib/quota.ts` + endpoints de planos/assinaturas/membros/uso |
 | 4. Fila/agendamento/webhooks | entregue (`e30fa90`): `src/lib/queue.ts` (MessageJob) + scheduler único + webhook via fila |
-| 5. API pública /api/v1 + OpenAPI | entregue: 12 rotas em `src/app/api/v1`, envelope `src/lib/v1/http.ts`, spec `src/lib/v1/openapi.ts` |
-| 6. Frontend Woohub | pendente |
+| 5. API pública /api/v1 + OpenAPI | entregue (`a5efe15`): 12 rotas em `src/app/api/v1`, envelope `src/lib/v1/http.ts`, spec `src/lib/v1/openapi.ts` |
+| 6. Frontend Woohub | **em andamento** — tema/marca, UI pt-BR e páginas comerciais prontos; faltam termos/privacidade em pt-BR e tradução das superfícies legadas |
 | 7. Cobrança | pendente (interface de gateway pronta em `quota`/`subscriptions`) |
 | 8. Docker/docs/testes/piloto | pendente |
 
+## Frontend (Fase 6) — o que já mudou
+
+- Marca **Woohub** e idioma **pt-BR**: `src/app/layout.tsx` (`lang="pt-BR"`, `locale: "pt_BR"`,
+  título/descrição em português), `src/app/page.tsx` (landing), login/cadastro, dashboard,
+  notificações, navbar, sidebar/mobile-nav, docs/swagger.
+- Paleta laranja/branco/preto em `src/app/globals.css` (`--primary` = `oklch(0.646 0.222 41.116)`,
+  fundo quente claro, dark com primary âmbar) + `.text-gradient` âmbar; favicon laranja
+  (`src/app/icon.tsx`). Gradientes `to-blue-500` → `to-amber-500`.
+- Páginas comerciais novas: `/dashboard/billing` (planos, assinatura, uso com barras),
+  `/dashboard/team` (membros), `/dashboard/api-keys` (CRUD de chaves, segredo exibido 1x),
+  ligadas no menu (`sidebar-nav.tsx` e `mobile-nav.tsx`, com `allowedRoles`).
+- Defaults de produto renomeados: nome do bot/pacote de adesivo `Woohub Bot`/`Woohub`,
+  `appName` padrão `Woohub`. Créditos upstream preservados (links GitHub, comentários,
+  `REPO_NAME` do verificador de atualizações continua `WA-AKG`).
+- Ainda em inglês: `src/app/privacy`, `src/app/terms` (páginas legais), textos internos de
+  `src/lib/swagger.ts` e parte das mensagens de erro de rotas legadas.
+
 ## Próximos passos imediatos
 
-1. Commitar a Fase 5 (API pública v1).
-2. **Fase 6**: frontend Woohub (pt-BR, fundo claro, laranja/branco/preto).
+1. Concluir a Fase 6: termos/privacidade em pt-BR, textos restantes das telas legadas.
+2. **Fase 7**: interface de gateway de pagamento (ou ativação manual documentada).
 3. Aplicar a migração real: `npx prisma migrate deploy` →
    `node scripts/migrate-tenancy.js` (dry-run) → `--apply`.
 4. Operação: criar planos (`POST /api/plans`) e atribuir
