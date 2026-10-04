@@ -9,18 +9,21 @@ import { waManager } from "@/modules/whatsapp/manager";
 import { safeFetch, SsrfError } from "./security/ssrf";
 
 // Event types that can trigger webhooks
-export type WebhookEventType =
-    | "message.received"
-    | "message.sent"
-    | "message.status"
-    | "connection.update"
-    | "group.update"
-    | "contact.update"
-    | "status.update"
-    | "group.participant"
-    | "message.deleted"
-    | "message.edited"
-    | "test";
+export const WEBHOOK_EVENT_TYPES = [
+    "message.received",
+    "message.sent",
+    "message.status",
+    "connection.update",
+    "group.update",
+    "contact.update",
+    "status.update",
+    "group.participant",
+    "message.deleted",
+    "message.edited",
+    "test",
+] as const;
+
+export type WebhookEventType = (typeof WEBHOOK_EVENT_TYPES)[number];
 
 interface WebhookPayload {
     /** Unique id for this event — consumers can deduplicate on it. */

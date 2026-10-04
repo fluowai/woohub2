@@ -19,22 +19,30 @@ Git portátil (MinGit) provisionado em `C:\Users\paulo\.local\mingit` para permi
 |---|---|
 | 1. Diagnóstico + segurança | entregue (commit `c91b8a0`) |
 | 2. Empresas/migração/isolamento | entregue (`dac6e4f`): schema, autorização, Socket.IO, proxy, `scripts/migrate-tenancy.js` |
-| 3. Planos/cotas/assinaturas | entregue: `src/lib/quota.ts` + endpoints de planos/assinaturas/membros/uso |
-| 4. Fila/agendamento/webhooks | entregue: `src/lib/queue.ts` (MessageJob) + scheduler único + webhook via fila |
-| 5. API pública /api/v1 + OpenAPI | pendente |
+| 3. Planos/cotas/assinaturas | entregue (`dea5abe`): `src/lib/quota.ts` + endpoints de planos/assinaturas/membros/uso |
+| 4. Fila/agendamento/webhooks | entregue (`e30fa90`): `src/lib/queue.ts` (MessageJob) + scheduler único + webhook via fila |
+| 5. API pública /api/v1 + OpenAPI | entregue: 12 rotas em `src/app/api/v1`, envelope `src/lib/v1/http.ts`, spec `src/lib/v1/openapi.ts` |
 | 6. Frontend Woohub | pendente |
 | 7. Cobrança | pendente (interface de gateway pronta em `quota`/`subscriptions`) |
 | 8. Docker/docs/testes/piloto | pendente |
 
 ## Próximos passos imediatos
 
-1. Commitar a Fase 4 (fila + scheduler único + webhook durável).
-2. **Fase 5**: rotas `/api/v1/*` (instâncias, mensagens, contatos, webhooks,
-   uso) com OpenAPI pt-BR e mapeamento limpo de erros de cota (402/403).
+1. Commitar a Fase 5 (API pública v1).
+2. **Fase 6**: frontend Woohub (pt-BR, fundo claro, laranja/branco/preto).
 3. Aplicar a migração real: `npx prisma migrate deploy` →
    `node scripts/migrate-tenancy.js` (dry-run) → `--apply`.
 4. Operação: criar planos (`POST /api/plans`) e atribuir
    (`POST /api/subscriptions`) — sem gateway, ativação é manual auditada.
+
+## API pública (Fase 5) — mapa
+
+- Envelope: sucesso `{ data, meta? }`; erro `{ error: { code, message }, request_id }`
+  (`src/lib/v1/http.ts`). O proxy emite o mesmo envelope para 401/403/429/cota em `/api/v1`.
+- Rotas: `/api/v1`, `/api/v1/openapi.json`, `/api/v1/usage`,
+  `/api/v1/instances[...]` (lista, criar, detalhe, remover, qr, actions, messages, contacts),
+  `/api/v1/webhooks[...]` (CRUD + logs). Escopos em `src/lib/access.ts:requiredScopeFor`.
+- Documentação: `GET /api/v1/openapi.json` (OpenAPI 3.1, pt-BR, público).
 
 ## Fila (Fase 4) — como funciona
 

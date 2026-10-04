@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import nodeCrypto from "node:crypto";
 import { authenticateRequest } from "@/lib/access";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
-import { checkRequestQuotaForTenant, quotaErrorResponse, trackRequest } from "@/lib/quota";
+import { checkRequestQuotaForTenant, isQuotaError, quotaErrorResponse, trackRequest } from "@/lib/quota";
 import { logger } from "@/lib/logger";
 
 /**
@@ -20,6 +20,9 @@ import { logger } from "@/lib/logger";
  */
 
 const PUBLIC_API_PREFIXES = ["/api/auth", "/api/docs"];
+// The OpenAPI document is a static contract (no tenant data) and must be fetchable
+// without credentials so external tooling can read it.
+const PUBLIC_API_EXACT = ["/api/v1/openapi.json"];
 
 const RATE_LIMIT_PER_MINUTE = Math.max(1, parseInt(process.env.RATE_LIMIT_PER_MINUTE || "120", 10));
 const AUTH_RATE_LIMIT_PER_15MIN = Math.max(1, parseInt(process.env.AUTH_RATE_LIMIT_PER_15MIN || "10", 10));
@@ -46,7 +49,24 @@ function presentApiKey(request: NextRequest): string | null {
     return null;
 }
 
+function isV1(pathname: string): boolean {
+    return pathname.startsWith("/api/v1");
+}
+
+/**
+ * Error envelope:
+ *   legacy/dashboard routes keep `{ status:false, code, message, error }`;
+ *   `/api/v1` answers with the public API envelope `{ error:{code,message}, request_id }`.
+ */
+function errorBody(pathname: string, code: string, message: string, request_id?: string): Record<string, unknown> {
+    if (isV1(pathname)) {
+        return { error: { code, message }, request_id: request_id ?? nodeCrypto.randomUUID() };
+    }
+    return { status: false, code, message, error: message };
+}
+
 function limitResponse(
+    pathname: string,
     limit: number,
     remaining: number,
     resetAt: number,
@@ -60,10 +80,10 @@ function limitResponse(
         "X-RateLimit-Reset": String(Math.ceil(resetAt / 1000)),
         "Retry-After": String(retryAfterSec),
     });
-    return new NextResponse(
-        JSON.stringify({ status: false, code: "rate_limited", message, error: message, requestId: null }),
-        { status: 429, headers }
-    );
+    return new NextResponse(JSON.stringify(errorBody(pathname, "rate_limited", message)), {
+        status: 429,
+        headers,
+    });
 }
 
 /** IP-only throttling for credential endpoints (login/register). */
@@ -86,7 +106,7 @@ function protectCredentialEndpoint(request: NextRequest, pathname: string): Next
     if (result.allowed) return null;
 
     logger.warn("Proxy", `Rate limit hit for ${label} from ${ip}`);
-    return limitResponse(result.limit, result.remaining, result.resetAt, result.retryAfterSec, "Too many attempts");
+    return limitResponse(pathname, result.limit, result.remaining, result.resetAt, result.retryAfterSec, "Too many attempts");
 }
 
 export async function proxy(request: NextRequest) {
@@ -101,7 +121,9 @@ export async function proxy(request: NextRequest) {
         const credentialGuard = protectCredentialEndpoint(request, pathname);
         if (credentialGuard) return credentialGuard;
 
-        const isPublic = PUBLIC_API_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+        const isPublic =
+            PUBLIC_API_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`)) ||
+            PUBLIC_API_EXACT.includes(pathname);
         if (isPublic) {
             return NextResponse.next();
         }
@@ -113,7 +135,7 @@ export async function proxy(request: NextRequest) {
         // Per-credential rate limit (applies before any DB work so invalid keys cannot hammer the DB).
         const keyed = consumeRateLimit(credentialId, RATE_LIMIT_PER_MINUTE, 60 * 1000);
         if (!keyed.allowed) {
-            return limitResponse(keyed.limit, keyed.remaining, keyed.resetAt, keyed.retryAfterSec);
+            return limitResponse(pathname, keyed.limit, keyed.remaining, keyed.resetAt, keyed.retryAfterSec);
         }
 
         try {
@@ -121,7 +143,7 @@ export async function proxy(request: NextRequest) {
 
             if (!result.ok) {
                 return NextResponse.json(
-                    { status: false, code: result.code, message: result.message, error: result.message },
+                    errorBody(pathname, result.code, result.message),
                     {
                         status: result.status,
                         headers: {
@@ -142,10 +164,16 @@ export async function proxy(request: NextRequest) {
             headers.set("x-woohub-scopes", [...result.context.permissions].join(" "));
 
             // Public API quota (plan request limit) — /api/v1 only, never the dashboard routes.
-            if (pathname.startsWith("/api/v1")) {
+            if (isV1(pathname)) {
                 try {
                     await checkRequestQuotaForTenant(result.context.tenantId);
                 } catch (error) {
+                    if (isQuotaError(error)) {
+                        return NextResponse.json(
+                            errorBody(pathname, error.code, error.message, result.context.requestId),
+                            { status: error.status }
+                        );
+                    }
                     const mapped = quotaErrorResponse(error);
                     if (mapped) return mapped;
                     throw error;
@@ -162,7 +190,7 @@ export async function proxy(request: NextRequest) {
             // Fail closed: never let an unverified request reach a handler.
             logger.error("Proxy", `Authentication pipeline failed for ${pathname}:`, error);
             return NextResponse.json(
-                { status: false, code: "auth_unavailable", message: "Authentication unavailable", error: "Unauthorized" },
+                errorBody(pathname, "auth_unavailable", "Authentication unavailable"),
                 { status: 401 }
             );
         }

@@ -48,6 +48,16 @@ Identidade derivada do handshake (cookie JWT ou API key). Nada de `userId`/`tena
 | API key (full) | exibida 1x na criação; só o hash é persistido |
 | Webhook secret | coluna `Webhook.secret` (uso interno de HMAC) |
 
+## API pública `/api/v1`
+
+- Envelope único: sucesso `{ data, meta? }`, erro `{ error: { code, message }, request_id }`
+  (`src/lib/v1/http.ts`). O proxy usa o mesmo envelope para 401/403/429/cota em `/api/v1`.
+- Escopo exigido por rota em `src/lib/access.ts:requiredScopeFor`; instância acessada
+  por `src/lib/v1/instance.ts` (`id` ou `session_id`) com `canAccessSession`.
+- Rotas: `/api/v1`, `openapi.json`, `usage`, `instances[...]`, `webhooks[...]`.
+  Documentação: `GET /api/v1/openapi.json` (OpenAPI 3.1 pt-BR, público).
+- Envio de texto é síncrono; mídia por URL responde 202 e vai para a fila `MessageJob`.
+
 ## Limites conhecidos (declarados, não mascarados)
 
 - Rate limit em memória → suporta **réplica única** (topologia MVP).

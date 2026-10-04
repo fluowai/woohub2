@@ -54,3 +54,31 @@ curl -s -X POST localhost:3000/api/sessions -H "Content-Type: application/json" 
 
 Esperado: sem assinatura → modo piloto (sem limite); com assinatura → 402/403 com
 `code: quota_exceeded` ou `subscription_inactive`.
+
+## Smoke da API pública (`/api/v1`)
+
+```bash
+# documento do contrato (público, sem credencial)
+curl -s localhost:3000/api/v1/openapi.json | head -c 200
+# metadados + uso (exige chave ou sessão)
+curl -s localhost:3000/api/v1        -H "Authorization: Bearer $WOHUB_KEY"
+curl -s localhost:3000/api/v1/usage  -H "Authorization: Bearer $WOHUB_KEY"
+# instâncias
+curl -s localhost:3000/api/v1/instances -H "Authorization: Bearer $WOHUB_KEY"
+curl -s -X POST localhost:3000/api/v1/instances -H "Authorization: Bearer $WOHUB_KEY" \
+  -H "Content-Type: application/json" -d '{"name":"Vendas"}'
+curl -s -X POST localhost:3000/api/v1/instances/$ID/actions \
+  -H "Authorization: Bearer $WOHUB_KEY" -H "Content-Type: application/json" \
+  -d '{"action":"start"}'
+# envio: texto (200 síncrono) e mídia (202 na fila)
+curl -s -X POST localhost:3000/api/v1/instances/$ID/messages \
+  -H "Authorization: Bearer $WOHUB_KEY" -H "Content-Type: application/json" \
+  -d '{"to":"5511999999999","text":"Olá"}'
+curl -s -i -X POST localhost:3000/api/v1/instances/$ID/messages \
+  -H "Authorization: Bearer $WOHUB_KEY" -H "Content-Type: application/json" \
+  -d '{"to":"5511999999999","media_url":"https://exemplo.com/foto.png"}'
+```
+
+Esperado: envelope `{error:{code,message},request_id}` em 401 (chave inválida),
+403 (`insufficient_scope`), 409 (`instance_not_connected`), 402/403 (cota),
+429 (rate limit, com `Retry-After`). Chave sem o escopo certo nunca passa.

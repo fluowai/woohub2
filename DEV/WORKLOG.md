@@ -181,3 +181,55 @@ Webhooks confiáveis (entrega durável):
 Verificação: `tsc` ok, `build` ok, `lint` **464 problemas (292 errors, 172 warnings)**
 (queda vinda da remoção de `cron.ts`) — sem regressão.
 **Não executado**: teste com banco real (sem MySQL/Docker no ambiente).
+
+## Fase 5 — API pública `/api/v1` + OpenAPI pt-BR
+
+Envelope único (`src/lib/v1/http.ts`):
+
+- Sucesso `{ data, meta? }`; erro `{ error: { code, message, details? }, request_id }`.
+- `v1ErrorResponse` mapeia `HttpError` (400/401/403/404/409/422), `QuotaError`
+  (402/403), `ZodError` (400 `validation_error`) e qualquer resto em 500
+  `internal_error` (logado, nunca vazado). Nenhuma rota v1 devolve 200 com falha.
+- `src/proxy.ts` passa a responder **401/403/429/cota** no mesmo envelope quando o
+  caminho é `/api/v1` (o painel continua no formato legado), e o documento OpenAPI
+  ficou público (só ele, sem dados de tenant).
+
+Rotas entregues (12 arquivos, todas com escopo exigido em `requiredScopeFor`):
+
+| Rota | Método | Escopo |
+|---|---|---|
+| `/api/v1` | GET | — (info: versão, escopos, limites, códigos de erro) |
+| `/api/v1/openapi.json` | GET | público |
+| `/api/v1/usage` | GET | `instances:read` (modo, plano, limites, uso) |
+| `/api/v1/instances` | GET/POST | `instances:read` / `instances:write` |
+| `/api/v1/instances/{id}` | GET/DELETE | `instances:read` / `instances:write` (remoção só do dono, auditada) |
+| `/api/v1/instances/{id}/qr` | GET | `instances:read` (QR bruto + base64) |
+| `/api/v1/instances/{id}/actions` | POST | `instances:write` (`start/stop/restart/logout/pair`) |
+| `/api/v1/instances/{id}/messages` | GET/POST | `messages:read` / `messages:send` |
+| `/api/v1/instances/{id}/contacts` | GET | `contacts:read` |
+| `/api/v1/webhooks` | GET/POST | `webhooks:read` / `webhooks:write` |
+| `/api/v1/webhooks/{id}` | GET/PATCH/DELETE | `webhooks:read` / `webhooks:write` |
+| `/api/v1/webhooks/{id}/logs` | GET | `webhooks:read` |
+
+Comportamentos relevantes:
+
+- `src/lib/v1/instance.ts` resolve a instância por `id` **ou** `session_id`, confere
+  acesso (`canAccessSession`) e normaliza o destino (`5511...` → `@s.whatsapp.net`).
+- Envio de **texto** é síncrono; envio de **mídia por URL** devolve **202 + `job_id`**
+  e vai para a fila `MessageJob` (download com SSRF no worker, cota conferida de novo
+  na entrega). Instância desconectada → 409 `instance_not_connected`.
+- Webhooks: escopo por empresa, `secret` nunca sai na resposta (só
+  `secret_configured`), eventos validados contra `WEBHOOK_EVENT_TYPES` (fonte única
+  em `src/lib/webhook.ts`), URLs só http/https.
+- Chave **vinculada a uma instância**: não cria instâncias (`403`) e o webhook criado
+  por ela é forçado a apontar para a própria instância (fecha buraco do binding que
+  só olha o caminho).
+- `GET /api/v1/openapi.json` é servido por `src/lib/v1/openapi.ts` — OpenAPI 3.1 em
+  português, com envelope, códigos de erro, escopos e exemplos.
+- Correção: `/api/messages/[sessionId]/[jid]/send` passava a `message` como string
+  para `ChatService.sendTextMessage`, que espera `{ text }` — o envio pela API legada
+  era corrompido pelo spread. Corrigido (a ação do painel já usava `{ text }`).
+
+Verificação: `tsc` ok, `build` ok (12 rotas `/api/v1*` registradas), `lint` **464
+problemas (292 errors, 172 warnings)** — código novo com `eslint` limpo.
+**Não executado**: chamada HTTP real contra banco (sem MySQL/Docker no ambiente).

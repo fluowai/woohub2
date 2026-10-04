@@ -29,8 +29,8 @@ export async function POST(
             return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session", error: "Forbidden - Cannot access this session" }, { status: 403 });
         }
 
-        // Send Message using ChatService
-        const result = await ChatService.sendTextMessage(sessionId, jid, message, mentions, quotedMessageId);
+        // Send Message using ChatService (payload must be an object: { text })
+        const result = await ChatService.sendTextMessage(sessionId, jid, { text: message }, mentions, quotedMessageId);
 
         return NextResponse.json({ status: true, message: "Message sent successfully", data: result });
     } catch (error: any) {
