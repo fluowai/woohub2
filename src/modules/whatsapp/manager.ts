@@ -1,8 +1,10 @@
-import { prisma } from "@/lib/prisma";
+﻿import { prisma } from "@/lib/prisma";
 import { WhatsAppInstance } from "./instance";
 import { Server } from "socket.io";
 import { initScheduler } from "@/lib/cron";
 import { logger } from "@/lib/logger";
+import nodeCrypto from "node:crypto";
+import { emitToInstance } from "@/lib/realtime";
 
 export class WhatsAppManager {
     private static instance: WhatsAppManager;
@@ -40,7 +42,7 @@ export class WhatsAppManager {
                 where: { sessionId: session.sessionId }
             });
             if (authCount === 0) {
-                // No credentials — session was created but never connected
+                // No credentials â€” session was created but never connected
                 // Set to STOPPED so it doesn't spam reconnect
                 await prisma.session.update({
                     where: { sessionId: session.sessionId },
@@ -58,7 +60,7 @@ export class WhatsAppManager {
         logger.success("Manager", `Loaded ${started} sessions (${sessions.length - started} idle skipped).`);
     }
 
-    async createSession(userId: string, name: string, customSessionId?: string) {
+    async createSession(userId: string, name: string, customSessionId?: string, tenantId?: string) {
         if (!this.io && (global as any).io) {
             this.io = (global as any).io;
         }
@@ -68,11 +70,19 @@ export class WhatsAppManager {
             throw new Error("Socket.IO not initialized");
         }
 
-        const sessionId = customSessionId || Math.random().toString(36).substring(7);
+        const sessionId = customSessionId || nodeCrypto.randomBytes(9).toString("base64url");
+
+        // Always resolve the owning company so every instance is tenant-isolated.
+        let ownerTenantId = tenantId ?? null;
+        if (!ownerTenantId) {
+            const membership = await prisma.tenantMember.findFirst({ where: { userId } });
+            ownerTenantId = membership?.tenantId ?? null;
+        }
 
         const session = await prisma.session.create({
             data: {
                 userId,
+                tenantId: ownerTenantId,
                 name,
                 sessionId,
                 status: "STOPPED", // Default: stopped, user must click Start
@@ -86,7 +96,7 @@ export class WhatsAppManager {
             }
         });
 
-        // Don't init socket — user clicks Start manually
+        // Don't init socket â€” user clicks Start manually
         logger.info("Manager", `Session ${sessionId} created (STOPPED). User must click Start to connect.`);
         return session;
     }
@@ -118,7 +128,7 @@ export class WhatsAppManager {
         if (instance) {
             await instance.shutdown();
             instance.status = "STOPPED";
-            this.io?.to(sessionId).emit("connection.update", { status: "STOPPED", qr: null });
+            emitToInstance(this.io, sessionId, "connection.update", { status: "STOPPED", qr: null });
             await prisma.session.update({
                 where: { sessionId },
                 data: { status: "STOPPED" }

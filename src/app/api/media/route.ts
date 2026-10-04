@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readdir, stat, unlink } from "fs/promises";
 import path from "path";
 import { existsSync } from "fs";
-import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { getAuthenticatedUser, canAccessSession, getAccessibleSessions } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 
 // Media directory — private, NOT in public/
@@ -38,17 +38,15 @@ export async function GET(request: NextRequest) {
 
         const isSuperAdmin = user.role === "SUPERADMIN";
 
-        // Get sessions with owner info
-        const sessions = isSuperAdmin
-            ? await prisma.session.findMany({
-                include: { user: { select: { id: true, name: true, email: true } } },
-                orderBy: { createdAt: "desc" },
-            })
-            : await prisma.session.findMany({
-                where: { userId: user.id },
-                include: { user: { select: { id: true, name: true, email: true } } },
-                orderBy: { createdAt: "desc" },
-            });
+        // Tenant-scoped sessions the caller may access (STAFF: owned + assigned only)
+        const accessibleSessions = await getAccessibleSessions(user.id, user.role);
+        const accessibleIds = new Set(accessibleSessions.map(s => s.id));
+
+        const sessions = await prisma.session.findMany({
+            where: isSuperAdmin ? {} : { id: { in: [...accessibleIds] } },
+            include: { user: { select: { id: true, name: true, email: true } } },
+            orderBy: { createdAt: "desc" },
+        });
 
         // Map sessionId -> session with owner
         const sessionMap = new Map(sessions.map(s => [s.sessionId, {

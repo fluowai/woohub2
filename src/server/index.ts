@@ -36,11 +36,13 @@ app.prepare().then(() => {
     }
   });
 
+  const allowedOrigins = resolveAllowedOrigins(hostname, port);
+
   const io = new Server(server, {
     path: "/api/socket/io",
     addTrailingSlash: false,
     cors: {
-      origin: "*",
+      origin: allowedOrigins,
       methods: ["GET", "POST"]
     }
   });
@@ -63,41 +65,106 @@ app.prepare().then(() => {
 
   server.listen(port, () => {
     logger.banner(pkg.name.toUpperCase(), pkg.version, port);
-
-    // --- WA-AKG Monitor Heartbeat ---
-    // Sends a ping every 30 seconds to the monitoring server
-    // Hanya untuk dokumentasi ada berapa layanan WA-AKG yang aktif. 
-    // Hanya untuk memantau tidak bermaksud lain. Semakin banyak WA-AKG yang aktif = semakin semangat saya mengembangkan WA-AKG ini.
-    // Terima kasih telah menggunakan WA-AKG.
-    const MONITOR_URL = "https://api-wa-akg.aikeigroup.net/api/ping";
-    const APP_URL = process.env.BASE_URL || `http://${hostname}:${port}`; // Kamu bisa mengganti ini untuk keamanan WA-AKG kamu. Tapi jangan menghapus semua Heartbeat nya. Terima Kasih.
-    const APP_NAME = process.env.APP_NAME || "WA-AKG";
-
-    const sendHeartbeat = async () => {
-      try {
-        await fetch(MONITOR_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            appUrl: APP_URL,
-            appName: APP_NAME,
-            isBackend: true,
-            systemInfo: {
-              platform: process.platform,
-              nodeVersion: process.version,
-              memoryUsage: Math.round(process.memoryUsage().rss / 1024 / 1024) + "MB"
-            }
-          }),
-        });
-      } catch (error) {
-        // Silently fail to not disturb the main application
-      }
-    };
-
-    // Initial ping
-    sendHeartbeat();
-    // Interval ping
-    setInterval(sendHeartbeat, 30000);
-    // --------------------------------
+    startHeartbeat(hostname, port);
   });
 });
+
+/**
+ * Socket.IO origin allow-list.
+ * Configure with SOCKET_ALLOWED_ORIGINS (comma separated). Defaults to BASE_URL plus
+ * local development origins. "*" is intentionally never used.
+ */
+function resolveAllowedOrigins(
+  hostname: string,
+  port: number
+): (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => void {
+  const configured = process.env.SOCKET_ALLOWED_ORIGINS;
+  const origins = (configured ? configured.split(",") : [])
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+  if (origins.length === 0) {
+    origins.push(
+      process.env.BASE_URL || `http://${hostname}:${port}`,
+      `http://localhost:${port}`,
+      `http://127.0.0.1:${port}`
+    );
+  }
+
+  const allowList = new Set(origins.map((o) => o.replace(/\/$/, "")));
+
+  return (origin, cb) => {
+    // Non-browser clients (no Origin header) are allowed; authentication still applies.
+    if (!origin) return cb(null, true);
+    cb(null, allowList.has(origin.replace(/\/$/, "")));
+  };
+}
+
+/**
+ * Optional external heartbeat (telemetry).
+ *
+ * Disabled by default. Enable with TELEMETRY_ENABLED=true (or the "telemetryEnabled"
+ * flag in SystemConfig) and optionally override TELEMETRY_URL.
+ *
+ * Data sent (and nothing else): product name, product version, deployment URL,
+ * platform, Node version and RSS memory in MB. No customer data, tenant data,
+ * credentials, QR codes or message content is ever transmitted.
+ *
+ * Credits: heartbeat mechanism inherited from WA-AKG by mrifqidaffaaditya (MIT).
+ */
+async function isHeartbeatEnabled(): Promise<boolean> {
+  if (process.env.TELEMETRY_ENABLED) {
+    return process.env.TELEMETRY_ENABLED === "true";
+  }
+  try {
+    const { prisma } = await import("../lib/prisma");
+    const config = await prisma.systemConfig.findUnique({ where: { id: "default" } });
+    return config?.telemetryEnabled === true;
+  } catch {
+    return false;
+  }
+}
+
+function startHeartbeat(hostname: string, port: number): void {
+  const MONITOR_URL = process.env.TELEMETRY_URL || "https://api-wa-akg.aikeigroup.net/api/ping";
+  const APP_URL = process.env.BASE_URL || `http://${hostname}:${port}`;
+  const APP_NAME = process.env.APP_NAME || pkg.name;
+  const VERSION = pkg.version;
+
+  let enabled: boolean | null = null;
+
+  const sendHeartbeat = async () => {
+    if (enabled === null) {
+      enabled = await isHeartbeatEnabled();
+      if (!enabled) {
+        logger.info("Telemetry", "External heartbeat disabled (default).");
+        return;
+      }
+      logger.info("Telemetry", `External heartbeat enabled -> ${MONITOR_URL}`);
+    }
+    if (!enabled) return;
+
+    try {
+      await fetch(MONITOR_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appUrl: APP_URL,
+          appName: APP_NAME,
+          appVersion: VERSION,
+          isBackend: true,
+          systemInfo: {
+            platform: process.platform,
+            nodeVersion: process.version,
+            memoryUsage: Math.round(process.memoryUsage().rss / 1024 / 1024) + "MB"
+          }
+        }),
+      });
+    } catch {
+      // Telemetry must never disturb the application.
+    }
+  };
+
+  sendHeartbeat();
+  setInterval(sendHeartbeat, 30000);
+}

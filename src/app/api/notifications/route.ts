@@ -1,6 +1,7 @@
-
+﻿
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { emitToUserRoom } from "@/lib/realtime";
 import { NextResponse } from "next/server";
 
 export async function GET(req: Request) {
@@ -51,7 +52,7 @@ export async function POST(req: Request) {
             const io = (global as any).io;
             if (io) {
                 allUsers.forEach((u: { id: string }) => {
-                    io.to(`user:${u.id}`).emit('notification:new', {
+                    emitToUserRoom(io, u.id, 'notification:new', {
                         userId: u.id,
                         title,
                         message,
@@ -79,7 +80,7 @@ export async function POST(req: Request) {
             // Emit Socket.IO event
             const io = (global as any).io;
             if (io) {
-                io.to(`user:${targetUserId}`).emit('notification:new', {
+                emitToUserRoom(io, targetUserId, 'notification:new', {
                     id: notification.id,
                     userId: targetUserId,
                     title,

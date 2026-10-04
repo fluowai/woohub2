@@ -48,6 +48,27 @@ export async function POST(req: Request) {
             },
         });
 
+        // Every user starts with their own company (tenant) and an OWNER membership.
+        const { ensureTenantForUser } = await import("@/lib/access");
+        const tenant = await ensureTenantForUser({
+            id: newUser.id,
+            email: newUser.email,
+            name: newUser.name,
+            role: newUser.role,
+        });
+
+        await prisma.auditLog.create({
+            data: {
+                tenantId: tenant.tenantId,
+                actorUserId: newUser.id,
+                actorLabel: newUser.email,
+                actorType: "USER",
+                action: "auth.register",
+                resource: "user",
+                resourceId: newUser.id,
+            },
+        });
+
         return NextResponse.json({
             success: true,
             message: "User registered successfully",

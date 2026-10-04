@@ -16,6 +16,47 @@ enum Role {
   STAFF
 }
 
+// Tenant-scoped roles. Platform role stays on User.role (SUPERADMIN = platform admin).
+enum TenantRole {
+  OWNER
+  ADMIN
+  STAFF
+  BILLING
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+  CANCELED
+  EXPIRED
+}
+
+enum InvoiceStatus {
+  OPEN
+  PENDING
+  PAID
+  VOID
+  REFUNDED
+}
+
+enum PaymentEventStatus {
+  RECEIVED
+  PROCESSED
+  IGNORED
+  FAILED
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELED
+  DEAD
+}
+
 enum MessageType {
   TEXT
   IMAGE
@@ -41,7 +82,7 @@ model User {
   email     String   @unique
   password  String
   role      Role     @default(OWNER)
-  apiKey    String?  @unique // API Key for authentication
+  apiKey    String?  @unique // DEPRECATED: legacy plaintext key. Migrated to ApiKey (hashed) and never rewritten.
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
@@ -49,20 +90,251 @@ model User {
   webhooks  Webhook[]
   notifications Notification[]
   sessionAccesses SessionAccess[]
+  memberships TenantMember[]
+  apiKeysCreated ApiKey[] @relation("ApiKeyCreator")
+}
+
+// A company/workspace. All customer resources are isolated by tenant.
+model Tenant {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  status    String   @default("ACTIVE") // ACTIVE, SUSPENDED, CLOSED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members       TenantMember[]
+  apiKeys       ApiKey[]
+  sessions      Session[]
+  webhooks      Webhook[]
+  subscriptions Subscription[]
+  invoices      Invoice[]
+  usage         UsageCounter[]
+  auditLogs     AuditLog[]
+  messageJobs   MessageJob[]
+
+  @@index([status])
+}
+
+model TenantMember {
+  id        String     @id @default(cuid())
+  tenantId  String
+  userId    String
+  role      TenantRole @default(STAFF)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+  @@index([userId])
+}
+
+// Client-facing API keys. Only the hash is stored; the secret is shown once at creation.
+model ApiKey {
+  id          String    @id @default(cuid())
+  tenantId    String
+  publicId    String    @unique // public prefix used for identification/rotation (never a secret)
+  name        String
+  hash        String    @unique // sha256(full key)
+  scopes      String    @default("instances:read instances:write messages:read messages:send contacts:read webhooks:read webhooks:write")
+  instanceId  String?   // optional binding to a single Session.sessionId
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  lastUsedAt  DateTime?
+  createdById String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation("ApiKeyCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([tenantId, revokedAt])
+}
+
+model Plan {
+  id             String   @id @default(cuid())
+  code           String   @unique
+  name           String
+  description    String?  @db.Text
+  priceCents     Int      @default(0)
+  currency       String   @default("BRL")
+  period         String   @default("MONTHLY") // MONTHLY, YEARLY, ONE_TIME
+  maxInstances   Int      @default(1)
+  maxUsers       Int      @default(1)
+  requestLimit   Int      @default(1000) // requests per period
+  sendLimit      Int      @default(500)  // outbound messages per period
+  storageLimitMb Int      @default(100)
+  retentionDays  Int      @default(30)
+  features       Json?    // enabled feature flags
+  status         String   @default("ACTIVE") // ACTIVE, ARCHIVED
+  sort           Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  subscriptions Subscription[]
+
+  @@index([status])
+}
+
+model Subscription {
+  id                 String             @id @default(cuid())
+  tenantId           String
+  planId             String
+  status             SubscriptionStatus @default(TRIALING)
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  trialEndsAt        DateTime?
+  cancelAtPeriodEnd  Boolean            @default(false)
+  canceledAt         DateTime?
+  suspendedAt        DateTime?
+  graceEndsAt        DateTime? // configurable tolerance window
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan     Plan     @relation(fields: [planId], references: [id])
+  invoices Invoice[]
+
+  @@unique([tenantId])
+  @@index([status])
+}
+
+model Invoice {
+  id             String        @id @default(cuid())
+  tenantId       String
+  subscriptionId String?
+  number         String        @unique
+  amountCents    Int
+  currency       String        @default("BRL")
+  status         InvoiceStatus @default(OPEN)
+  dueAt          DateTime?
+  paidAt         DateTime?
+  externalId     String?       @unique // gateway charge id
+  description    String?       @db.Text
+  metadata       Json?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status])
+}
+
+// Provider-agnostic payment events. externalEventId unique => webhook deduplication.
+model PaymentEvent {
+  id              String             @id @default(cuid())
+  gateway         String             // e.g. "manual", "stripe", "mercadopago"
+  externalEventId String             @unique
+  type            String             // payment.succeeded, charge.refunded, ...
+  payload         Json?
+  status          PaymentEventStatus @default(RECEIVED)
+  invoiceId       String?
+  error           String?            @db.Text
+  receivedAt      DateTime           @default(now())
+  processedAt     DateTime?
+
+  @@index([status, receivedAt])
+}
+
+// Per-period usage counters (counted once, at the point of acceptance).
+model UsageCounter {
+  id        String   @id @default(cuid())
+  tenantId  String
+  periodKey String   // e.g. "2026-10" (billing period key)
+  metric    String   // "requests", "messages_sent", "instances"
+  value     Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, periodKey, metric])
+  @@index([tenantId, periodKey])
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  tenantId     String?
+  actorUserId  String?
+  actorLabel   String   // user email, api key publicId, or "system"
+  actorType    String   @default("USER") // USER, API_KEY, SYSTEM
+  action       String   // e.g. "session.create", "superadmin.access"
+  resource     String?
+  resourceId   String?
+  metadata     Json?
+  ip           String?
+  requestId    String?
+  createdAt    DateTime @default(now())
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([action, createdAt])
+}
+
+// Durable outbound job queue (transactional DB queue; single-replica MVP).
+model MessageJob {
+  id            String    @id @default(cuid())
+  tenantId      String
+  sessionPk     String    // Session.id (CUID)
+  instanceId    String    // Baileys sessionId
+  type          String    @default("send_message")
+  payload       Json
+  status        JobStatus @default(PENDING)
+  priority      Int       @default(100)
+  attempts      Int       @default(0)
+  maxAttempts   Int       @default(3)
+  availableAt   DateTime  @default(now())
+  lockedAt      DateTime?
+  lockedBy      String?
+  correlationId String?
+  lastError     String?   @db.Text
+  resultKey     String?   // WhatsApp message key id when accepted by the engine
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([status, availableAt])
+  @@index([instanceId, status, availableAt])
+  @@index([tenantId, createdAt])
+  @@index([correlationId])
+}
+
+// Idempotency records for public API write operations.
+model IdempotencyRecord {
+  id            String   @id @default(cuid())
+  tenantId      String
+  endpoint      String
+  key           String
+  requestHash   String
+  status        String   @default("IN_PROGRESS") // IN_PROGRESS, COMPLETED
+  responseCode  Int?
+  responseBody  Json?
+  createdAt     DateTime @default(now())
+  expiresAt     DateTime
+
+  @@unique([tenantId, endpoint, key])
+  @@index([expiresAt])
 }
 
 model Session {
   id          String    @id @default(cuid())
   userId      String
+  tenantId    String? // company that owns this instance (backfilled by scripts/migrate-tenancy.js)
   name        String    // e.g. "Marketing WA"
   sessionId   String    @unique // The unique ID used for Baileys auth
-  status      String    @default("DISCONNECTED") // CONNECTED, DISCONNECTED, ZOMBIE
+  status      String    @default("DISCONNECTED") // STOPPED, CONNECTING, QR_REQUIRED, CONNECTED, DISCONNECTED, LOGGED_OUT, ERROR, ZOMBIE
   qr          String?   @db.Text
   config      Json?     // Store instance specific config (e.g. "read_receipts": true)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant      Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   contacts    Contact[]
   messages    Message[]
   groups      Group[]
@@ -72,6 +344,8 @@ model Session {
   webhooks    Webhook[]
   botConfig   BotConfig?
   sessionAccesses SessionAccess[]
+
+  @@index([tenantId])
 }
 
 model Contact {
@@ -205,6 +479,7 @@ model AuthState {
 model Webhook {
   id          String   @id @default(cuid())
   userId      String
+  tenantId    String? // company that owns this webhook
   sessionId   String?  // Optional: specific session, null = all sessions
   name        String   // e.g. "My Server Webhook"
   url         String   // The webhook endpoint URL
@@ -215,8 +490,11 @@ model Webhook {
   updatedAt   DateTime @updatedAt
   
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   session     Session? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   logs        WebhookLog[]
+
+  @@index([tenantId])
 }
 
 // Webhook delivery logs — tracks every webhook request attempt
@@ -224,7 +502,10 @@ model WebhookLog {
   id                 String   @id @default(cuid())
   webhookId          String
   event              String   // The event that triggered this webhook
-  status             String   // SUCCESS, FAILED
+  eventId            String?  // Unique delivery/event id (deduplication + consumer idempotency)
+  attempt            Int      @default(1)
+  status             String   // SUCCESS, FAILED, PENDING (retry scheduled)
+  nextAttemptAt      DateTime?
   requestUrl         String   @db.Text
   requestHeaders     Json?
   requestBody        Json?
@@ -238,6 +519,7 @@ model WebhookLog {
 
   @@index([webhookId])
   @@index([webhookId, createdAt])
+  @@index([eventId])
 }
 
 enum AccessMode {
@@ -291,11 +573,14 @@ model BotConfig {
 
 model SystemConfig {
   id                 String   @id @default("default") // Singleton ID
-  appName            String   @default("WA-AKG")
+  appName            String   @default("Woohub")
   logoUrl            String?
   faviconUrl         String?
-  timezone           String   @default("Asia/Jakarta")
+  timezone           String   @default("America/Sao_Paulo")
   enableRegistration Boolean  @default(true)
+  // External telemetry (heartbeat). Off by default; never contains customer data.
+  telemetryEnabled   Boolean  @default(false)
+  telemetryUrl       String?
   
   updatedAt          DateTime @updatedAt
 }

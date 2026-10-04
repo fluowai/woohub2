@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+﻿import { prisma } from "@/lib/prisma";
 import type { WASocket, WAMessage, Contact } from "@whiskeysockets/baileys";
 import { normalizeMessageContent } from "@whiskeysockets/baileys";
 import { onMessageReceived, onMessageSent, dispatchWebhook, downloadAndSaveMedia } from "@/lib/webhook";
@@ -7,6 +7,7 @@ import { resolveToPhoneJid, isLidJid, normalizeJid } from "@/lib/jid-utils";
 
 import { Server } from "socket.io";
 import { logger } from "@/lib/logger";
+import { emitToInstance } from "@/lib/realtime";
 
 export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server | null) => {
     // Set start time for uptime command
@@ -39,7 +40,7 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
 
         // Emit to socket room for real-time frontend updates
         if (type === 'notify' || type === 'append') {
-            io?.to(sessionId).emit('message.upsert', { messages, type });
+            emitToInstance(io, sessionId, 'message.upsert', { messages, type });
         }
 
         // Ensure we have the database session ID
@@ -86,7 +87,7 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
                 timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp
             }));
             logger.debug("Socket", `Emitting message.update for ${serialized.length} messages in session ${sessionId}`);
-            io?.to(sessionId).emit('message.update', serialized);
+            emitToInstance(io, sessionId, 'message.update', serialized);
         }
     });
 
@@ -344,7 +345,7 @@ async function processAndSaveMessage(
                     where: { sessionId: dbSessionId, keyId: targetKeyId },
                     select: { content: true }
                 });
-                const preserved = (orig?.content || "") + "\n\n🛡️ [Deleted by sender — preserved]";
+                const preserved = (orig?.content || "") + "\n\nðŸ›¡ï¸ [Deleted by sender â€” preserved]";
                 await prisma.message.updateMany({
                     where: { sessionId: dbSessionId, keyId: targetKeyId },
                     data: { content: preserved }
@@ -354,7 +355,7 @@ async function processAndSaveMessage(
                     where: { sessionId: dbSessionId, keyId: targetKeyId }
                 });
                 if (updated) {
-                    io?.to(sessionId).emit("message.update", [{
+                    emitToInstance(io, sessionId, "message.update", [{
                         ...updated,
                         timestamp: updated.timestamp instanceof Date ? updated.timestamp.toISOString() : updated.timestamp
                     }]);

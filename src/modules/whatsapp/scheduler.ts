@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { waManager } from "./manager";
 import { logger } from "@/lib/logger";
+import { safeFetch } from "@/lib/security/ssrf";
 
 const checkScheduledMessages = async () => {
     try {
@@ -28,9 +29,9 @@ const checkScheduledMessages = async () => {
                         const url = msg.mediaUrl;
                         const type = msg.mediaType || 'image'; // Default to image if null
 
-                        const res = await fetch(url);
-                        if (!res.ok) throw new Error(`Failed to fetch media from URL: ${res.status} ${res.statusText}`);
-                        const buffer = Buffer.from(await res.arrayBuffer());
+                        const res = await safeFetch(url, { method: "GET", timeoutMs: 30000, maxBytes: 16 * 1024 * 1024 });
+                        if (!res.ok) throw new Error(`Failed to fetch media from URL: ${res.status}`);
+                        const buffer = res.buffer;
 
                         if (type === 'video') {
                             content = { video: buffer, caption: msg.content };

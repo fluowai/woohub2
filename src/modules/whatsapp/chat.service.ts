@@ -3,6 +3,25 @@ import { normalizeJid } from "@/lib/jid-utils";
 import { waManager } from "@/modules/whatsapp/manager";
 import { onMessageSent } from "@/lib/webhook";
 import Sticker from "wa-sticker-formatter";
+import { safeFetch } from "@/lib/security/ssrf";
+
+const MAX_MEDIA_BYTES = 16 * 1024 * 1024;
+
+/**
+ * Downloads a media URL with SSRF validation (private/internal destinations rejected),
+ * manual redirect re-validation and size/time limits.
+ */
+async function fetchMediaBuffer(url: string): Promise<Buffer> {
+    const result = await safeFetch(url, {
+        method: "GET",
+        maxBytes: MAX_MEDIA_BYTES,
+        timeoutMs: 30000,
+    });
+    if (!result.ok) {
+        throw new Error(`HTTP ${result.status} when fetching media`);
+    }
+    return result.buffer;
+}
 
 export class ChatService {
     /**
@@ -250,9 +269,7 @@ export class ChatService {
         if (msgPayload.sticker && (msgPayload.sticker.url || typeof msgPayload.sticker === 'string')) {
             const url = msgPayload.sticker.url || msgPayload.sticker;
             try {
-                const res = await fetch(url);
-                if (!res.ok) throw new Error(`Failed to fetch sticker media`);
-                const buffer = await res.arrayBuffer();
+                const buffer = await fetchMediaBuffer(url);
                 const sticker = new Sticker(Buffer.from(buffer), {
                     pack: msgPayload.sticker.pack || "WA-AKG Bot",
                     author: msgPayload.sticker.author || "WA-AKG",
@@ -267,9 +284,7 @@ export class ChatService {
 
         if (msgPayload.image && typeof msgPayload.image === 'object' && msgPayload.image.url) {
             try {
-                const res = await fetch(msgPayload.image.url);
-                if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-                const buffer = await res.arrayBuffer();
+                const buffer = await fetchMediaBuffer(msgPayload.image.url);
                 msgPayload.image = Buffer.from(buffer);
             } catch (e: any) {
                 throw new Error(`Failed to fetch image from URL: ${e.message}`);
@@ -278,9 +293,7 @@ export class ChatService {
 
         if (msgPayload.video && typeof msgPayload.video === 'object' && msgPayload.video.url) {
             try {
-                const res = await fetch(msgPayload.video.url);
-                if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-                const buffer = await res.arrayBuffer();
+                const buffer = await fetchMediaBuffer(msgPayload.video.url);
                 msgPayload.video = Buffer.from(buffer);
             } catch (e: any) {
                 throw new Error(`Failed to fetch video from URL: ${e.message}`);
@@ -289,9 +302,7 @@ export class ChatService {
 
         if (msgPayload.document && typeof msgPayload.document === 'object' && msgPayload.document.url) {
             try {
-                const res = await fetch(msgPayload.document.url);
-                if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-                const buffer = await res.arrayBuffer();
+                const buffer = await fetchMediaBuffer(msgPayload.document.url);
                 msgPayload.document = Buffer.from(buffer);
             } catch (e: any) {
                 throw new Error(`Failed to fetch document from URL: ${e.message}`);
@@ -300,9 +311,7 @@ export class ChatService {
 
         if (msgPayload.audio && typeof msgPayload.audio === 'object' && msgPayload.audio.url) {
             try {
-                const res = await fetch(msgPayload.audio.url);
-                if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-                const buffer = await res.arrayBuffer();
+                const buffer = await fetchMediaBuffer(msgPayload.audio.url);
                 msgPayload.audio = Buffer.from(buffer);
             } catch (e: any) {
                 throw new Error(`Failed to fetch audio from URL: ${e.message}`);

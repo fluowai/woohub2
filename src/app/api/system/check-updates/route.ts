@@ -1,4 +1,5 @@
-import { prisma } from "@/lib/prisma";
+﻿import { prisma } from "@/lib/prisma";
+import { emitToUserRoom } from "@/lib/realtime";
 import { getLatestRelease } from "@/lib/github";
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/api-auth";
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
         // Emit Socket.IO event
         const io = (global as any).io;
         if (io) {
-            io.to(`user:${session.user.id}`).emit('notification:new', {
+            emitToUserRoom(io, session.user.id, 'notification:new', {
                 id: notification.id,
                 userId: session.user.id,
                 title,

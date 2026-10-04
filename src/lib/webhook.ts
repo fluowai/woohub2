@@ -7,6 +7,7 @@ import pino from "pino";
 import { resolveToPhoneJidBySessionId as resolveToPhoneJid, isLidJid } from "./jid-utils";
 import { logger } from "./logger";
 import { waManager } from "@/modules/whatsapp/manager";
+import { assertSafeUrl, safeFetch, SsrfError } from "./security/ssrf";
 
 // Event types that can trigger webhooks
 export type WebhookEventType =
@@ -23,14 +24,19 @@ export type WebhookEventType =
     | "test";
 
 interface WebhookPayload {
+    /** Unique id for this event — consumers can deduplicate on it. */
+    id: string;
     event: WebhookEventType;
     sessionId: string;
+    /** Company that owns the webhook/instance (never expose to other tenants). */
+    tenantId: string | null;
     timestamp: string;
     data: any;
 }
 
 /**
- * Dispatch webhook to all matching endpoints
+ * Dispatch webhook to all matching endpoints.
+ * Only webhooks belonging to the same company as the instance are considered.
  */
 export async function dispatchWebhook(
     sessionId: string,
@@ -38,10 +44,10 @@ export async function dispatchWebhook(
     data: any
 ) {
     try {
-        // Get the session to find the userId
+        // Get the session to find the tenant
         const session = await prisma.session.findUnique({
             where: { sessionId },
-            select: { id: true, userId: true }
+            select: { id: true, userId: true, tenantId: true }
         });
 
         if (!session) {
@@ -49,29 +55,24 @@ export async function dispatchWebhook(
             return;
         }
 
-        // Find all active webhooks for this user/session, shared access, and superadmins
+        // Users with access to this instance INSIDE the company.
         const accesses = await prisma.sessionAccess.findMany({
             where: { sessionId: session.id },
             select: { userId: true }
         });
-        
-        const superadmins = await prisma.user.findMany({
-            where: { role: 'SUPERADMIN' },
-            select: { id: true }
-        });
-        
-        const userIds = [
-            session.userId, 
-            ...accesses.map(a => a.userId),
-            ...superadmins.map(s => s.id)
-        ];
+
+        const userIds = [session.userId, ...accesses.map(a => a.userId)];
 
         const webhooks = await prisma.webhook.findMany({
             where: {
                 isActive: true,
                 OR: [
-                    { sessionId: null, userId: { in: userIds } }, // Global webhooks
-                    { sessionId: session.id } // Session-specific webhooks
+                    { sessionId: session.id },
+                    {
+                        sessionId: null,
+                        userId: { in: userIds },
+                        ...(session.tenantId ? { tenantId: session.tenantId } : {})
+                    }
                 ]
             }
         });
@@ -79,8 +80,10 @@ export async function dispatchWebhook(
         if (webhooks.length === 0) return;
 
         const payload: WebhookPayload = {
+            id: crypto.randomUUID(),
             event,
             sessionId,
+            tenantId: session.tenantId,
             timestamp: new Date().toISOString(),
             data: normalizePayloadData(event, data) // Normalize data before sending
         };
@@ -94,7 +97,7 @@ export async function dispatchWebhook(
             }
 
             // Send webhook in background
-            sendWebhookRequest(webhook.url, payload, webhook.secret, webhook.id).catch(err => {
+            deliverWebhook(webhook, payload).catch(err => {
                 logger.error("Webhook", `Webhook ${webhook.id} failed:`, err);
             });
         }
@@ -130,16 +133,62 @@ function jsonReplacer(key: string, value: any) {
 }
 
 /**
- * Send HTTP POST request to webhook endpoint
- * Records delivery log to database
+ * Delivery policy: limited attempts with exponential backoff.
+ * Every attempt (success or failure) is recorded with its own log row, so re-delivery is auditable.
+ * The event id is stable across attempts, so consumers can deduplicate.
  */
-async function sendWebhookRequest(url: string, payload: WebhookPayload, secret?: string | null, webhookId?: string) {
+const WEBHOOK_MAX_ATTEMPTS = Math.max(1, parseInt(process.env.WEBHOOK_MAX_ATTEMPTS || "3", 10));
+const WEBHOOK_BACKOFF_MS = [1000, 5000, 25000];
+const WEBHOOK_TIMEOUT_MS = Math.max(1000, parseInt(process.env.WEBHOOK_TIMEOUT_MS || "10000", 10));
+
+/**
+ * Delivers a payload to a single webhook, retrying with backoff and recording each attempt.
+ */
+async function deliverWebhook(
+    webhook: { id: string; url: string; secret: string | null },
+    payload: WebhookPayload
+): Promise<void> {
+    let lastError: string | null = null;
+
+    for (let attempt = 1; attempt <= WEBHOOK_MAX_ATTEMPTS; attempt++) {
+        try {
+            await sendWebhookRequest(webhook.url, payload, webhook.secret, webhook.id, attempt);
+            return;
+        } catch (error) {
+            lastError = error instanceof Error ? error.message : String(error);
+            if (attempt < WEBHOOK_MAX_ATTEMPTS) {
+                const delay = WEBHOOK_BACKOFF_MS[Math.min(attempt - 1, WEBHOOK_BACKOFF_MS.length - 1)];
+                await new Promise((resolve) => setTimeout(resolve, delay));
+            }
+        }
+    }
+
+    logger.error(
+        "Webhook",
+        `Delivery ${payload.id} to webhook ${webhook.id} failed after ${WEBHOOK_MAX_ATTEMPTS} attempt(s): ${lastError}`
+    );
+}
+
+/**
+ * Send HTTP POST request to webhook endpoint (single attempt).
+ * Validates the destination against SSRF rules, refuses redirects and records the attempt.
+ */
+async function sendWebhookRequest(
+    url: string,
+    payload: WebhookPayload,
+    secret?: string | null,
+    webhookId?: string,
+    attempt = 1
+) {
     const startedAt = Date.now();
     const body = JSON.stringify(payload, jsonReplacer);
 
     const headers: Record<string, string> = {
         "Content-Type": "application/json",
-        "User-Agent": "WA-AKG-Webhook/1.0"
+        "User-Agent": "Woohub-Webhook/1.0",
+        "X-Webhook-Id": payload.id,
+        "X-Webhook-Event": payload.event,
+        "X-Webhook-Timestamp": payload.timestamp
     };
 
     // Add HMAC signature if secret is provided
@@ -151,44 +200,50 @@ async function sendWebhookRequest(url: string, payload: WebhookPayload, secret?:
         headers["X-Webhook-Signature"] = `sha256=${signature}`;
     }
 
-    let response: Response;
+    let status: number | null = null;
     let responseBody: string | undefined;
     let errorMessage: string | undefined;
 
     try {
-        response = await fetch(url, {
+        // SSRF validation + no redirects + byte/time caps.
+        const result = await safeFetch(url, {
             method: "POST",
             headers,
             body,
-            signal: AbortSignal.timeout(10000) // 10 second timeout
+            timeoutMs: WEBHOOK_TIMEOUT_MS,
+            maxRedirects: 0,
+            maxBytes: 4096
         });
 
-        responseBody = await response.text().catch(() => undefined);
-        if (responseBody && responseBody.length > 1024) {
-            responseBody = responseBody.substring(0, 1024);
-        }
+        status = result.status;
+        responseBody = result.body && result.body.length > 1024 ? result.body.substring(0, 1024) : result.body;
 
-        if (!response.ok) {
-            errorMessage = `Webhook returned ${response.status}: ${response.statusText}`;
+        if (result.status >= 300 && result.status < 400) {
+            errorMessage = `Webhook redirects are not allowed (got ${result.status})`;
+        } else if (!result.ok) {
+            errorMessage = `Webhook returned ${result.status}`;
         }
-    } catch (err: any) {
-        errorMessage = err.message || "Webhook request failed";
-        response = null as unknown as Response;
+    } catch (err) {
+        if (err instanceof SsrfError) {
+            errorMessage = `Blocked unsafe webhook URL: ${err.message}`;
+        } else {
+            errorMessage = err instanceof Error ? err.message : "Webhook request failed";
+        }
     }
 
-    // Calculate response time
     const responseTimeMs = Date.now() - startedAt;
 
-    // Record delivery log
     if (webhookId) {
         recordWebhookLog({
             webhookId,
             event: payload.event,
+            eventId: payload.id,
+            attempt,
             status: errorMessage ? "FAILED" : "SUCCESS",
             requestUrl: url,
             requestHeaders: headers,
             requestBody: payload,
-            responseStatusCode: response?.status ?? null,
+            responseStatusCode: status,
             responseBody: responseBody ?? null,
             responseTimeMs,
             errorMessage: errorMessage ?? null
@@ -198,8 +253,6 @@ async function sendWebhookRequest(url: string, payload: WebhookPayload, secret?:
     if (errorMessage) {
         throw new Error(errorMessage);
     }
-
-    return response;
 }
 
 /**
@@ -208,6 +261,8 @@ async function sendWebhookRequest(url: string, payload: WebhookPayload, secret?:
 async function recordWebhookLog(data: {
     webhookId: string;
     event: string;
+    eventId?: string | null;
+    attempt?: number;
     status: string;
     requestUrl: string;
     requestHeaders?: any;
@@ -221,6 +276,8 @@ async function recordWebhookLog(data: {
         data: {
             webhookId: data.webhookId,
             event: data.event,
+            eventId: data.eventId ?? null,
+            attempt: data.attempt ?? 1,
             status: data.status,
             requestUrl: data.requestUrl,
             requestHeaders: data.requestHeaders || undefined,
@@ -238,11 +295,12 @@ async function recordWebhookLog(data: {
 }
 
 async function cleanupOldLogs(webhookId: string) {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const retentionDays = Math.max(1, parseInt(process.env.WEBHOOK_LOG_RETENTION_DAYS || "30", 10));
+    const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
     await prisma.webhookLog.deleteMany({
         where: {
             webhookId,
-            createdAt: { lt: thirtyDaysAgo }
+            createdAt: { lt: cutoff }
         }
     });
 
@@ -274,11 +332,13 @@ export async function testWebhook(webhookId: string, url: string, secret?: strin
     const startedAt = Date.now();
 
     const testPayload: WebhookPayload = {
+        id: crypto.randomUUID(),
         event: "test",
         sessionId: "test",
+        tenantId: null,
         timestamp: new Date().toISOString(),
         data: {
-            message: "This is a test webhook from WA-AKG",
+            message: "This is a test webhook from Woohub",
             timestamp: new Date().toISOString()
         }
     };
@@ -286,7 +346,10 @@ export async function testWebhook(webhookId: string, url: string, secret?: strin
     const body = JSON.stringify(testPayload, jsonReplacer);
     const headers: Record<string, string> = {
         "Content-Type": "application/json",
-        "User-Agent": "WA-AKG-Webhook/1.0"
+        "User-Agent": "Woohub-Webhook/1.0",
+        "X-Webhook-Id": testPayload.id,
+        "X-Webhook-Event": "test",
+        "X-Webhook-Timestamp": testPayload.timestamp
     };
 
     if (secret) {
@@ -298,40 +361,44 @@ export async function testWebhook(webhookId: string, url: string, secret?: strin
     }
 
     try {
-        const response = await fetch(url, {
+        const response = await safeFetch(url, {
             method: "POST",
             headers,
             body,
-            signal: AbortSignal.timeout(15000)
+            timeoutMs: 15000,
+            maxRedirects: 0,
+            maxBytes: 4096
         });
 
         const responseTimeMs = Date.now() - startedAt;
-        let responseBody = await response.text().catch(() => undefined);
-        if (responseBody && responseBody.length > 1024) {
-            responseBody = responseBody.substring(0, 1024);
-        }
+        const responseBody = response.body && response.body.length > 1024
+            ? response.body.substring(0, 1024)
+            : response.body;
+        const failed = !response.ok || (response.status >= 300 && response.status < 400);
 
         // Record test log
         await recordWebhookLog({
             webhookId,
             event: "test",
-            status: response.ok ? "SUCCESS" : "FAILED",
+            eventId: testPayload.id,
+            attempt: 1,
+            status: failed ? "FAILED" : "SUCCESS",
             requestUrl: url,
             requestHeaders: headers,
             requestBody: testPayload,
             responseStatusCode: response.status,
             responseBody: responseBody || null,
             responseTimeMs,
-            errorMessage: response.ok ? null : `Webhook returned ${response.status}: ${response.statusText}`
+            errorMessage: failed ? `Webhook returned ${response.status}` : null
         });
 
-        if (!response.ok) {
+        if (failed) {
             return {
                 success: false,
                 statusCode: response.status,
                 responseBody,
                 responseTimeMs,
-                error: `Returned ${response.status}: ${response.statusText}`
+                error: `Returned ${response.status}`
             };
         }
 
@@ -341,14 +408,18 @@ export async function testWebhook(webhookId: string, url: string, secret?: strin
             responseBody,
             responseTimeMs
         };
-    } catch (err: any) {
+    } catch (err) {
         const responseTimeMs = Date.now() - startedAt;
-        const errorMsg = err.message || "Request failed";
+        const errorMsg = err instanceof SsrfError
+            ? `Blocked unsafe webhook URL: ${err.message}`
+            : err instanceof Error ? err.message : "Request failed";
 
         // Record failed test log
         await recordWebhookLog({
             webhookId,
             event: "test",
+            eventId: testPayload.id,
+            attempt: 1,
             status: "FAILED",
             requestUrl: url,
             requestHeaders: headers,
@@ -400,17 +471,20 @@ export async function downloadAndSaveMedia(message: WAMessage, sessionId: string
             const downloadUrl = dp.startsWith('http') ? dp : `https://mmg.whatsapp.net${dp}`;
 
             try {
-                const res = await fetch(downloadUrl, {
+                const res = await safeFetch(downloadUrl, {
                     method: 'GET',
-                    headers: { 'Origin': 'https://web.whatsapp.com' }
+                    headers: { 'Origin': 'https://web.whatsapp.com' },
+                    timeoutMs: 30000,
+                    maxBytes: 32 * 1024 * 1024,
+                    maxRedirects: 2
                 });
 
                 if (!res.ok) {
-                    logger.error("Media", `Newsletter media HTTP ${res.status} ${res.statusText} for URL: ${downloadUrl}`);
+                    logger.error("Media", `Newsletter media HTTP ${res.status} for URL: ${downloadUrl}`);
                     return null;
                 }
 
-                buffer = Buffer.from(await res.arrayBuffer());
+                buffer = res.buffer;
                 logger.success("Media", `Newsletter media downloaded: ${buffer.length} bytes`);
             } catch (e) {
                 logger.error("Media", "Failed to download newsletter media:", e);

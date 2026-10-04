@@ -1,4 +1,5 @@
 import { NextResponse, NextRequest } from "next/server";
+import { emitToInstance } from "@/lib/realtime";
 import { prisma } from "@/lib/prisma";
 import { waManager } from "@/modules/whatsapp/manager";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
@@ -65,7 +66,7 @@ export async function POST(
 
         // Emit initial state
         if (io) {
-            io.to(sessionId).emit("broadcast.progress", {
+            emitToInstance(io, sessionId, "broadcast.progress", {
                 broadcastId,
                 status: "running",
                 total: recipients.length,
@@ -116,7 +117,7 @@ export async function POST(
 
                 // Socket real-time
                 if (io) {
-                    io.to(sessionId).emit("broadcast.progress", {
+                    emitToInstance(io, sessionId, "broadcast.progress", {
                         broadcastId,
                         status: "running",
                         total: recipients.length,
@@ -143,7 +144,7 @@ export async function POST(
 
             // Final socket emit
             if (io) {
-                io.to(sessionId).emit("broadcast.progress", {
+                emitToInstance(io, sessionId, "broadcast.progress", {
                     broadcastId,
                     status: "completed",
                     total: recipients.length,
