@@ -4,6 +4,7 @@ import { getAuthenticatedUser, can } from "@/lib/api-auth";
 import { generateApiKey, hashApiKey, redactApiKey } from "@/lib/security/api-keys";
 import { API_KEY_SCOPES, parseScopes } from "@/lib/permissions";
 import { audit } from "@/lib/audit";
+import { logger } from "@/lib/logger";
 import { z } from "zod";
 
 /**
@@ -66,6 +67,7 @@ export async function GET(request: NextRequest) {
             })),
         });
     } catch (error) {
+        logger.error("ApiKeys", "Falha ao listar chaves de API:", error);
         return NextResponse.json({ status: false, message: "Failed to fetch API keys", error: "Failed to fetch API keys" }, { status: 500 });
     }
 }
@@ -140,6 +142,7 @@ export async function POST(request: NextRequest) {
             },
         });
     } catch (error) {
+        logger.error("ApiKeys", "Falha ao criar chave de API:", error);
         return NextResponse.json({ status: false, message: "Failed to create API key", error: "Failed to create API key" }, { status: 500 });
     }
 }
@@ -177,6 +180,7 @@ export async function DELETE(request: NextRequest) {
 
         return NextResponse.json({ status: true, message: "API key revoked", data: { revoked: result.count } });
     } catch (error) {
+        logger.error("ApiKeys", "Falha ao revogar chave de API:", error);
         return NextResponse.json({ status: false, message: "Failed to revoke API key", error: "Failed to revoke API key" }, { status: 500 });
     }
 }

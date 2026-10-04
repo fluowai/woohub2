@@ -16,8 +16,8 @@ Git portátil (MinGit) provisionado em `%LOCALAPPDATA%\Temp\opencode\mingit` par
 
 | Fase | Estado |
 |---|---|
-| 1. Diagnóstico + segurança | em curso |
-| 2. Empresas/migração/ isolamento | schema e helpers entregues, pendente reaproveitar nas rotas legadas |
+| 1. Diagnóstico + segurança | entregue (commit `c91b8a0`) |
+| 2. Empresas/migração/isolamento | schema, autorização, Socket.IO, proxy e `scripts/migrate-tenancy.js` entregues |
 | 3. Planos/cotas/assinaturas | pendente |
 | 4. Fila/agendamento/webhooks | pendente |
 | 5. API pública /api/v1 + OpenAPI | pendente |
@@ -27,10 +27,13 @@ Git portátil (MinGit) provisionado em `%LOCALAPPDATA%\Temp\opencode\mingit` par
 
 ## Próximos passos imediatos
 
-1. Unificar os dois schedulers (evio duplicado da mesma fila).
-2. Fila transacional de envios (MessageJob) + idempotency.
-3. Rotas `/api/v1/*` + OpenAPI pt-BR.
-4. Migração de dados (`scripts/migrate-tenancy.js`) e baseline `0_init`.
+1. **Fase 3**: `getTenantQuota` (plano + `UsageCounter`), limites por plano na
+   criação de instâncias/usuários, criação atômica de instância, seed de planos.
+2. Unificar os dois schedulers (envio duplicado da mesma fila).
+3. Fila transacional de envios (`MessageJob`) + idempotency.
+4. Rotas `/api/v1/*` + OpenAPI pt-BR.
+5. Aplicar a migração real: `npx prisma migrate deploy` →
+   `node scripts/migrate-tenancy.js` (dry-run) → `--apply`.
 
 ## Bloqueios externos
 

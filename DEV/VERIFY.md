@@ -17,7 +17,7 @@ npm test               # testes automatizados (node:test + tsx)
 |---|---|---|
 | `tsc --noEmit` | passou | — |
 | `next build` | passou | — |
-| `eslint` | **falhou (preexistente)** 473 problemas / 296 errors | não regressão: corrigido para 293 errors na Fase 1 |
+| `eslint` | **falhou (preexistente)** 473 problemas / 296 errors | sem regressão: 465 problemas / 293 errors / 172 warnings após as fases 1-2 |
 | testes automatizados | não existiam | criados na Fase 8 (`tests/`) |
 | migrações em banco real | não executadas | Docker daemon indisponível no ambiente |
 | integração com WhatsApp real | não executada | requer números de teste autorizados |

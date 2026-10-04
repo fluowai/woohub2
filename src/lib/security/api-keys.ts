@@ -75,8 +75,32 @@ export function verifyKeyHash(key: string, storedHash: string): boolean {
 
 /** Safe for logs/UI: keeps the public prefix, hides the secret. */
 export function redactApiKey(key: string): string {
+    if (isLegacyKeyFormat(key)) return redactLegacyKey(key);
     const publicId = extractPublicId(key);
     if (publicId) return `${KEY_PREFIX}_${publicId}…`;
     if (key.length <= 8) return "whk_…";
     return `${key.slice(0, 8)}…`;
+}
+
+// ---------------------------------------------------------------------------------------
+// Legacy upstream keys (WA-AKG v1.x): `wag_...`, stored in plaintext in User.apiKey.
+// Migrated by scripts/migrate-tenancy.js into ApiKey rows (hash only). Kept readable for
+// one deprecation window so existing integrations do not break the day tenancy lands.
+// ---------------------------------------------------------------------------------------
+
+const LEGACY_PREFIX = "wag_";
+const LEGACY_MIN_BODY = 4;
+const LEGACY_MAX_BODY = 64;
+const LEGACY_BODY_RE = /^[A-Za-z0-9]+$/;
+
+export function isLegacyKeyFormat(key: string): boolean {
+    if (!key.startsWith(LEGACY_PREFIX)) return false;
+    const body = key.slice(LEGACY_PREFIX.length);
+    if (body.length < LEGACY_MIN_BODY || body.length > LEGACY_MAX_BODY) return false;
+    return LEGACY_BODY_RE.test(body);
+}
+
+export function redactLegacyKey(key: string): string {
+    if (key.length <= LEGACY_PREFIX.length + 4) return "wag_…";
+    return `${key.slice(0, LEGACY_PREFIX.length + 4)}…`;
 }

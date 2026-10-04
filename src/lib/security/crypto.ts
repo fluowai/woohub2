@@ -49,7 +49,6 @@ function kidOf(key: Buffer): string {
 function warnOnce(message: string) {
     if (warned) return;
     warned = true;
-    // eslint-disable-next-line no-console
     console.warn(`[Woohub][security] ${message}`);
 }
 

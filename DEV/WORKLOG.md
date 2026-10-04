@@ -60,4 +60,27 @@ Segurança:
 - `DEV/` — documentação durável criada.
 
 Verificação desta etapa: `tsc` ok, `build` ok, `lint` sem novos erros
-(473 → 473 problemas; 296 → 293 errors).
+(296 → 293 errors; total 473 → 477 problemas — o aumento veio de warnings em
+imports não usados, corrigidos na etapa seguinte).
+
+## Fase 2 (dados) — migração de tenancy + compatibilidade de chaves legadas
+
+- `scripts/migrate-tenancy.js` — backfill idempotente com **dry-run por padrão** e `--apply`:
+  1. cria `Tenant` + `TenantMember` para cada usuário sem empresa;
+  2. preenche `Session.tenantId` e `Webhook.tenantId` a partir do dono;
+  3. converte `User.apiKey` (plaintext `wag_...`) em `ApiKey` com `sha256`,
+     preservando a mesma chave do cliente;
+  4. relata sessões com acesso de usuários de outra empresa, webhooks que a
+     proteção SSRF passará a bloquear e chaves legadas restantes
+     (`--clear-plaintext` apaga os plaintexts após validação).
+- Chaves legadas continuam aceitas durante a janela de depreciação:
+  `isLegacyKeyFormat`/`redactLegacyKey` em `src/lib/security/api-keys.ts`,
+  consulta por hash em `src/lib/access.ts` e `src/server/socket.ts`
+  (escopos padrão de cliente; endpoints administrativos seguem bloqueados).
+- Observabilidade: `logger.error` nos `catch` das rotas de chave (antes engoliam o erro).
+- Limpeza de imports/diretives não usados nas rotas de chave, `webhook.ts`,
+  `crypto.ts`, `socket.ts` e `access.ts` (`fallbackTenantRole` agora é a fonte
+  única do papel de quem provisiona a empresa).
+
+Verificação: `tsc` ok, `build` ok, `lint` **465 problemas (293 errors, 172 warnings)**
+(vs. 477/293/184 antes desta etapa e 473/296 no baseline upstream).

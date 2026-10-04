@@ -2,8 +2,8 @@ import { Server, Socket } from "socket.io";
 import { decode } from "next-auth/jwt";
 import { prisma } from "../lib/prisma";
 import { logger } from "../lib/logger";
-import { extractPublicId, isValidKeyFormat, verifyKeyHash } from "../lib/security/api-keys";
-import { instanceRoom, resolveInstanceRoom, userRoom } from "../lib/realtime";
+import { extractPublicId, hashApiKey, isLegacyKeyFormat, isValidKeyFormat, verifyKeyHash } from "../lib/security/api-keys";
+import { resolveInstanceRoom, userRoom } from "../lib/realtime";
 
 /**
  * Socket.IO authentication and room authorization.
@@ -38,15 +38,23 @@ function parseCookies(header?: string): Record<string, string> {
 }
 
 async function identifyByApiKey(rawKey: string): Promise<SocketIdentity | null> {
-    if (!isValidKeyFormat(rawKey)) return null;
-    const publicId = extractPublicId(rawKey);
-    if (!publicId) return null;
+    const legacy = isLegacyKeyFormat(rawKey);
+    if (!legacy && !isValidKeyFormat(rawKey)) return null;
 
-    const record = await prisma.apiKey.findUnique({
-        where: { publicId },
-        include: { tenant: true },
-    });
-    if (!record || !verifyKeyHash(rawKey, record.hash)) return null;
+    let record = legacy
+        ? await prisma.apiKey.findUnique({ where: { hash: hashApiKey(rawKey) }, include: { tenant: true } })
+        : null;
+
+    if (!record) {
+        const publicId = legacy ? null : extractPublicId(rawKey);
+        if (!publicId) return null;
+        record = await prisma.apiKey.findUnique({
+            where: { publicId },
+            include: { tenant: true },
+        });
+        if (!record || !verifyKeyHash(rawKey, record.hash)) return null;
+    }
+
     if (record.revokedAt) return null;
     if (record.expiresAt && record.expiresAt.getTime() < Date.now()) return null;
     if (record.tenant.status !== "ACTIVE") return null;

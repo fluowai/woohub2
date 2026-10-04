@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser } from "@/lib/api-auth";
 import { generateApiKey, redactApiKey } from "@/lib/security/api-keys";
 import { audit } from "@/lib/audit";
+import { logger } from "@/lib/logger";
 
 /**
  * Legacy API-key endpoint (kept for compatibility).
@@ -47,6 +48,7 @@ export async function GET() {
             },
         });
     } catch (error) {
+        logger.error("UserApiKey", "Falha ao listar chaves:", error);
         return NextResponse.json({ status: false, message: "Failed to fetch API key", error: "Failed to fetch API key" }, { status: 500 });
     }
 }
@@ -84,6 +86,7 @@ export async function POST() {
 
         return NextResponse.json({ status: true, message: "API key generated", data: { apiKey: generated.key, publicId: record.publicId } });
     } catch (error) {
+        logger.error("UserApiKey", "Falha ao gerar chave:", error);
         return NextResponse.json({ status: false, message: "Failed to generate API key", error: "Failed to generate API key" }, { status: 500 });
     }
 }
@@ -114,6 +117,7 @@ export async function DELETE() {
 
         return NextResponse.json({ status: true, message: "API key revoked", data: { revoked: result.count } });
     } catch (error) {
+        logger.error("UserApiKey", "Falha ao revogar chaves:", error);
         return NextResponse.json({ status: false, message: "Failed to revoke API key", error: "Failed to revoke API key" }, { status: 500 });
     }
 }

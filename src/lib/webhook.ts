@@ -3,11 +3,10 @@ import crypto from "crypto";
 import { normalizeMessageContent, downloadMediaMessage, WAMessage } from "@whiskeysockets/baileys";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
-import pino from "pino";
-import { resolveToPhoneJidBySessionId as resolveToPhoneJid, isLidJid } from "./jid-utils";
+import { resolveToPhoneJidBySessionId as resolveToPhoneJid } from "./jid-utils";
 import { logger } from "./logger";
 import { waManager } from "@/modules/whatsapp/manager";
-import { assertSafeUrl, safeFetch, SsrfError } from "./security/ssrf";
+import { safeFetch, SsrfError } from "./security/ssrf";
 
 // Event types that can trigger webhooks
 export type WebhookEventType =

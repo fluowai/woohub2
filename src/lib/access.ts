@@ -12,7 +12,7 @@ import {
     parseScopes,
     permissionsForRole,
 } from "./permissions";
-import { extractPublicId, isValidKeyFormat, verifyKeyHash } from "./security/api-keys";
+import { extractPublicId, hashApiKey, isLegacyKeyFormat, isValidKeyFormat, verifyKeyHash } from "./security/api-keys";
 import { logger } from "./logger";
 
 /**
@@ -154,22 +154,30 @@ function clientIp(request: NextRequest): string | null {
 let lastSeenWrite = 0;
 
 async function authenticateApiKey(rawKey: string, pathname: string, method: string): Promise<AuthResult> {
-    if (!isValidKeyFormat(rawKey)) {
+    const legacy = isLegacyKeyFormat(rawKey);
+
+    if (!legacy && !isValidKeyFormat(rawKey)) {
         return { ok: false, status: 401, code: "invalid_api_key", message: "Invalid API key" };
     }
 
-    const publicId = extractPublicId(rawKey);
-    if (!publicId) {
-        return { ok: false, status: 401, code: "invalid_api_key", message: "Invalid API key" };
-    }
+    // Legacy `wag_...` keys are looked up by hash (the plaintext is never stored by Woohub;
+    // scripts/migrate-tenancy.js copies User.apiKey into ApiKey.hash once).
+    let record = legacy
+        ? await prisma.apiKey.findUnique({ where: { hash: hashApiKey(rawKey) }, include: { tenant: true } })
+        : null;
 
-    const record = await prisma.apiKey.findUnique({
-        where: { publicId },
-        include: { tenant: true },
-    });
-
-    if (!record || !verifyKeyHash(rawKey, record.hash)) {
-        return { ok: false, status: 401, code: "invalid_api_key", message: "Invalid API key" };
+    if (!record) {
+        const publicId = legacy ? null : extractPublicId(rawKey);
+        if (!publicId) {
+            return { ok: false, status: 401, code: "invalid_api_key", message: "Invalid API key" };
+        }
+        record = await prisma.apiKey.findUnique({
+            where: { publicId },
+            include: { tenant: true },
+        });
+        if (!record || !verifyKeyHash(rawKey, record.hash)) {
+            return { ok: false, status: 401, code: "invalid_api_key", message: "Invalid API key" };
+        }
     }
     if (record.revokedAt) {
         return { ok: false, status: 401, code: "revoked_api_key", message: "API key has been revoked" };
@@ -297,7 +305,7 @@ export async function ensureTenantForUser(user: { id: string; email: string; nam
         create: { slug, name: user.name || base || "Empresa" },
     });
 
-    const role: TenantRole = user.role === "STAFF" ? "ADMIN" : "OWNER";
+    const role: TenantRole = fallbackTenantRole(user.role);
     await prisma.tenantMember.upsert({
         where: { tenantId_userId: { tenantId: tenant.id, userId: user.id } },
         update: {},
