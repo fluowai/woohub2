@@ -19,7 +19,9 @@ import { logger } from "@/lib/logger";
  * Identity headers are always overwritten here, so a client cannot spoof them.
  */
 
-const PUBLIC_API_PREFIXES = ["/api/auth", "/api/docs"];
+// Gateway webhooks cannot present credentials: authenticity is verified by the
+// HMAC signature inside the handler (`src/lib/payments.ts`), never by the client.
+const PUBLIC_API_PREFIXES = ["/api/auth", "/api/docs", "/api/payments/webhook"];
 // The OpenAPI document is a static contract (no tenant data) and must be fetchable
 // without credentials so external tooling can read it.
 const PUBLIC_API_EXACT = ["/api/v1/openapi.json"];
