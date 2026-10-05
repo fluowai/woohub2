@@ -1,0 +1,63 @@
+version: "3.8"
+
+services:
+  db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-woohub_db}
+      MYSQL_USER: ${MYSQL_USER:-woohub}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-woohub}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - woohub-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    image: woohub/app:latest
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-mysql://woohub:woohub@db:3306/woohub_db}
+      NODE_ENV: production
+      AUTH_SECRET: ${AUTH_SECRET}
+      CREDENTIALS_ENCRYPTION_KEY: ${CREDENTIALS_ENCRYPTION_KEY}
+      BASE_URL: ${BASE_URL:-http://localhost:3000}
+      PORT: "3000"
+      PAYMENT_GATEWAY: ${PAYMENT_GATEWAY:-}
+      PAYMENT_GATEWAY_PUBLIC_KEY: ${PAYMENT_GATEWAY_PUBLIC_KEY:-}
+      PAYMENT_GATEWAY_SECRET_KEY: ${PAYMENT_GATEWAY_SECRET_KEY:-}
+      PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET:-}
+    volumes:
+      - app_data:/app/data
+      - uploads_data:/app/public/uploads
+    networks:
+      - woohub-net
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+volumes:
+  mysql_data:
+  app_data:
+  uploads_data:
+
+networks:
+  woohub-net:
+    driver: overlay

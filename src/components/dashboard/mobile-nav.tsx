@@ -29,6 +29,8 @@ import {
     UserPlus,
     CreditCard,
     KeyRound,
+    User,
+    ListTodo,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
@@ -97,9 +99,11 @@ const navGroups: NavGroup[] = [
                         { href: "/dashboard/team", label: "Equipe", icon: UserCheck, allowedRoles: ["SUPERADMIN", "OWNER"] },
                         { href: "/dashboard/sessions/access", label: "Acesso às instâncias", icon: UserPlus },
             { href: "/dashboard/users", label: "Usuários", icon: Users },
+            { href: "/dashboard/account", label: "Minha conta", icon: User },
             { href: "/dashboard/settings", label: "Configurações", icon: Settings },
             { href: "/dashboard/system-monitor", label: "Monitor do sistema", icon: Activity, superadminOnly: true },
             { href: "/dashboard/notifications", label: "Notificações", icon: Bell, superadminOnly: true },
+            { href: "/dashboard/jobs", label: "Fila de jobs", icon: ListTodo, superadminOnly: true },
         ],
     },
 ];
