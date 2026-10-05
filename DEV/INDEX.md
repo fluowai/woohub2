@@ -14,4 +14,4 @@
 
 - Commits por fase (ver WORKLOG.md).
 - Migrações versionadas em `prisma/migrations/`.
-- Testes automatizados em `tests/` (runner nativo do Node + tsx).
+- Testes automatizados em `tests/` (Vitest; `vitest.config.ts` define alias/env de teste).

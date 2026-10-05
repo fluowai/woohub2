@@ -1,3 +1,4 @@
+import "next/dist/server/node-environment";
 import { loadEnvConfig } from "@next/env";
 // Load environment variables before any other imports/logic
 loadEnvConfig(process.cwd());

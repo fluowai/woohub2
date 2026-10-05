@@ -46,4 +46,5 @@ next-env.d.ts
 !/data/media/.gitkeep
 /public/media/*
 server.log
+dev-server.log
 /logs/

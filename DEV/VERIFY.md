@@ -4,21 +4,23 @@
 
 ```bash
 npm install            # aplica patch-package (patches/)
+npm run dev            # sobe em http://localhost:3000 (exige .env)
 npx prisma validate    # valida schema
 npx tsc --noEmit       # checagem de tipos
 npm run lint           # eslint
 npm run build          # next build
-npm test               # testes automatizados (node:test + tsx)
+npm test               # Vitest (tests/*.test.ts)
 ```
 
-## Estado dos checks
+## Estado dos checks (2026-10-05)
 
 | Check | Baseline (333485f) | Observação |
 |---|---|---|
-| `tsc --noEmit` | passou | — |
-| `next build` | passou | — |
-| `eslint` | **falhou (preexistente)** 473 problemas / 296 errors | sem regressão: **463 problemas / 291 errors / 172 warnings** após as fases 1-6 |
-| testes automatizados | não existiam | criados na Fase 8 (`tests/`) |
+| `tsc --noEmit` | passou | **passou** (exit 0) |
+| `next build` | passou | **passou** (exit 0) — inclui páginas audit/tenants/plans/subscriptions |
+| `eslint` | **falhou (preexistente)** 473 problemas / 296 errors | sem regressão: **464 problemas / 285 errors / 179 warnings** |
+| testes automatizados | não existiam | **57/57** em 5 arquivos (Vitest: payments, v1-access, permissions, validation, ssrf) |
+| stack Docker `woo-woohub` | não existia | YAML validado; **não executada** (daemon Docker indisponível) |
 | migrações em banco real | não executadas | Docker daemon indisponível no ambiente |
 | integração com WhatsApp real | não executada | requer números de teste autorizados |
 
@@ -35,9 +37,13 @@ node scripts/migrate-tenancy.js
 
 ## Limitações declaradas
 
-- Sem MySQL local e sem daemon Docker → testes de integração com banco/implante não executados.
-- Sem gateway de pagamento configurado → checkout não é apresentado como funcional.
+- Sem MySQL local e sem daemon Docker → testes de integração com banco/implante não executados;
+  stack e job de migração só validados em código/YAML.
+- Sem gateway de pagamento configurado → checkout responde `503 gateway_not_configured`
+  e não é apresentado como funcional.
 - Nenhuma carga testada → nenhuma promessa de capacidade de clientes.
+- Testes são unitários/de módulo: nenhum deles conecta em banco ou no WhatsApp.
+- CI (`.github/workflows/ci.yml`) presente mas não executado neste ambiente.
 
 ## Smoke manual (após `migrate deploy` + login na sessão do navegador)
 
@@ -99,3 +105,19 @@ Esperado: catálogo de planos ativos, snapshot `mode: "pilot"` quando não há a
 lista de chaves com `display` redigido (`whk_...`) e criação devolvendo `key` **uma única
 vez**. Em navegador: páginas em pt-BR, menu com "Planos e uso", "Equipe" e "Chaves de API"
 (últimas duas visíveis só para `SUPERADMIN`/`OWNER`), tema laranja/branco/preto.
+
+## Smoke de operação (Fase 8)
+
+```bash
+curl -s localhost:3000/api/system/health        # público: 200 quando pronto, 503 se não
+curl -s localhost:3000/api/system/health | head -c 200
+# com sessão SUPERADMIN no navegador:
+# /dashboard/audit   -> GET /api/audit?limit=50
+# /dashboard/tenants -> GET /api/tenants
+# /dashboard/plans   -> GET /api/plans
+# /dashboard/subscriptions -> GET /api/subscriptions
+curl -s -o /dev/null -w "%{http_code}\n" localhost:3000/api/audit   # 403 para chave de cliente
+```
+
+Esperado: health público sem exposição de segredos; páginas admin carregam apenas para
+`SUPERADMIN`; chave de cliente em `/api/audit` responde 403.

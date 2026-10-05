@@ -279,3 +279,117 @@ Verificação: `tsc` ok, `build` ok (`/dashboard/billing`, `/dashboard/team` e
 `/dashboard/api-keys` registrados), `lint` **463 problemas (291 errors, 172 warnings)** —
 abaixo do baseline (464/292), páginas novas com `eslint` limpo.
 **Não executado**: navegação real em navegador/validação visual (sem ambiente gráfico).
+
+## Fase 6 (conclusão) — `0c9ed1c`
+
+Páginas comerciais, identidade Woohub e UI pt-BR consolidadas (seção acima); commit com
+a Fase 6 completa.
+
+## Fase 7/8 (base) — `3c85af6`
+
+- CRUD de empresas (`/api/tenants`, `/api/tenants/[tenantId]`), perfil de usuário
+  (`/api/user/profile`) e telas `/dashboard/account`, `/dashboard/invoices`,
+  `/dashboard/jobs` (DLQ) e `/dashboard/docs/v1`.
+- Páginas legais `/privacy` e `/terms` traduzidas.
+- `next.config.ts`: headers de segurança (X-Frame-Options DENY, nosniff, Referrer-Policy,
+  Permissions-Policy, HSTS) — sem CSP (declarado como pendência).
+- Base do Vitest (`vitest.config.ts`) e testes de permissões/validação/SSRF.
+- `docker-stack.yml` inicial, `.github/workflows/ci.yml`.
+- Verificação da época: `tsc` ok, `build` ok.
+
+## Fase 7 — cobrança — `36d9ca7`
+
+- `src/lib/payments.ts`: classificação MercadoPago, `buildExternalEventId` (dedup por
+  tipo+referência externa, truncado em 191), confirmação server-to-server antes de
+  efeitos, efeitos de status transacionais (Invoice/Subscription), `configuredGateway()`.
+- `POST /api/payments/checkout` honesto (503 `gateway_not_configured` sem credencial) e
+  webhook `/api/payments/webhook/mercadopago` obrigatoriamente assinado (401 sem
+  assinatura, 503 sem `PAYMENT_WEBHOOK_SECRET`), entrada em `PUBLIC_API_EXACT` do proxy.
+- `.env.example` seção 11 (variáveis do gateway, sem segredos).
+
+## Fase 5 (complemento) — `f720c82`
+
+- `POST /instances/{id}/connect|disconnect`, `GET /instances/{id}/messages/{messageId}`,
+  `Idempotency-Key` (`409 idempotency_key_reuse` / `idempotency_in_progress`),
+  status honestos (`SENT`, `accepted` para mídia).
+- OpenAPI com exemplos cURL/JS/n8n e parâmetro `Idempotency-Key`.
+
+## Fase 8 — deploy reproducível — `eb76b83`
+
+- Imagem `node:22.17.1-alpine` (tag fixa), CMD simplificado, `tsx`/`prisma` reinstalados
+  após `prune` (prisma CLI é devDep). Nunca tag `latest`.
+- `docker-compose.yml`: nome `woo-woohub`, `mysql:8.0.46` sem porta publicada, job
+  one-shot `migrate` (`prisma migrate deploy` + admin idempotente via
+  `scripts/setup-admin.js`), `depends_on: service_completed_successfully`, healthchecks,
+  rotação de logs, limites de recursos, rede `backend` internal + `public`.
+- `docker-stack.yml`: `replicas: 1`, job de migração `replicas: 0` (escalonado sob
+  demanda), overlay `backend` internal, `deploy.restart_policy`.
+- `start.sh` ? `prisma migrate deploy` (não `db push`); `scripts/migrate.sh` (job de
+  implante); `GET /api/system/health` público (200/503) adicionado a
+  `PUBLIC_API_EXACT` em `src/proxy.ts`.
+- `.gitattributes` (LF para sh/yml/ts/...), `.env.example` seção 10 corrigida,
+  `docs/DEPLOY.md` (pré-requisitos, build, Compose, Swarm, migração, proxy,
+  Compose × Swarm, verificação, rollback, backup, limitações).
+
+## Fase 2/P0 — páginas SUPERADMIN — `6bace93`
+
+- `GET/POST /api/audit` (filtros + paginação, registro em `audit.access`, só SUPERADMIN).
+- Telas `/dashboard/audit`, `/dashboard/tenants`, `/dashboard/plans`,
+  `/dashboard/subscriptions`; flags `superadminOnly` sincronizadas nos dois navs
+  (mobile não tinha em "Usuários").
+- Lint: `any` removido de `src/app/docs/v1/page.tsx` (tipos `Operation`/`PathItem`/
+  `SpecTag`) e `src/app/api/tenants/route.ts` (`TenantRow`).
+
+## Testes — `131514f`
+
+- `tests/payments.test.ts` (19): assinatura MercadoPago válida/forjada/expirada,
+  **ts em segundos e milissegundos**, replay, classificação de status, dedup
+  (`buildExternalEventId`), `configuredGateway()`.
+- `tests/v1-access.test.ts` (21): prefixos admin, escopos v1 e legados,
+  `idempotencyKey`/`requestFingerprint`.
+- Correções junto: unidade do `ts` do MercadoPago (a doc usa segundos e o SDK JS calcula
+  tolerância em ms — normalização s?ms em `verifyMercadoPagoSignature`);
+  escrita em `/api/contacts*` passou a exigir `instances:write`; `/api/audit`,
+  `/api/payments`, `/api/invoices`, `/api/jobs` entraram nos prefixos admin.
+- `vitest.config.ts`: alias `next/server`, inline de `next-auth`/`@auth/core`, env de
+  teste (`DATABASE_URL`, `AUTH_SECRET`, `NODE_ENV=test`) — nenhum teste conecta em banco.
+
+## pt-BR — `c24135a`
+
+- Tradução de `/dashboard/users` (ícone `any` ? `React.SVGProps<SVGSVGElement>`),
+  `/dashboard/settings` (29 strings, fuso `America/Sao_Paulo`) e
+  `/dashboard/system-monitor` (22 strings + mojibake removido).
+
+## Documentação final (não commitado até o momento)
+
+- `FINAL_REPORT.md`: 4 buckets (implementado e testado / implementado não validado /
+  dependente de configuração externa / fora do escopo), verificações executadas,
+  pendências externas, plano de piloto e histórico de commits.
+- `docs/BACKUP_RECOVERY.md`: itens de backup, dump `--single-transaction`, mídia em
+  `data/media`, drill de restauração, custódia de segredos (inclui
+  `CREDENTIALS_ENCRYPTION_KEY` irrecuperável), checklist mensal.
+- `docs/RETENTION.md`: tabela de retenção; automático (logs de webhook 30 dias, rotação
+  de contêiner) × manual (mensagens, mídia, auditoria, jobs) declarado.
+- `DEV/`: HANDOFF/VERIFY/SPECS/INDEX atualizados.
+
+Verificação final (2026-10-05): `tsc --noEmit` exit 0; `npm test` 57/57;
+`npm run lint` 464 problemas / 285 errors (baseline 473/296); `npm run build` exit 0.
+**Não executado**: stack Docker, migração em MySQL real, drill de backup, pagamento
+sandbox (ambiente sem Docker/MySQL e sem credenciais de gateway).
+
+## Boot do `npm run dev` — 2026-10-05
+
+- `.env` criado a partir de `.env.example` (segredos gerados localmente, `REPLACE_ME`
+  trocado por senha de dev); sem isso o servidor sai com `AUTH_SECRET is not set`.
+- `src/server/index.ts`: primeiro import agora é `next/dist/server/node-environment`.
+  Sem ele, `next/server`/`next/headers` (carregados via `src/server/socket` e
+  `src/modules/whatsapp/manager`) avaliavam `app-render/async-local-storage` antes do
+  baseline do Next, e o servidor morria com
+  `Invariant: AsyncLocalStorage accessed in runtime where it is not available`.
+- `npx tsc --noEmit` → exit 0 (os erros em `.next/dev/types/*` eram leitura de arquivo
+  durante a geração do dev server; regenerado, passou).
+- Servidor em `http://localhost:3000`: `GET /` → 200, `GET /api/v1/openapi.json` → 200.
+- **MySQL continua indisponível** (daemon Docker parado) → scheduler/fila logam
+  `Can't reach database server at localhost:3306` a cada tick; páginas que leem banco
+  falham até subir o MySQL e rodar `npx prisma migrate deploy`.
+
