@@ -2,10 +2,13 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { ChatService } from "@/modules/whatsapp/chat.service";
 import { waManager } from "@/modules/whatsapp/manager";
+import { prisma } from "@/lib/prisma";
 import { assertSendQuota } from "@/lib/quota";
 import { enqueueSendJob } from "@/lib/queue";
 import { HttpError, badRequest, requireUser, v1Accepted, v1ErrorResponse, v1Ok } from "@/lib/v1/http";
 import { requireInstance, toJid } from "@/lib/v1/instance";
+import { idempotencyKey, requestFingerprint, withIdempotency } from "@/lib/v1/idempotency";
+import { mapMessage } from "@/lib/v1/message";
 
 export const dynamic = "force-dynamic";
 
@@ -22,36 +25,6 @@ const sendSchema = z
     .refine((body) => !!body.text !== !!body.media_url, {
         message: "Informe exatamente um dos campos: text ou media_url",
     });
-
-function mapMessage(m: {
-    id: string;
-    keyId: string;
-    remoteJid: string;
-    senderJid: string | null;
-    fromMe: boolean;
-    pushName: string | null;
-    type: string;
-    content: string | null;
-    mediaUrl: string | null;
-    status: string;
-    timestamp: Date;
-    quoteId: string | null;
-}) {
-    return {
-        id: m.id,
-        key_id: m.keyId,
-        jid: m.remoteJid,
-        sender: m.senderJid,
-        from_me: m.fromMe,
-        push_name: m.pushName,
-        type: m.type,
-        content: m.content,
-        media_url: m.mediaUrl,
-        status: m.status,
-        quote_id: m.quoteId,
-        timestamp: m.timestamp.toISOString(),
-    };
-}
 
 /**
  * GET  → histórico de mensagens de um chat (cursor por `before`).
@@ -92,50 +65,84 @@ export async function POST(
         const { instanceId } = await params;
         const ref = await requireInstance(user, instanceId);
 
-        const parsed = sendSchema.safeParse(await request.json().catch(() => null));
+        const rawBody = await request.text();
+        let body: unknown = null;
+        try {
+            body = rawBody ? JSON.parse(rawBody) : null;
+        } catch {
+            throw badRequest("JSON inválido no corpo da requisição");
+        }
+        const parsed = sendSchema.safeParse(body);
         if (!parsed.success) throw badRequest("Corpo inválido", parsed.error.flatten());
 
-        const jid = toJid(parsed.data.to);
-        const live = waManager.getInstance(ref.sessionId);
-        if (!live?.socket) {
-            throw new HttpError(409, "instance_not_connected", "Instância não está conectada");
-        }
-
-        if (parsed.data.text) {
-            try {
-                const result = await ChatService.sendTextMessage(
-                    ref.sessionId,
-                    jid,
-                    { text: parsed.data.text },
-                    parsed.data.mentions,
-                    parsed.data.quoted_message_id
-                );
-                const key = (result as { key?: { id?: string } } | null)?.key?.id ?? null;
-                return v1Ok({ delivered: true, key_id: key, to: jid });
-            } catch (error) {
-                if (error instanceof HttpError) throw error;
-                const message = error instanceof Error ? error.message : String(error);
-                throw new HttpError(422, "send_failed", `Falha no envio: ${message}`);
+        const execute = async () => {
+            const jid = toJid(parsed.data.to);
+            const live = waManager.getInstance(ref.sessionId);
+            if (!live?.socket) {
+                throw new HttpError(409, "instance_not_connected", "Instância não está conectada");
             }
+
+            if (parsed.data.text) {
+                try {
+                    const result = await ChatService.sendTextMessage(
+                        ref.sessionId,
+                        jid,
+                        { text: parsed.data.text },
+                        parsed.data.mentions,
+                        parsed.data.quoted_message_id
+                    );
+                    const keyId = (result as { key?: { id?: string } } | null)?.key?.id ?? null;
+                    const local = keyId
+                        ? await prisma.message.findFirst({
+                              where: { sessionId: ref.id, keyId },
+                              select: { id: true, status: true },
+                          })
+                        : null;
+                    // Aceitação/envio pelo canal não é entrega: o estado final
+                    // (DELIVERED/READ) só vem do polling em GET .../messages/{id}.
+                    return v1Ok({
+                        status: local?.status ?? "SENT",
+                        message_id: local?.id ?? null,
+                        key_id: keyId,
+                        to: jid,
+                    });
+                } catch (error) {
+                    if (error instanceof HttpError) throw error;
+                    const message = error instanceof Error ? error.message : String(error);
+                    throw new HttpError(422, "send_failed", `Falha no envio: ${message}`);
+                }
+            }
+
+            // Mídia por URL: cota checada agora e de novo na entrega; o download é feito
+            // pelo worker com as regras SSRF (o payload nunca carrega bytes).
+            await assertSendQuota(user.tenantId);
+            const jobId = await enqueueSendJob({
+                tenantId: user.tenantId ?? "",
+                sessionPk: ref.id,
+                instanceId: ref.sessionId,
+                payload: {
+                    jid,
+                    mediaUrl: parsed.data.media_url,
+                    mediaType: parsed.data.media_type || "image",
+                    caption: parsed.data.caption || "",
+                },
+                priority: 100,
+            });
+
+            return v1Accepted({ status: "accepted", queued: true, job_id: jobId, to: jid });
+        };
+
+        const key = idempotencyKey(request);
+        if (key && user.tenantId) {
+            return await withIdempotency({
+                tenantId: user.tenantId,
+                endpoint: "POST /api/v1/instances/{instanceId}/messages",
+                key,
+                fingerprint: requestFingerprint(["POST", ref.id, rawBody]),
+                execute,
+            });
         }
-
-        // Mídia por URL: cota checada agora e de novo na entrega; o download é feito
-        // pelo worker com as regras SSRF (o payload nunca carrega bytes).
-        await assertSendQuota(user.tenantId);
-        const jobId = await enqueueSendJob({
-            tenantId: user.tenantId ?? "",
-            sessionPk: ref.id,
-            instanceId: ref.sessionId,
-            payload: {
-                jid,
-                mediaUrl: parsed.data.media_url,
-                mediaType: parsed.data.media_type || "image",
-                caption: parsed.data.caption || "",
-            },
-            priority: 100,
-        });
-
-        return v1Accepted({ queued: true, job_id: jobId, to: jid });
+        return await execute();
     } catch (error) {
         return v1ErrorResponse(error);
     }
