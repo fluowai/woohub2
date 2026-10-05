@@ -1,55 +1,128 @@
-version: '3.8'
+# =============================================================================
+# Woohub — Docker Compose (desenvolvimento / servidor único)
+#
+#   docker compose up -d
+#
+# Imagens PRE-CONSTRUÍDAS (nada de build no deploy da stack de produção):
+#   docker build -t woohub/app:1.6.4 .
+#   docker compose up -d            # usa woohub/app:1.6.4
+#
+# Diferenças Compose × Swarm estão em docs/DEPLOY.md (obrigatório ler antes).
+# =============================================================================
+name: woo-woohub
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
 
 services:
   db:
-    image: mysql:8.0
-    container_name: wa-akg-db
-    restart: always
+    image: mysql:8.0.46
+    container_name: woo-woohub-db
+    restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-wa_akg}
-    ports:
-      - "3306:3306"
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?defina MYSQL_ROOT_PASSWORD no .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-woohub}
+      MYSQL_USER: ${MYSQL_USER:-woohub}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?defina MYSQL_PASSWORD no .env}
+      TZ: America/Sao_Paulo
+    # Sem `ports:` — o banco NÃO é publicado; só a rede interna alcança.
+    networks:
+      - backend
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1g
+
+  # Job ÚNICO de migração (schema + admin inicial). Sobe depois do banco saudável
+  # e termina; a app só sobe quando este serviço termina com sucesso.
+  migrate:
+    image: woohub/app:${WOHUB_TAG:-1.6.4}
+    container_name: woo-woohub-migrate
+    restart: "no"
+    environment:
+      - DATABASE_URL=mysql://${MYSQL_USER:-woohub}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE:-woohub}?connection_limit=10
+      - TZ=America/Sao_Paulo
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
+    command: ["sh", "scripts/migrate.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+    logging: *default-logging
 
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: wa-akg-app
-    restart: always
+    image: woohub/app:${WOHUB_TAG:-1.6.4}
+    container_name: woo-woohub-app
+    restart: unless-stopped
+    # Para construir localmente (dev), descomente — produção usa imagem pronta:
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
     ports:
       - "3000:3000"
     environment:
-      - DATABASE_URL=mysql://root:${MYSQL_ROOT_PASSWORD}@db:3306/${MYSQL_DATABASE:-wa_akg}
-      - AUTH_SECRET=${AUTH_SECRET}
+      - DATABASE_URL=mysql://${MYSQL_USER:-woohub}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE:-woohub}?connection_limit=20
+      - AUTH_SECRET=${AUTH_SECRET:?defina AUTH_SECRET no .env}
       - BASE_URL=${BASE_URL:-http://localhost:3000}
       - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
       - NODE_ENV=production
       - PORT=${PORT:-3000}
       - HOSTNAME=0.0.0.0
+      - TZ=America/Sao_Paulo
       - NEXT_PUBLIC_APP_URL=${BASE_URL:-http://localhost:3000}
       - NEXT_PUBLIC_API_URL=${BASE_URL:-http://localhost:3000}/api
       - BAILEYS_LOG_LEVEL=${BAILEYS_LOG_LEVEL:-error}
-      - NEXT_PUBLIC_SWAGGER_USERNAME=${NEXT_PUBLIC_SWAGGER_USERNAME:-admin}
-      - NEXT_PUBLIC_SWAGGER_PASSWORD=${NEXT_PUBLIC_SWAGGER_PASSWORD}
-      - NEXT_PUBLIC_SWAGGER_ENABLED=${NEXT_PUBLIC_SWAGGER_ENABLED:-true}
-      - TZ=${TZ:-Asia/Jakarta}
-      - LOCALE=${LOCALE:-id-ID}
-      - ADMIN_EMAIL=${ADMIN_EMAIL}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - CREDENTIALS_ENCRYPTION_KEY=${CREDENTIALS_ENCRYPTION_KEY:-}
+      - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-120}
+      # Pagamento (opcional — sem isto o checkout responde 503 gateway_not_configured)
+      - PAYMENT_GATEWAY=${PAYMENT_GATEWAY:-}
+      - PAYMENT_GATEWAY_SECRET_KEY=${PAYMENT_GATEWAY_SECRET_KEY:-}
+      - PAYMENT_WEBHOOK_SECRET=${PAYMENT_WEBHOOK_SECRET:-}
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - backend
+      - public
     volumes:
       - app_data:/app/data
       - uploads_data:/app/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/system/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1g
+
+networks:
+  # Alcança o banco e a internet externa (motor WhatsApp, gateway).
+  public:
+  # Somente interna: banco e job de migração não têm egress nem publicação.
+  backend:
+    internal: true
 
 volumes:
   mysql_data:

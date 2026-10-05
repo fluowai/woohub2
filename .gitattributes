@@ -1,0 +1,23 @@
+# Normalização: os blobs no repositório são LF. Shell scripts e arquivos de
+# deploy precisam ser LF no checkout (Docker/Linux), independentemente do host.
+* text=auto
+
+*.sh    text eol=lf
+Dockerfile text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+*.ts    text eol=lf
+*.tsx   text eol=lf
+*.js    text eol=lf
+
+# Binários
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
+*.zip   binary
+*.wasm  binary

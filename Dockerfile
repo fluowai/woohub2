@@ -1,4 +1,10 @@
-FROM node:26-alpine AS builder
+# -----------------------------------------------------------------------------
+# Woohub — imagem de produção (multi-stage)
+# Node fixado em patch (22.17.1, LTS compatível com Next 16 / Prisma 5).
+# Build fora do deploy: `docker build -t woohub/app:1.6.4 .` e depois
+# `docker push` — o deploy usa somente a imagem já construída.
+# -----------------------------------------------------------------------------
+FROM node:22.17.1-alpine AS builder
 RUN apk add --no-cache openssl ca-certificates
 WORKDIR /app
 
@@ -12,12 +18,13 @@ RUN npm ci --legacy-peer-deps && npm cache clean --force
 COPY . .
 RUN npx prisma generate && npm run build
 
-# Strip devDeps from node_modules after build
-# tsx needed at runtime, kept explicitly
-RUN npm prune --omit=dev && npm install --no-save tsx typescript
+# Strip devDeps from node_modules after build, then re-add the two tools the
+# runtime actually needs, pinned: tsx (server entry) and prisma CLI (job de
+# migracao roda `prisma migrate deploy` a partir desta mesma imagem).
+RUN npm prune --omit=dev && npm install --no-save tsx@4.21.0 prisma@5.22.0
 
 # Production image
-FROM node:26-alpine AS runner
+FROM node:22.17.1-alpine AS runner
 RUN apk add --no-cache openssl ca-certificates
 WORKDIR /app
 
@@ -33,6 +40,9 @@ COPY --from=builder /app/scripts ./scripts
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
+ENV TZ=America/Sao_Paulo
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma db push && (if [ -n \"$ADMIN_EMAIL\"] && [ -n \"$ADMIN_PASSWORD\"]; then node scripts/setup-admin.js \"$ADMIN_EMAIL\" \"$ADMIN_PASSWORD\"; fi) && node node_modules/tsx/dist/cli.mjs src/server/index.ts"]
+# Sem `prisma db push`, sem migração e sem criação de admin no boot:
+# migração e admin são responsabilidade do job único (scripts/migrate.sh).
+CMD ["sh", "-c", "node node_modules/tsx/dist/cli.mjs src/server/index.ts"]

@@ -88,12 +88,13 @@ if [ $? -ne 0 ]; then
 fi
 echo -e "${GREEN}✓ Dependencies installed successfully.${NC}"
 
-# Step 4: Run Database Schema Sync & Check Admin
-echo -e "\n${BLUE}[4/6] Syncing database schema with Prisma...${NC}"
-npx prisma db push
+# Step 4: Apply migrations (versionadas) & Check Admin
+echo -e "\n${BLUE}[4/6] Applying pending Prisma migrations...${NC}"
+npx prisma migrate deploy
 if [ $? -ne 0 ]; then
-    echo -e "${RED}❌ Error: Database schema push failed!${NC}"
+    echo -e "${RED}❌ Error: Migration deploy failed!${NC}"
     echo -e "${YELLOW}Please check your DATABASE_URL in the .env file and ensure the database server is running.${NC}"
+    echo -e "${YELLOW}Never use 'prisma db push' in production — see DEV/VERIFY.md for the migrate resolve path.${NC}"
     exit 1
 fi
 echo -e "${GREEN}✓ Database schema is up to date.${NC}"

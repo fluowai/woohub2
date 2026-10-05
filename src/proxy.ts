@@ -23,8 +23,9 @@ import { logger } from "@/lib/logger";
 // HMAC signature inside the handler (`src/lib/payments.ts`), never by the client.
 const PUBLIC_API_PREFIXES = ["/api/auth", "/api/docs", "/api/payments/webhook"];
 // The OpenAPI document is a static contract (no tenant data) and must be fetchable
-// without credentials so external tooling can read it.
-const PUBLIC_API_EXACT = ["/api/v1/openapi.json"];
+// without credentials so external tooling can read it. The health endpoint only
+// reports process/database liveness for orchestrator probes.
+const PUBLIC_API_EXACT = ["/api/v1/openapi.json", "/api/system/health"];
 
 const RATE_LIMIT_PER_MINUTE = Math.max(1, parseInt(process.env.RATE_LIMIT_PER_MINUTE || "120", 10));
 const AUTH_RATE_LIMIT_PER_15MIN = Math.max(1, parseInt(process.env.AUTH_RATE_LIMIT_PER_15MIN || "10", 10));

@@ -1,63 +1,149 @@
-version: "3.8"
-
+# =============================================================================
+# Woohub — Docker Swarm stack (Portainer / produção com Swarm)
+#
+#   docker stack deploy -c docker-stack.yml woo-woohub
+#
+# REGRAS DESTA STACK:
+#   - imagem já construída e com tag FIXA (nunca `latest`, nunca `build:`);
+#   - 1 réplica do app no MVP (rate limit/fila/worker são de processo único);
+#   - banco só na rede overlay interna, porta não publicada;
+#   - migração é um serviço escalado sob demanda (replicas: 0 em repouso).
+#
+# Recursos do Compose que NÃO valem no Swarm (ver docs/DEPLOY.md):
+#   - `depends_on` (inclusive condition: service_healthy / service_completed_successfully)
+#   - `restart:` no nível do serviço  -> use `deploy.restart_policy`
+#   - `container_name`                -> o Swarm gera nomes próprios
+# =============================================================================
 services:
   db:
-    image: mysql:8.0
-    restart: always
+    image: mysql:8.0.46
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-woohub_db}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?defina MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-woohub}
       MYSQL_USER: ${MYSQL_USER:-woohub}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-woohub}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?defina MYSQL_PASSWORD}
+      TZ: America/Sao_Paulo
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
-      - woohub-net
+      - backend
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1g
+
+  # Job de migração — em repouso com 0 réplicas. Execute POR RELEASE, um por vez:
+  #   docker service scale woo-woohub_migrate=1
+  #   docker service logs -f woo-woohub_migrate
+  #   docker service scale woo-woohub_migrate=0
+  migrate:
+    image: woohub/app:${WOHUB_TAG:-1.6.4}
+    command: ["sh", "scripts/migrate.sh"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-mysql://woohub:CHANGE_ME@db:3306/woohub?connection_limit=5}
+      TZ: America/Sao_Paulo
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    networks:
+      - backend
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    deploy:
+      replicas: 0
+      restart_policy:
+        condition: none
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512m
 
   app:
-    image: woohub/app:latest
-    restart: always
-    depends_on:
-      db:
-        condition: service_healthy
+    image: woohub/app:${WOHUB_TAG:-1.6.4}
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: ${DATABASE_URL:-mysql://woohub:woohub@db:3306/woohub_db}
+      DATABASE_URL: ${DATABASE_URL:-mysql://woohub:CHANGE_ME@db:3306/woohub?connection_limit=20}
       NODE_ENV: production
-      AUTH_SECRET: ${AUTH_SECRET}
-      CREDENTIALS_ENCRYPTION_KEY: ${CREDENTIALS_ENCRYPTION_KEY}
+      TZ: America/Sao_Paulo
+      AUTH_SECRET: ${AUTH_SECRET:?defina AUTH_SECRET}
+      CREDENTIALS_ENCRYPTION_KEY: ${CREDENTIALS_ENCRYPTION_KEY:-}
       BASE_URL: ${BASE_URL:-http://localhost:3000}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-${BASE_URL:-http://localhost:3000}}
       PORT: "3000"
+      HOSTNAME: 0.0.0.0
+      BAILEYS_LOG_LEVEL: ${BAILEYS_LOG_LEVEL:-error}
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-120}
       PAYMENT_GATEWAY: ${PAYMENT_GATEWAY:-}
-      PAYMENT_GATEWAY_PUBLIC_KEY: ${PAYMENT_GATEWAY_PUBLIC_KEY:-}
       PAYMENT_GATEWAY_SECRET_KEY: ${PAYMENT_GATEWAY_SECRET_KEY:-}
       PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET:-}
     volumes:
       - app_data:/app/data
-      - uploads_data:/app/public/uploads
     networks:
-      - woohub-net
+      - backend
+      - public
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/system/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
     deploy:
-      replicas: 2
+      # MVP: UMA réplica (rate limit em memória, worker da fila e flusher de uso
+      # assumem processo único). Não aumente sem coordenação distribuída.
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
       update_config:
         parallelism: 1
+        order: stop-first
         delay: 10s
       restart_policy:
         condition: on-failure
         delay: 5s
         max_attempts: 3
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1g
 
 volumes:
   mysql_data:
   app_data:
-  uploads_data:
 
 networks:
-  woohub-net:
+  # Só interna: banco e migração sem egress e sem porta publicada.
+  backend:
+    driver: overlay
+    internal: true
+  # Entrada/saída da app (tráfego público e acesso ao WhatsApp/gateway).
+  public:
     driver: overlay

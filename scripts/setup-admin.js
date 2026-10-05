@@ -3,45 +3,63 @@ const bcrypt = require("bcryptjs");
 
 const prisma = new PrismaClient();
 
+/**
+ * Criação ÚNICA do SUPERADMIN (executada pelo job de migração, não pelo boot da app).
+ *
+ * Regras:
+ *  - usuário já existe  → nada é alterado (sem re-promoção automática);
+ *                        use `--promote` apenas quando quiser reforçar o papel.
+ *  - sem ADMIN_EMAIL e com usuário já no banco → sucesso silencioso (idempotente);
+ *  - banco vazio e sem credenciais → erro explícito (não cria admin fraco).
+ */
 async function main() {
-    const email = process.argv[2];
-    const password = process.argv[3];
+    const argv = process.argv.slice(2);
+    const promote = argv.includes("--promote");
+    const args = argv.filter((a) => a !== "--promote");
+    const email = (args[0] || process.env.ADMIN_EMAIL || "").trim();
+    const password = (args[1] || process.env.ADMIN_PASSWORD || "").trim();
+
+    const userCount = await prisma.user.count();
 
     if (!email) {
-        console.error("Please provide email. Usage: node scripts/setup-admin.js <email> [password]");
+        if (userCount > 0) {
+            console.log("Usuarios ja existem; nada a criar (ADMIN_EMAIL nao informado).");
+            return;
+        }
+        console.error(
+            "Banco sem usuarios e ADMIN_EMAIL nao informado. " +
+                "Informe: node scripts/setup-admin.js <email> <senha>"
+        );
         process.exit(1);
     }
 
-    const existingUser = await prisma.user.findUnique({
-        where: { email }
-    });
+    const existing = await prisma.user.findUnique({ where: { email } });
 
-    if (existingUser) {
-        console.log(`User ${email} found. Promoting to SUPERADMIN...`);
-        await prisma.user.update({
-            where: { email },
-            data: { role: 'SUPERADMIN' }
-        });
-        console.log("User promoted successfully!");
-    } else {
-        if (!password) {
-            console.error("Password required for new user. Usage: node scripts/setup-admin.js <email> <password>");
-            process.exit(1);
+    if (existing) {
+        if (promote && existing.role !== "SUPERADMIN") {
+            await prisma.user.update({ where: { email }, data: { role: "SUPERADMIN" } });
+            console.log(`Usuario ${email} promovido a SUPERADMIN (--promote).`);
+        } else {
+            console.log(`Usuario ${email} ja existe; nenhuma alteracao feita.`);
         }
-
-        console.log(`Creating new SUPERADMIN user ${email}...`);
-        const hashedPassword = await bcrypt.hash(password, 10);
-        
-        await prisma.user.create({
-            data: {
-                email,
-                name: "Super Admin",
-                password: hashedPassword,
-                role: 'SUPERADMIN'
-            }
-        });
-        console.log("Super Admin created successfully!");
+        return;
     }
+
+    if (!password) {
+        console.error(`Usuario ${email} nao existe e ADMIN_PASSWORD nao informado. Nada foi criado.`);
+        process.exit(1);
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+    await prisma.user.create({
+        data: {
+            email,
+            name: "Super Admin",
+            password: hashedPassword,
+            role: "SUPERADMIN",
+        },
+    });
+    console.log(`SUPERADMIN ${email} criado.`);
 }
 
 main()
