@@ -18,7 +18,16 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        let tenants: any[];
+        interface TenantRow {
+            id: string;
+            slug: string;
+            name: string;
+            status: string;
+            createdAt: Date;
+            updatedAt: Date;
+            _count: { members: number; sessions: number; subscriptions?: number };
+        }
+        let tenants: TenantRow[];
         if (isAdmin(user.role)) {
             tenants = await prisma.tenant.findMany({
                 orderBy: { createdAt: "desc" },

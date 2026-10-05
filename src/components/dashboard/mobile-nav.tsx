@@ -31,6 +31,9 @@ import {
     KeyRound,
     User,
     ListTodo,
+    Building2,
+    Link2,
+    ScrollText,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
@@ -98,9 +101,13 @@ const navGroups: NavGroup[] = [
                         { href: "/dashboard/media", label: "Gerenciador de mídia", icon: HardDrive },
                         { href: "/dashboard/team", label: "Equipe", icon: UserCheck, allowedRoles: ["SUPERADMIN", "OWNER"] },
                         { href: "/dashboard/sessions/access", label: "Acesso às instâncias", icon: UserPlus },
-            { href: "/dashboard/users", label: "Usuários", icon: Users },
+            { href: "/dashboard/users", label: "Usuários", icon: Users, superadminOnly: true },
+            { href: "/dashboard/tenants", label: "Empresas", icon: Building2, superadminOnly: true },
+            { href: "/dashboard/plans", label: "Planos", icon: CreditCard, superadminOnly: true },
+            { href: "/dashboard/subscriptions", label: "Assinaturas", icon: Link2, superadminOnly: true },
             { href: "/dashboard/account", label: "Minha conta", icon: User },
             { href: "/dashboard/settings", label: "Configurações", icon: Settings },
+            { href: "/dashboard/audit", label: "Auditoria", icon: ScrollText, superadminOnly: true },
             { href: "/dashboard/system-monitor", label: "Monitor do sistema", icon: Activity, superadminOnly: true },
             { href: "/dashboard/notifications", label: "Notificações", icon: Bell, superadminOnly: true },
             { href: "/dashboard/jobs", label: "Fila de jobs", icon: ListTodo, superadminOnly: true },

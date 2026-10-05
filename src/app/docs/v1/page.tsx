@@ -10,20 +10,24 @@ export const metadata = {
     description: "Documentação interativa da API pública /api/v1 da Woohub.",
 };
 
+type Operation = { summary?: string; description?: string; tags?: string[] };
+type PathItem = Record<string, Operation>;
+type SpecTag = { name: string; description?: string };
+
 export default async function V1DocsPage() {
     const spec = getV1Spec();
 
-    const tags = spec.tags ?? [];
-    const paths: Record<string, Record<string, any>> = (spec as any).paths ?? {};
+    const tags: SpecTag[] = (spec.tags ?? []) as SpecTag[];
+    const paths = (spec as { paths?: Record<string, PathItem> }).paths ?? {};
 
-    const pathsByTag: Record<string, Record<string, Record<string, any>>> = {};
+    const pathsByTag: Record<string, Record<string, PathItem>> = {};
     for (const tag of tags) {
         pathsByTag[tag.name] = {};
     }
 
     for (const [path, methods] of Object.entries(paths)) {
         for (const [method, detail] of Object.entries(methods)) {
-            const tagList = (detail as any).tags ?? ["Info"];
+            const tagList = detail.tags ?? ["Info"];
             for (const tag of tagList) {
                 if (!pathsByTag[tag]) pathsByTag[tag] = {};
                 pathsByTag[tag][path] = { ...(pathsByTag[tag][path] ?? {}), [method]: detail };
@@ -39,8 +43,8 @@ export default async function V1DocsPage() {
         put: "bg-violet-100 text-violet-700 border-violet-200",
     };
 
-    const summary = (detail: any) => detail?.summary ?? detail?.description ?? "";
-    const description = (detail: any) => detail?.description ?? "";
+    const summary = (detail?: Operation) => detail?.summary ?? detail?.description ?? "";
+    const description = (detail?: Operation) => detail?.description ?? "";
 
     return (
         <div className="min-h-screen bg-slate-50">
@@ -65,17 +69,17 @@ export default async function V1DocsPage() {
                 </div>
 
                 <div className="grid gap-6">
-                    {tags.map((tag: any) => (
+                    {tags.map((tag) => (
                         <Card key={tag.name} className="glass-panel border-border/50 shadow-sm">
                             <CardHeader>
                                 <CardTitle className="text-lg">{tag.name}</CardTitle>
                                 {tag.description && <CardDescription>{tag.description}</CardDescription>}
                             </CardHeader>
                             <CardContent className="space-y-3">
-                                {Object.entries(pathsByTag[tag.name] ?? {}).map(([path, methods]: [string, any]) => (
+                                {Object.entries(pathsByTag[tag.name] ?? {}).map(([path, methods]) => (
                                     <div key={path} className="rounded-xl border border-border/50 overflow-hidden">
                                         <div className="flex flex-wrap items-center gap-2 px-3 py-2 bg-slate-50/60">
-                                            {Object.entries(methods).map(([method, detail]: [string, any]) => (
+                                            {Object.keys(methods).map((method) => (
                                                 <span key={method} className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[10px] font-bold uppercase tracking-wider ${methodColors[method] ?? "bg-slate-100 text-slate-700 border-slate-200"}`}>
                                                     {method}
                                                 </span>
@@ -83,7 +87,7 @@ export default async function V1DocsPage() {
                                             <code className="text-xs font-mono text-slate-700 ml-1">{path}</code>
                                         </div>
                                         <div className="px-3 py-2.5 text-sm text-slate-600 space-y-1">
-                                            {Object.entries(methods).map(([method, detail]: [string, any]) => (
+                                            {Object.entries(methods).map(([method, detail]) => (
                                                 <p key={method} className="text-xs">
                                                     <span className={`font-bold uppercase mr-1 ${methodColors[method]?.split(" ")[1] ?? "text-slate-600"}`}>{method}</span> {summary(detail)}
                                                 </p>
@@ -108,17 +112,17 @@ export default async function V1DocsPage() {
                     <CardContent className="text-sm text-slate-600 space-y-3">
                         <p>Use <code className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">Authorization: Bearer &lt;chave&gt;</code> ou <code className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">X-Api-Key: &lt;chave&gt;</code>. A chave é exibida uma única vez na criação.</p>
                         <div className="flex flex-wrap gap-2">
-                            {(spec.components?.securitySchemes as any)?.apiKey && (
+                            {Boolean((spec.components?.securitySchemes as { apiKey?: unknown; sessionCookie?: unknown })?.apiKey) && (
                                 <Badge variant="secondary">API Key</Badge>
                             )}
-                            {(spec.components?.securitySchemes as any)?.sessionCookie && (
+                            {Boolean((spec.components?.securitySchemes as { apiKey?: unknown; sessionCookie?: unknown })?.sessionCookie) && (
                                 <Badge variant="secondary">Sessão do painel</Badge>
                             )}
                         </div>
                         <div>
                             <p className="font-medium mb-1">Escopos:</p>
                             <div className="flex flex-wrap gap-1.5">
-                                {(spec as any)?.info?.description?.match(/`[a-z:]+`/g)?.map((s: string) => (
+                                {spec.info?.description?.match(/`[a-z:]+`/g)?.map((s) => (
                                     <code key={s} className="text-[10px] bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">{s}</code>
                                 )) ?? <span>Consulte o endpoint de metadados ou o Swagger.</span>}
                             </div>
