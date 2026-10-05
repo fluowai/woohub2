@@ -89,6 +89,10 @@ export function requiredScopeFor(pathname: string, method: string): ApiKeyScope 
         "/api/auth",
         "/api/docs",
         "/api/media",
+        "/api/audit",
+        "/api/payments",
+        "/api/invoices",
+        "/api/jobs",
     ];
     if (adminPrefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`) || pathname.startsWith(`${p}?`))) {
         return null;
@@ -122,7 +126,9 @@ export function requiredScopeFor(pathname: string, method: string): ApiKeyScope 
         return isRead ? "messages:read" : "messages:send";
     }
     if (pathname.startsWith("/api/broadcast")) return isRead ? "messages:read" : "messages:send";
-    if (pathname.startsWith("/api/contacts")) return read("contacts:read");
+    // Write-side of contacts has no dedicated API-key scope (same rule as v1):
+    // mutations require instances:write.
+    if (pathname.startsWith("/api/contacts")) return isRead ? "contacts:read" : "instances:write";
     if (pathname.startsWith("/api/groups")) return read(isRead ? "instances:read" : "instances:write");
     if (pathname.startsWith("/api/webhooks")) {
         if (pathname.includes("/logs")) return "webhooks:read";

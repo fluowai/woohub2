@@ -214,10 +214,16 @@ export interface SignatureResult {
 
 /**
  * Validates the MercadoPago `x-signature` header using the official SDK
- * validator (HMAC-SHA256, constant-time comparison, replay tolerance).
+ * validator (HMAC-SHA256, constant-time comparison).
  * Returns a machine-readable reason so the caller can answer without leaking details.
  *
  * `data.id` from the query string takes precedence over the body, per gateway docs.
+ *
+ * Replay window: the SDK is asked only for the cryptographic check; the timestamp
+ * drift is enforced here because MercadoPago sends `ts` in SECONDS in its webhook
+ * examples while the JS SDK compares it against Date.now() in MILLISECONDS —
+ * enabling the SDK tolerance would reject every real notification. Both units are
+ * accepted and normalized to ms before comparing with `maxSkewMs`.
  */
 export function verifyMercadoPagoSignature(check: SignatureCheck): SignatureResult {
     const secret = (check.secret || "").trim();
@@ -232,10 +238,7 @@ export function verifyMercadoPagoSignature(check: SignatureCheck): SignatureResu
             xRequestId: check.requestId ?? null,
             dataId,
             secret,
-            toleranceSeconds: Math.round((check.maxSkewMs ?? 10 * 60 * 1000) / 1000),
-            now: check.now ? () => check.now! : undefined,
         });
-        return { ok: true };
     } catch (error) {
         if (error instanceof InvalidWebhookSignatureError) {
             return { ok: false, reason: error.reason };
@@ -243,6 +246,19 @@ export function verifyMercadoPagoSignature(check: SignatureCheck): SignatureResu
         logger.error("Payments", "Falha inesperada na verificação de assinatura:", error);
         return { ok: false, reason: "signature_check_failed" };
     }
+
+    // Assinatura criptograficamente válida — agora a janela de replay.
+    const tsRaw = (check.signature || "").split(",").map((p) => p.trim()).find((p) => p.startsWith("ts="))?.slice(3);
+    if (!tsRaw || !/^\d+$/.test(tsRaw)) return { ok: false, reason: "MalformedSignatureHeader" };
+
+    const tsValue = Number(tsRaw);
+    const tsMs = tsValue < 1e12 ? tsValue * 1000 : tsValue; // segundos → ms
+    const nowMs = check.now ?? Date.now();
+    const skewMs = Math.abs(nowMs - tsMs);
+    const maxSkew = check.maxSkewMs ?? 10 * 60 * 1000;
+    if (skewMs > maxSkew) return { ok: false, reason: "TimestampOutOfTolerance" };
+
+    return { ok: true };
 }
 
 /* -------------------------------------------------------------------------- */
