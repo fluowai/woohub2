@@ -89,23 +89,22 @@ const superAdminMobileGroups: NavGroup[] = [
 
 const navGroups: NavGroup[] = [
     {
-        label: "Principal",
+        label: "OPERAÇÃO",
         items: [
-                            { href: "/dashboard", label: "Visão geral", icon: LayoutDashboard },
-                            { href: "/dashboard/sessions", label: "Instâncias / QR", icon: QrCode },
-                            { href: "/dashboard/billing", label: "Planos e uso", icon: CreditCard },
+            { href: "/dashboard", label: "Visão geral", icon: LayoutDashboard },
+            { href: "/dashboard/sessions", label: "Sessões / QR", icon: QrCode },
         ],
     },
     {
-        label: "Mensagens",
+        label: "MENSAGENS",
         items: [
             { href: "/dashboard/chat", label: "Conversas", icon: MessageSquare },
-            { href: "/dashboard/broadcast", label: "Disparo em massa", icon: Megaphone },
-            { href: "/dashboard/sticker", label: "Criador de adesivos", icon: ImageIcon },
+            { href: "/dashboard/broadcast", label: "Disparos", icon: Megaphone },
+            { href: "/dashboard/sticker", label: "Criador de stickers", icon: ImageIcon },
         ],
     },
     {
-        label: "Contatos",
+        label: "CONTATOS",
         items: [
             { href: "/dashboard/contacts", label: "Contatos", icon: UserCheck },
             { href: "/dashboard/groups", label: "Grupos", icon: Users },
@@ -113,41 +112,25 @@ const navGroups: NavGroup[] = [
         ],
     },
     {
-        label: "Automação",
+        label: "AUTOMAÇÃO",
         items: [
-            { href: "/dashboard/bot-settings", label: "Configurações do bot", icon: Bot },
-            { href: "/dashboard/autoreply", label: "Resposta automática", icon: MessageCircleReply },
-            { href: "/dashboard/profile", label: "Perfil do bot", icon: UserCircle },
-            { href: "/dashboard/scheduler", label: "Agendador", icon: CalendarClock },
-            { href: "/dashboard/webhooks", label: "Webhooks e API", icon: Webhook },
+            { href: "/dashboard/bot-settings", label: "Configurar bot", icon: Bot },
+            { href: "/dashboard/autoreply", label: "Respostas automáticas", icon: MessageCircleReply },
+            { href: "/dashboard/profile", label: "Perfil do WhatsApp", icon: UserCircle },
+            { href: "/dashboard/scheduler", label: "Agendamentos", icon: CalendarClock },
+            { href: "/dashboard/webhooks", label: "Webhooks & API", icon: Webhook },
         ],
     },
     {
-        label: "Desenvolvedor",
+        label: "ADMINISTRAÇÃO",
         items: [
-                        { href: "/docs", label: "Documentação da API", icon: FileText },
-                        { href: "/dashboard/api-keys", label: "Chaves de API", icon: KeyRound, allowedRoles: ["SUPERADMIN", "OWNER"] },
-                        { href: "/swagger", label: "Swagger UI", icon: Code, external: true },
+            { href: "/dashboard/team", label: "Equipe", icon: UserCheck, allowedRoles: ["SUPERADMIN", "OWNER", "MEGA_ADMIN"] },
+            { href: "/dashboard/api-keys", label: "Chaves de API", icon: KeyRound, allowedRoles: ["SUPERADMIN", "OWNER", "MEGA_ADMIN"] },
+            { href: "/dashboard/billing", label: "Planos e uso", icon: CreditCard },
+            { href: "/docs", label: "Documentação", icon: FileText, external: true },
         ],
     },
-    {
-        label: "Administração",
-        items: [
-                        { href: "/dashboard/media", label: "Gerenciador de mídia", icon: HardDrive },
-                        { href: "/dashboard/team", label: "Equipe", icon: UserCheck, allowedRoles: ["SUPERADMIN", "OWNER"] },
-                        { href: "/dashboard/sessions/access", label: "Acesso às instâncias", icon: UserPlus },
-            { href: "/dashboard/users", label: "Usuários", icon: Users, superadminOnly: true },
-            { href: "/dashboard/tenants", label: "Empresas", icon: Building2, superadminOnly: true },
-            { href: "/dashboard/plans", label: "Planos", icon: CreditCard, superadminOnly: true },
-            { href: "/dashboard/subscriptions", label: "Assinaturas", icon: Link2, superadminOnly: true },
-            { href: "/dashboard/account", label: "Minha conta", icon: User },
-            { href: "/dashboard/settings", label: "Configurações", icon: Settings },
-            { href: "/dashboard/audit", label: "Auditoria", icon: ScrollText, superadminOnly: true },
-            { href: "/dashboard/system-monitor", label: "Monitor do sistema", icon: Activity, superadminOnly: true },
-            { href: "/dashboard/notifications", label: "Notificações", icon: Bell, superadminOnly: true },
-            { href: "/dashboard/jobs", label: "Fila de jobs", icon: ListTodo, superadminOnly: true },
-        ],
-    },
+];
 ];
 
 export function MobileNav({ appName = "Woohub", theme, userRole: propUserRole }: { appName?: string; theme?: any; userRole?: string }) {
