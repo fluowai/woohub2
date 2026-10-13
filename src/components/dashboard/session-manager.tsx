@@ -260,7 +260,7 @@ export function SessionManager({ user }: { user: any }) {
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
-                                                            className="h-8 px-2.5 text-xs rounded-lg hover:bg-orange-50 hover:text-[#ff5a00] transition-colors border-border/50"
+                                                            className="h-8 px-2.5 text-xs rounded-lg hover:bg-sky-50 hover:text-[#0284c7] transition-colors border-border/50"
                                                             onClick={() => router.push('/dashboard/chat')}
                                                         >
                                                             Atendimento
