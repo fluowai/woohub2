@@ -52,7 +52,7 @@ export async function GET(
         const result = await ChatService.getMessages(ref.id, jid, limit, before);
         return v1Ok(result.messages.map(mapMessage), { has_more: result.hasMore, limit });
     } catch (error) {
-        return v1ErrorResponse(error);
+        return await v1ErrorResponse(error);
     }
 }
 
@@ -144,6 +144,6 @@ export async function POST(
         }
         return await execute();
     } catch (error) {
-        return v1ErrorResponse(error);
+        return await v1ErrorResponse(error);
     }
 }

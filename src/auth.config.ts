@@ -12,7 +12,7 @@ export const authConfig = {
             if (isOnDashboard) {
                 if (isLoggedIn) return true;
                 return false; // Redirect unauthenticated users to login page
-            } else if (isLoggedIn && nextUrl.pathname === '/auth/login') {
+            } else if (isLoggedIn && (nextUrl.pathname === '/auth/login' || nextUrl.pathname === '/login')) {
                 return Response.redirect(new URL('/dashboard', nextUrl));
             }
             return true;
@@ -22,11 +22,14 @@ export const authConfig = {
                 token.id = user.id;
                 token.role = (user as any).role;
             }
+            if (!token.id && token.sub) {
+                token.id = token.sub;
+            }
             return token;
         },
         async session({ session, token }) {
             if (token && session.user) {
-                session.user.id = token.id as string;
+                session.user.id = ((token.id as string) || (token.sub as string)) as string;
                 (session.user as any).role = token.role;
             }
             return session;

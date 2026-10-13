@@ -55,31 +55,37 @@ app.prepare().then(() => {
   });
 
   setupSocket(io);
-  // Optional: Global instance for Baileys to emit events
+  // Optional: Global instance for WhatsApp Engine to emit events
   (global as any).io = io;
 
   // Initialize WhatsApp Manager
   waManager.setup(io);
   waManager.loadSessions();
 
+  // Background subsystem stops, invoked on SIGINT/SIGTERM (see shutdown()).
+  const backgroundStops: Array<() => void> = [];
+  let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  let schedulerStop: (() => void) | null = null;
+
   // Start Scheduler
-  import("../modules/whatsapp/scheduler").then(m => m.startScheduler());
+  import("../modules/whatsapp/scheduler")
+    .then((m) => {
+      schedulerStop = m.startScheduler();
+      backgroundStops.push(() => schedulerStop?.());
+    })
+    .catch((err) => logger.error("Server", "Scheduler failed to start:", err));
 
   // Start quota usage flusher (public API request counters, flushed every minute)
   import("../lib/quota")
-    .then(m => {
-      const stop = m.startUsageFlusher();
-      process.once("SIGINT", stop);
-      process.once("SIGTERM", stop);
+    .then((m) => {
+      backgroundStops.push(m.startUsageFlusher());
     })
     .catch(err => logger.error("Server", "Usage flusher failed to start:", err));
 
   // Start durable outbound queue worker (MessageJob: scheduled messages, broadcasts)
   import("../lib/queue")
-    .then(m => {
-      const stop = m.startJobWorker();
-      process.once("SIGINT", stop);
-      process.once("SIGTERM", stop);
+    .then((m) => {
+      backgroundStops.push(m.startJobWorker());
     })
     .catch(err => logger.error("Server", "Queue worker failed to start:", err));
 
@@ -90,8 +96,82 @@ app.prepare().then(() => {
 
   server.listen(port, () => {
     logger.banner(pkg.name.toUpperCase(), pkg.version, port);
-    startHeartbeat(hostname, port);
+    heartbeatTimer = startHeartbeat(hostname, port);
   });
+
+  /**
+   * Graceful shutdown: stop schedulers/workers, disconnect WhatsApp sessions,
+   * close Socket.IO + HTTP, then disconnect Prisma. A hard-exit timer guarantees
+   * the process never hangs forever (PM2/Docker would SIGKILL it anyway).
+   */
+  let shuttingDown = false;
+  async function shutdown(signal: string): Promise<void> {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    logger.info("Server", `${signal} received — starting graceful shutdown`);
+
+    const forceExit = setTimeout(() => {
+      logger.error("Server", "Graceful shutdown timed out after 15s — forcing exit");
+      process.exit(1);
+    }, 15_000);
+    forceExit.unref();
+
+    // 1. Stop background timers (scheduler, queue worker, usage flusher).
+    for (const stop of backgroundStops) {
+      try {
+        stop();
+      } catch (err) {
+        logger.error("Server", "Failed to stop background worker:", err);
+      }
+    }
+    if (heartbeatTimer) clearInterval(heartbeatTimer);
+
+    // 2. Close WhatsApp sessions without triggering reconnect or DB rewrites.
+    try {
+      await waManager.shutdownAll();
+    } catch (err) {
+      logger.error("Server", "Failed to shut down WhatsApp sessions:", err);
+    }
+
+    // 3. Close Socket.IO (also detaches the underlying HTTP server handlers).
+    await new Promise<void>((resolve) => {
+      const t = setTimeout(resolve, 5_000);
+      t.unref();
+      io.close(() => {
+        clearTimeout(t);
+        resolve();
+      });
+    });
+
+    // 4. Stop accepting new HTTP connections; let in-flight requests finish.
+    await new Promise<void>((resolve) => {
+      const t = setTimeout(() => {
+        server.closeIdleConnections?.();
+        resolve();
+      }, 5_000);
+      t.unref();
+      server.close(() => {
+        clearTimeout(t);
+        resolve();
+      });
+      server.closeIdleConnections?.();
+    });
+
+    // 5. Release the database connection.
+    try {
+      const { prisma } = await import("../lib/prisma");
+      await prisma.$disconnect();
+    } catch (err) {
+      logger.error("Server", "Failed to disconnect Prisma:", err);
+    }
+
+    clearTimeout(forceExit);
+    logger.info("Server", "Graceful shutdown complete");
+    process.exit(0);
+  }
+
+  process.once("SIGINT", () => void shutdown("SIGINT"));
+  process.once("SIGTERM", () => void shutdown("SIGTERM"));
 });
 
 /**
@@ -135,7 +215,7 @@ function resolveAllowedOrigins(
  * platform, Node version and RSS memory in MB. No customer data, tenant data,
  * credentials, QR codes or message content is ever transmitted.
  *
- * Credits: heartbeat mechanism inherited from WA-AKG by mrifqidaffaaditya (MIT).
+  * Credits: heartbeat mechanism inherited from Woohub core.
  */
 async function isHeartbeatEnabled(): Promise<boolean> {
   if (process.env.TELEMETRY_ENABLED) {
@@ -150,8 +230,8 @@ async function isHeartbeatEnabled(): Promise<boolean> {
   }
 }
 
-function startHeartbeat(hostname: string, port: number): void {
-  const MONITOR_URL = process.env.TELEMETRY_URL || "https://api-wa-akg.aikeigroup.net/api/ping";
+function startHeartbeat(hostname: string, port: number): ReturnType<typeof setInterval> {
+  const MONITOR_URL = process.env.TELEMETRY_URL || "";
   const APP_URL = process.env.BASE_URL || `http://${hostname}:${port}`;
   const APP_NAME = process.env.APP_NAME || pkg.name;
   const VERSION = pkg.version;
@@ -191,5 +271,5 @@ function startHeartbeat(hostname: string, port: number): void {
   };
 
   sendHeartbeat();
-  setInterval(sendHeartbeat, 30000);
+  return setInterval(sendHeartbeat, 30000);
 }

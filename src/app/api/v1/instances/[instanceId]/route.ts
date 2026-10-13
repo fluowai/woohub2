@@ -47,7 +47,7 @@ export async function GET(
             },
         });
     } catch (error) {
-        return v1ErrorResponse(error);
+        return await v1ErrorResponse(error);
     }
 }
 
@@ -75,6 +75,6 @@ export async function DELETE(
 
         return v1NoContent();
     } catch (error) {
-        return v1ErrorResponse(error);
+        return await v1ErrorResponse(error);
     }
 }

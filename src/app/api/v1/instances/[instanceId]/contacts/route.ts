@@ -53,6 +53,6 @@ export async function GET(
             { total, page, limit, total_pages: Math.ceil(total / limit) }
         );
     } catch (error) {
-        return v1ErrorResponse(error);
+        return await v1ErrorResponse(error);
     }
 }

@@ -7,28 +7,28 @@ export const getApiDocs = () => {
         definition: {
             openapi: "3.0.0",
             info: {
-                title: "Woohub API Documentation",
-                version: "1.6.1",
+                title: "Documentação da API Woohub",
+                version: "1.6.4",
                 description: `
-# WhatsApp AI Gateway - Complete API Reference
+# API de WhatsApp Woohub — Referência Completa
 
-Professional WhatsApp Gateway with **93 API endpoints** for complete WhatsApp automation.
+Gateway Profissional de WhatsApp com **rotas de alta performance** para automação, envio de mensagens e integração completa.
 
-## 🔐 Authentication
-All endpoints require authentication via:
-1. **API Key Header**: \`X-API-Key: your-api-key\`
-2. **Session Cookie**: \`next-auth.session-token\` (automatically sent by browser)
+## 🔐 Autenticação
+Todos os endpoints exigem autenticação via:
+1. **Header com Chave de API**: \`X-API-Key: sua-chave-aqui\`
+2. **Cookie de Sessão**: \`next-auth.session-token\` (gerenciado automaticamente pelo navegador)
 
-## 📋 Common Parameters
-- **sessionId**: Unique session identifier (e.g., "mysession-01")
-- **jid**: WhatsApp JID format:
-  - Personal: \`628123456789@s.whatsapp.net\`
-  - Group: \`120363123456789@g.us\`
+## 📋 Parâmetros Comuns
+- **sessionId**: Identificador único da instância/sessão (ex.: "minha-instancia-01")
+- **jid**: Formato do identificador WhatsApp JID:
+  - Pessoal: \`5511999998888@s.whatsapp.net\`
+  - Grupo: \`120363123456789@g.us\`
 
-## 📊 Rate Limits
-- Phone check: Max 50 numbers per request
-- Broadcast: 10-20s random delay between messages
-- Message history: Max 100 messages
+## 📊 Limites e Segurança
+- Verificação de número: Máximo de 50 números por requisição
+- Disparo em massa: Atraso humanizado de 10-20s entre mensagens
+- Histórico de mensagens: Até 100 mensagens por consulta
                 `,
             },
             servers: [
@@ -1424,7 +1424,7 @@ All endpoints require authentication via:
                     post: {
                         tags: ["Messaging"],
                         summary: "Reply to a message (quoted reply)",
-                        description: "Send a quoted reply to a specific message by its ID. Uses same request format as /send — pass a Baileys message object.",
+                        description: "Send a quoted reply to a specific message by its ID. Uses same request format as /send — pass a WhatsApp Engine message object.",
                         parameters: [
                             { name: "sessionId", in: "path", required: true, schema: { type: "string" }, example: "sales-01" },
                             { name: "jid", in: "path", required: true, schema: { type: "string" }, example: "628123456789@s.whatsapp.net" },
@@ -1676,40 +1676,6 @@ All endpoints require authentication via:
                             403: { $ref: "#/components/responses/Forbidden" },
                             503: { $ref: "#/components/responses/SessionNotReady" },
                             500: { description: "Failed to send message" }
-                        }
-                    }
-                },
-
-                "/messages/{sessionId}/{jid}/spam": {
-                    post: {
-                        tags: ["Messaging"],
-                        summary: "Message bombing (Spam)",
-                        description: "Send a message multiple times in a row in the background",
-                        parameters: [
-                            { name: "sessionId", in: "path", required: true, schema: { type: "string" } },
-                            { name: "jid", in: "path", required: true, schema: { type: "string" } }
-                        ],
-                        requestBody: {
-                            content: {
-                                "application/json": {
-                                    schema: {
-                                        type: "object",
-                                        required: ["message"],
-                                        properties: {
-                                            message: { type: "string", example: "Check our new catalog!" },
-                                            count: { type: "integer", default: 10, example: 5 },
-                                            delay: { type: "integer", default: 500, example: 1000, description: "Delay in ms" }
-                                        }
-                                    }
-                                }
-                            }
-                        },
-                        responses: {
-                            200: { description: "Spam started", content: { "application/json": { schema: { type: "object", properties: { success: { type: "boolean", example: true }, message: { type: "string" } } } } } },
-                            401: { $ref: "#/components/responses/Unauthorized" },
-                            403: { $ref: "#/components/responses/Forbidden" },
-                            503: { $ref: "#/components/responses/SessionNotReady" },
-                            500: { description: "Failed to start spam" }
                         }
                     }
                 },
@@ -3254,7 +3220,7 @@ All endpoints require authentication via:
                                         properties: {
                                             name: { type: "string", minLength: 2 },
                                             email: { type: "string", format: "email" },
-                                            password: { type: "string", minLength: 6 },
+                                            password: { type: "string", minLength: 8 },
                                             role: {
                                                 type: "string",
                                                 enum: ["SUPERADMIN", "OWNER", "STAFF"],
@@ -4163,7 +4129,7 @@ All endpoints require authentication via:
                                                 id: { type: "string", example: "default" },
                                                 appName: { type: "string", example: "Woohub" },
                                                 logoUrl: { type: "string", example: "https://example.com/logo.png" },
-                                                timezone: { type: "string", example: "Asia/Jakarta" }
+                                                 timezone: { type: "string", example: "America/Sao_Paulo" }
                                             }
                                         }
                                     }

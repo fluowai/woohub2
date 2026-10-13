@@ -58,6 +58,10 @@ export async function POST() {
     const user = await getAuthenticatedUser();
     if (!user?.id) return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 401 });
 
+    if (user.tenantRole === "USER" || !user.permissions.has("apikeys:write")) {
+        return NextResponse.json({ status: false, message: "Usuários operacionais não têm permissão para gerar chaves de API." }, { status: 403 });
+    }
+
     try {
         if (!user.tenantId) {
             return NextResponse.json({ status: false, message: "No company associated with this user", error: "No company" }, { status: 400 });

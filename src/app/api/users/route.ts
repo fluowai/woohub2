@@ -3,12 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser, isAdmin } from "@/lib/api-auth";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { passwordSchema } from "@/lib/security/password";
 
 const createUserSchema = z.object({
     name: z.string().min(2),
     email: z.string().email(),
-    password: z.string().min(6),
-    role: z.enum(["SUPERADMIN", "OWNER", "STAFF"]).default("OWNER"),
+    password: passwordSchema,
+    role: z.enum(["MEGA_ADMIN", "SUPERADMIN", "OWNER", "STAFF"]).default("OWNER"),
 });
 
 export async function GET(request: NextRequest) {

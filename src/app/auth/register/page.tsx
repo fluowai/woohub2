@@ -21,7 +21,11 @@ import Link from 'next/link';
 const formSchema = z.object({
     name: z.string().min(2, "Informe pelo menos 2 caracteres"),
     email: z.string().email("Informe um e-mail válido"),
-    password: z.string().min(6, "A senha deve ter no mínimo 6 caracteres"),
+    password: z.string()
+        .min(8, "A senha deve ter no mínimo 8 caracteres")
+        .regex(/[a-z]/, "Inclua ao menos uma letra minúscula")
+        .regex(/[A-Z]/, "Inclua ao menos uma letra maiúscula")
+        .regex(/[0-9]/, "Inclua ao menos um número"),
     confirmPassword: z.string()
 }).refine((data) => data.password === data.confirmPassword, {
     message: "As senhas não coincidem",
@@ -67,8 +71,8 @@ export default function RegisterPage() {
 
             setSuccess(true);
             setTimeout(() => {
-                router.push('/auth/login');
-            }, 2000);
+                router.push('/auth/login?callbackUrl=%2Fonboarding');
+            }, 1200);
 
         } catch (err: any) {
             setError(err.message || "Ocorreu um erro inesperado. Tente novamente.");
@@ -86,7 +90,7 @@ export default function RegisterPage() {
                         <Bot className="h-8 w-8 text-white" />
                     </div>
                     <h2 className="text-2xl font-bold text-foreground mb-2">Cadastro realizado com sucesso!</h2>
-                    <p className="text-muted-foreground">Redirecionando para a página de login...</p>
+                        <p className="text-muted-foreground">Redirecionando para o acesso e configuração inicial...</p>
                 </div>
             </div>
         );

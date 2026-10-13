@@ -1,8 +1,8 @@
-# API Quick Reference
+# Referência rápida da API WooHub
 
-Quick reference guide for common API operations in WA-AKG.
+Guia rápido das operações mais comuns da API comercial WooHub.
 
-> **Version**: 1.6.1 | **Last Updated**: June 2026
+> **Versão**: 1.6.4 | **Última atualização**: outubro de 2026
 
 ## Base URL
 

@@ -26,7 +26,7 @@ export function normalizeJid(jid: string | undefined | null): string {
  * Resolve a @lid JID to @s.whatsapp.net phone number JID.
  * 
  * Resolution strategy:
- *   1. Inline remoteJidAlt (from Baileys message key) if provided
+ *   1. Inline remoteJidAlt (from WhatsApp Engine message key) if provided
  *   2. DB Contact lookup (contact.remoteJidAlt or matching by lid field)
  *   3. Falls back to the original JID if no resolution is found
  *

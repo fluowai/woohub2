@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser, isAdmin } from "@/lib/api-auth";
 import { audit } from "@/lib/audit";
 import { invalidateQuotaCache } from "@/lib/quota";
+import { assertPlanForMode, CommercialRuleError } from "@/lib/commercial";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +70,9 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ status: false, message: "Plan not found", error: "Plan not found" }, { status: 404 });
         }
 
+        const mode = tenant.commercialMode;
+        assertPlanForMode({ plan, mode, resellerId: tenant.resellerId });
+
         const now = new Date();
         const periodEnd = new Date(now.getTime() + parsed.data.periodDays * 24 * 60 * 60 * 1000);
         const trialEndsAt = parsed.data.trialDays
@@ -82,6 +86,11 @@ export async function POST(request: NextRequest) {
             where: { tenantId: parsed.data.tenantId },
             update: {
                 planId: plan.id,
+                commercialMode: mode,
+                contractedMaxInstances: plan.maxInstances,
+                contractedMaxUsers: plan.maxUsers,
+                contractedMaxInstallations: plan.maxInstallations,
+                termsVersion: plan.updatedAt.toISOString(),
                 status: parsed.data.status,
                 currentPeriodStart: now,
                 currentPeriodEnd: periodEnd,
@@ -94,6 +103,11 @@ export async function POST(request: NextRequest) {
             create: {
                 tenantId: parsed.data.tenantId,
                 planId: plan.id,
+                commercialMode: mode,
+                contractedMaxInstances: plan.maxInstances,
+                contractedMaxUsers: plan.maxUsers,
+                contractedMaxInstallations: plan.maxInstallations,
+                termsVersion: plan.updatedAt.toISOString(),
                 status: parsed.data.status,
                 currentPeriodStart: now,
                 currentPeriodEnd: periodEnd,
@@ -116,6 +130,9 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ status: true, message: "Subscription assigned", data: subscription }, { status: 201 });
     } catch (error) {
+        if (error instanceof CommercialRuleError) {
+            return NextResponse.json({ status: false, code: error.code, message: error.message }, { status: error.status });
+        }
         console.error("Assign subscription error:", error);
         return NextResponse.json({ status: false, message: "Failed to assign subscription", error: "Failed to assign subscription" }, { status: 500 });
     }

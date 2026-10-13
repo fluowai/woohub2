@@ -4,7 +4,11 @@ const bcrypt = require("bcryptjs");
 const prisma = new PrismaClient();
 
 /**
- * Criação ÚNICA do SUPERADMIN (executada pelo job de migração, não pelo boot da app).
+ * Criação de usuários administrativos (executada pelo job de migração, não pelo boot da app).
+ *
+ * Roles suportados:
+ *  - MEGA_ADMIN: dono do sistema (acima de tudo)
+ *  - SUPERADMIN: whitelabel / admin global
  *
  * Regras:
  *  - usuário já existe  → nada é alterado (sem re-promoção automática);
@@ -16,8 +20,15 @@ async function main() {
     const argv = process.argv.slice(2);
     const promote = argv.includes("--promote");
     const args = argv.filter((a) => a !== "--promote");
-    const email = (args[0] || process.env.ADMIN_EMAIL || "").trim();
-    const password = (args[1] || process.env.ADMIN_PASSWORD || "").trim();
+    const role = (args[0] || process.env.ADMIN_ROLE || "SUPERADMIN").trim().toUpperCase();
+    const email = (args[1] || process.env.ADMIN_EMAIL || "").trim();
+    const password = (args[2] || process.env.ADMIN_PASSWORD || "").trim();
+
+    const validRoles = ["MEGA_ADMIN", "SUPERADMIN"];
+    if (!validRoles.includes(role)) {
+        console.error(`Role inválida: ${role}. Use: MEGA_ADMIN ou SUPERADMIN`);
+        process.exit(1);
+    }
 
     const userCount = await prisma.user.count();
 
@@ -28,7 +39,7 @@ async function main() {
         }
         console.error(
             "Banco sem usuarios e ADMIN_EMAIL nao informado. " +
-                "Informe: node scripts/setup-admin.js <email> <senha>"
+                "Informe: node scripts/setup-admin.js <role> <email> <senha>"
         );
         process.exit(1);
     }
@@ -36,9 +47,9 @@ async function main() {
     const existing = await prisma.user.findUnique({ where: { email } });
 
     if (existing) {
-        if (promote && existing.role !== "SUPERADMIN") {
-            await prisma.user.update({ where: { email }, data: { role: "SUPERADMIN" } });
-            console.log(`Usuario ${email} promovido a SUPERADMIN (--promote).`);
+        if (promote && existing.role !== role) {
+            await prisma.user.update({ where: { email }, data: { role } });
+            console.log(`Usuario ${email} promovido a ${role} (--promote).`);
         } else {
             console.log(`Usuario ${email} ja existe; nenhuma alteracao feita.`);
         }
@@ -54,12 +65,12 @@ async function main() {
     await prisma.user.create({
         data: {
             email,
-            name: "Super Admin",
+            name: role === "MEGA_ADMIN" ? "Mega Admin" : "Super Admin",
             password: hashedPassword,
-            role: "SUPERADMIN",
+            role,
         },
     });
-    console.log(`SUPERADMIN ${email} criado.`);
+    console.log(`${role} ${email} criado.`);
 }
 
 main()

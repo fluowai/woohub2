@@ -52,7 +52,7 @@ export default function SystemMonitorPage() {
         };
     }, []);
 
-    if (session?.user?.role !== "SUPERADMIN") {
+    if (session?.user?.role !== "SUPERADMIN" && session?.user?.role !== "MEGA_ADMIN") {
         return (
             <div className="flex h-[80vh] items-center justify-center">
                 <div className="text-center space-y-4">

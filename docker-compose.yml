@@ -3,11 +3,21 @@
 #
 #   docker compose up -d
 #
+# BANCO EXTERNO (PostgreSQL gerenciado — Supabase):
+#   Nao ha servico de banco nesta stack. Defina DATABASE_URL no .env apontando
+#   para o pooler SESSION (porta 5432) com sslmode=require. A porta 6543
+#   (pooler transacional) TRAVA com o Prisma — nao use.
+#
 # Imagens PRE-CONSTRUÍDAS (nada de build no deploy da stack de produção):
 #   docker build -t woohub/app:1.6.4 .
 #   docker compose up -d            # usa woohub/app:1.6.4
 #
 # Diferenças Compose × Swarm estão em docs/DEPLOY.md (obrigatório ler antes).
+#
+# LICENÇA OBRIGATÓRIA: `:?` na interpolação faz o `compose up` falhar antes de
+# criar qualquer container se LICENSE_KEY estiver vazia. Com a chave presente
+# porém inválida, o gate da porta de entrada (`scripts/license-entrypoint.ts`)
+# sai com código 1 e o container fica `Exited (1)` — nunca serving.
 # =============================================================================
 name: woo-woohub
 
@@ -18,57 +28,32 @@ x-logging: &default-logging
     max-file: "5"
 
 services:
-  db:
-    image: mysql:8.0.46
-    container_name: woo-woohub-db
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?defina MYSQL_ROOT_PASSWORD no .env}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-woohub}
-      MYSQL_USER: ${MYSQL_USER:-woohub}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?defina MYSQL_PASSWORD no .env}
-      TZ: America/Sao_Paulo
-    # Sem `ports:` — o banco NÃO é publicado; só a rede interna alcança.
-    networks:
-      - backend
-    volumes:
-      - mysql_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
-    logging: *default-logging
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 1g
-
-  # Job ÚNICO de migração (schema + admin inicial). Sobe depois do banco saudável
-  # e termina; a app só sobe quando este serviço termina com sucesso.
+  # Job ÚNICO de migração (schema + admin inicial) contra o banco externo.
+  # Termina; a app só sobe quando este serviço termina com sucesso.
   migrate:
-    image: woohub/app:${WOHUB_TAG:-1.6.4}
+    image: ${DOCKER_IMAGE:-ghcr.io/woohub/app}:${WOHUB_TAG:-1.6.4}
     container_name: woo-woohub-migrate
     restart: "no"
     environment:
-      - DATABASE_URL=mysql://${MYSQL_USER:-woohub}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE:-woohub}?connection_limit=10
+      - LICENSE_KEY=${LICENSE_KEY:?defina LICENSE_KEY no .env (WOHUB1.* ou WOHUB-*)}
+      - LICENSE_PUBLIC_KEY=${LICENSE_PUBLIC_KEY:-}
+      - LICENSE_SERVER_URL=${LICENSE_SERVER_URL:-}
+      - LICENSE_GRACE_PERIOD_HOURS=${LICENSE_GRACE_PERIOD_HOURS:-24}
+      - LICENSE_DOMAIN=${LICENSE_DOMAIN:-}
+      - DATABASE_URL=${DATABASE_URL:?defina DATABASE_URL no .env (postgresql://...?sslmode=require)}
       - TZ=America/Sao_Paulo
       - ADMIN_EMAIL=${ADMIN_EMAIL:-}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
     command: ["sh", "scripts/migrate.sh"]
-    depends_on:
-      db:
-        condition: service_healthy
     networks:
-      - backend
+      - public
     logging: *default-logging
 
   app:
-    image: woohub/app:${WOHUB_TAG:-1.6.4}
+    image: ${DOCKER_IMAGE:-ghcr.io/woohub/app}:${WOHUB_TAG:-1.6.4}
     container_name: woo-woohub-app
-    restart: unless-stopped
+    # 3 tentativas e para: licença inválida vira `Exited (1)` estável, não loop.
+    restart: "on-failure:3"
     # Para construir localmente (dev), descomente — produção usa imagem pronta:
     # build:
     #   context: .
@@ -76,11 +61,12 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - DATABASE_URL=mysql://${MYSQL_USER:-woohub}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE:-woohub}?connection_limit=20
+      - DATABASE_URL=${DATABASE_URL:?defina DATABASE_URL no .env (postgresql://...?sslmode=require)}
       - AUTH_SECRET=${AUTH_SECRET:?defina AUTH_SECRET no .env}
       - BASE_URL=${BASE_URL:-http://localhost:3000}
       - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
       - NODE_ENV=production
+      - DEPLOYMENT_MODE=${DEPLOYMENT_MODE:-CENTRAL}
       - PORT=${PORT:-3000}
       - HOSTNAME=0.0.0.0
       - TZ=America/Sao_Paulo
@@ -89,17 +75,20 @@ services:
       - BAILEYS_LOG_LEVEL=${BAILEYS_LOG_LEVEL:-error}
       - CREDENTIALS_ENCRYPTION_KEY=${CREDENTIALS_ENCRYPTION_KEY:-}
       - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-120}
+      # Licença (obrigatória: sem ela o compose nem cria os containers)
+      - LICENSE_KEY=${LICENSE_KEY:?defina LICENSE_KEY no .env (WOHUB1.* ou WOHUB-*)}
+      - LICENSE_PUBLIC_KEY=${LICENSE_PUBLIC_KEY:-}
+      - LICENSE_SERVER_URL=${LICENSE_SERVER_URL:-}
+      - LICENSE_GRACE_PERIOD_HOURS=${LICENSE_GRACE_PERIOD_HOURS:-24}
+      - LICENSE_DOMAIN=${LICENSE_DOMAIN:-}
       # Pagamento (opcional — sem isto o checkout responde 503 gateway_not_configured)
       - PAYMENT_GATEWAY=${PAYMENT_GATEWAY:-}
       - PAYMENT_GATEWAY_SECRET_KEY=${PAYMENT_GATEWAY_SECRET_KEY:-}
       - PAYMENT_WEBHOOK_SECRET=${PAYMENT_WEBHOOK_SECRET:-}
     depends_on:
-      db:
-        condition: service_healthy
       migrate:
         condition: service_completed_successfully
     networks:
-      - backend
       - public
     volumes:
       - app_data:/app/data
@@ -118,13 +107,9 @@ services:
           memory: 1g
 
 networks:
-  # Alcança o banco e a internet externa (motor WhatsApp, gateway).
+  # Saida/entrada da app: banco externo (Supabase), motor WhatsApp e gateway.
   public:
-  # Somente interna: banco e job de migração não têm egress nem publicação.
-  backend:
-    internal: true
 
 volumes:
-  mysql_data:
   app_data:
   uploads_data:

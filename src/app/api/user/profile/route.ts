@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser } from "@/lib/api-auth";
 import bcrypt from "bcryptjs";
 import { audit } from "@/lib/audit";
+import { passwordSchema } from "@/lib/security/password";
 
 export const dynamic = "force-dynamic";
 
@@ -13,8 +14,8 @@ const updateProfileSchema = z.object({
 });
 
 const changePasswordSchema = z.object({
-    currentPassword: z.string().min(6),
-    newPassword: z.string().min(8),
+    currentPassword: z.string().min(1),
+    newPassword: passwordSchema,
 });
 
 export async function GET(request: NextRequest) {

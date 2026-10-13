@@ -1,7 +1,8 @@
 import { NextResponse, NextRequest } from "next/server";
 import si from "systeminformation";
-import { getAuthenticatedUser } from "@/lib/api-auth";
+import { getAuthenticatedUser, hasRole } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
+import { safeErrorMessage } from "@/lib/safe-error";
 
 // Ensure this route is dynamic
 export const dynamic = "force-dynamic";
@@ -13,8 +14,8 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ status: false, message: "Unauthorized" }, { status: 401 });
         }
 
-        // Global monitor needs SUPERADMIN
-        if (auth.role !== "SUPERADMIN") {
+        // Global monitor: SUPERADMIN ou MEGA_ADMIN (hasRole trata MEGA_ADMIN como acima)
+        if (!hasRole(auth.role, "SUPERADMIN")) {
             return NextResponse.json({ status: false, message: "Forbidden - Superadmin only" }, { status: 403 });
         }
 
@@ -78,6 +79,6 @@ export async function GET(req: NextRequest) {
 
     } catch (error: any) {
         console.error("Monitor API Error:", error);
-        return NextResponse.json({ status: false, message: error.message }, { status: 500 });
+        return NextResponse.json({ status: false, message: safeErrorMessage(error, "Failed to load monitor data") }, { status: 500 });
     }
 }

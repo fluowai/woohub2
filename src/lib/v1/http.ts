@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { ZodError } from "zod";
-import { currentContext } from "@/lib/access";
+import { currentContext, currentContextAsync } from "@/lib/access";
 import { QuotaError } from "@/lib/quota";
 import { getAuthenticatedUser, type AuthenticatedUser } from "@/lib/api-auth";
 import { logger } from "@/lib/logger";
@@ -41,8 +41,9 @@ export function forbidden(message = "Sem permissão para este recurso"): HttpErr
     return new HttpError(403, "forbidden", message);
 }
 
-function requestId(): string {
-    return currentContext()?.requestId ?? "stateless";
+async function requestId(): Promise<string> {
+    const context = (await currentContextAsync()) ?? currentContext();
+    return context?.requestId ?? "stateless";
 }
 
 /** Authenticated caller or 401 (the proxy already blocks anonymous traffic). */
@@ -68,9 +69,9 @@ export function v1NoContent(): NextResponse {
     return new NextResponse(null, { status: 204 });
 }
 
-export function v1Error(status: number, code: string, message: string, details?: unknown): NextResponse {
+export async function v1Error(status: number, code: string, message: string, details?: unknown): Promise<NextResponse> {
     return NextResponse.json(
-        { error: { code, message, ...(details !== undefined ? { details } : {}) }, request_id: requestId() },
+        { error: { code, message, ...(details !== undefined ? { details } : {}) }, request_id: await requestId() },
         { status }
     );
 }
@@ -80,7 +81,7 @@ export function v1Error(status: number, code: string, message: string, details?:
  *   HttpError -> its own status/code; QuotaError -> 402/403; ZodError -> 400;
  *   anything else -> 500 internal_error (logged, never leaked to the client).
  */
-export function v1ErrorResponse(error: unknown): NextResponse {
+export async function v1ErrorResponse(error: unknown): Promise<NextResponse> {
     if (error instanceof HttpError) {
         return v1Error(error.status, error.code, error.message, error.details);
     }

@@ -4,7 +4,7 @@ import { logger } from "@/lib/logger";
 
 /**
  * Sync contacts from WhatsApp to database.
- * Uses proper Baileys events for syncing and correct Session.id foreign key.
+ * Uses proper WhatsApp Engine events for syncing and correct Session.id foreign key.
  */
 export function bindContactSync(sock: WASocket, sessionId: string) {
     // First, get the database Session ID (cuid)

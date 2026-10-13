@@ -6,7 +6,7 @@ export const createGroupSchema = z.object({
     participants: z.array(z.string().regex(/@s\.whatsapp\.net$/, "Invalid participant JID")).min(1, "At least one participant required")
 });
 
-// Message content for Baileys - can be text object or media object
+// Message content for WhatsApp Engine - can be text object or media object
 export const messageContentSchema = z.union([
     z.object({ text: z.string() }),
     z.object({ image: z.object({ url: z.string() }), caption: z.string().optional() }),

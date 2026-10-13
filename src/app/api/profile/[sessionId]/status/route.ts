@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
 import { waManager } from "@/modules/whatsapp/manager";
+import { safeErrorMessage } from "@/lib/safe-error";
 
 export async function PUT(
     request: NextRequest,
@@ -30,13 +31,13 @@ export async function PUT(
             return NextResponse.json({ status: false, message: "WhatsApp instance not connected" }, { status: 503 });
         }
 
-        // WhatsApp Baileys updates status (about info)
+        // WhatsApp Engine updates status (about info)
         await instance.socket.updateProfileStatus(status);
 
         return NextResponse.json({ status: true, message: "Profile status updated" });
 
     } catch (error: any) {
         console.error("Update profile status error:", error);
-        return NextResponse.json({ status: false, message: error.message }, { status: 500 });
+        return NextResponse.json({ status: false, message: safeErrorMessage(error, "Failed to update status") }, { status: 500 });
     }
 }

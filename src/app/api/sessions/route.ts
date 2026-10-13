@@ -2,7 +2,7 @@ import { NextResponse, NextRequest } from "next/server";
 import { waManager } from "@/modules/whatsapp/manager";
 import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser, getAccessibleSessions } from "@/lib/api-auth";
-import { assertInstanceQuota, quotaErrorResponse } from "@/lib/quota";
+import { quotaErrorResponse } from "@/lib/quota";
 
 export const dynamic = 'force-dynamic';
 
@@ -31,15 +31,16 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 401 });
         }
 
+        if (user.tenantRole === "USER" || !user.permissions.has("instances:write")) {
+            return NextResponse.json({ status: false, message: "Usuários operacionais não têm permissão para criar instâncias." }, { status: 403 });
+        }
+
         const body = await request.json();
         const { name, sessionId } = body;
 
         if (!name) {
             return NextResponse.json({ status: false, message: "Session name is required", error: "Session name is required" }, { status: 400 });
         }
-
-        // Plan quota: instances per company (no company -> pilot mode, no limit).
-        await assertInstanceQuota(user.tenantId);
 
         // Create session for the authenticated user
         const session = await waManager.createSession(user.id, name, sessionId);

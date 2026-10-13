@@ -180,7 +180,7 @@ export default function PlansPage() {
                         <form onSubmit={handleSubmit} className="grid gap-3 md:grid-cols-4">
                             <div className="space-y-1">
                                 <Label htmlFor="p-code">Código</Label>
-                                <Input id="p-code" required disabled={!!editingId} pattern="^[a-z0-9-]+$"
+                                <Input id="p-code" required disabled={!!editingId} pattern="^[a-z0-9\\-]+$"
                                     value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })}
                                     placeholder="pro-monthly" />
                             </div>

@@ -22,6 +22,6 @@ export async function GET(request: NextRequest) {
             usage: snapshot.usage,
         });
     } catch (error) {
-        return v1ErrorResponse(error);
+        return await v1ErrorResponse(error);
     }
 }

@@ -9,12 +9,18 @@ Complementa `docs/DEPLOY.md` (seções 9 e 10).
 
 | Ativo | Onde vive | Crítico | Observação |
 |---|---|---|---|
-| Banco MySQL (dados lógicos) | volume `mysql_data` | **sim** | tenants, usuários, sessões, mensagens, faturas, auditoria |
+| Banco PostgreSQL (dados lógicos) | instância gerenciada externa (Supabase) | **sim** | tenants, usuários, sessões, mensagens, faturas, auditoria, credenciais Baileys |
 | Mídia enviada/recebida | volume `app_data` (`/app/data/media`) | sim | arquivos referenciados por URL interna |
-| `.env` / ambiente da stack | host (fora do repositório) | **sim** | contém `AUTH_SECRET`, `PAYMENT_WEBHOOK_SECRET`, `PAYMENT_GATEWAY_SECRET_KEY`, `MYSQL_*`, `CREDENTIALS_ENCRYPTION_KEY` |
+| `.env` / ambiente da stack | host (fora do repositório) | **sim** | contém `AUTH_SECRET`, `PAYMENT_WEBHOOK_SECRET`, `PAYMENT_GATEWAY_SECRET_KEY`, `DATABASE_URL`, `CREDENTIALS_ENCRYPTION_KEY` |
 | Chave `CREDENTIALS_ENCRYPTION_KEY` | cofre de senhas | **irrecuperável** | sem ela, dados cifrados ficam permanentemente ilegíveis |
 | Código/imagens | registry + Git | não (reconstruível) | `docker build -t woohub/app:<tag>` |
-| Estado Baileys em disco (se houver) | volume do serviço app | sim | sessão autenticada do WhatsApp; se perder, refaça o QR |
+
+> **Atenção**: o banco **não** roda na stack Docker — `DATABASE_URL` aponta para
+> uma instância externa (Supabase, `sslmode=require`). O backup do banco é
+> portanto responsabilidade deste runbook; não existe volume Docker a copiar.
+>
+> As credenciais Baileys (sessão do WhatsApp) ficam no banco, cifradas —
+> backup do banco = backup da sessão. Se perder ambas, refaça o QR.
 
 > Regra: **nunca** versione `.env`, dumps ou chaves. Guarde-os fora do repositório.
 
@@ -23,11 +29,13 @@ Complementa `docs/DEPLOY.md` (seções 9 e 10).
 ## 2. Backup do banco (lógica, consistente)
 
 ```bash
-# 1) Dump lógico (não bloquea a stack inteira)
-docker compose exec -T db sh -c \
-  'mysqldump --single-transaction --routines --triggers \
-    -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"' \
-  > backup-$(date +%F-%H%M).sql
+# 1) Dump lógico em formato custom (comprime e permite restauração seletiva)
+#    DATABASE_URL = postgresql://USER:PASS@HOST:5432/DBNAME?sslmode=require
+pg_dump --format=custom --no-owner --no-privileges \
+  "$DATABASE_URL" > backup-$(date +%F-%H%M).dump
+
+# Alternativa com Supabase CLI:
+#   supabase db dump --db-url "$DATABASE_URL" -f backup.sql
 
 # 2) Mídia (arquivos novos desde o último backup)
 docker run --rm -v woohub_app_data:/data -v "$PWD":/backup alpine \
@@ -49,11 +57,16 @@ Agendamento sugerido (no próprio host, via `cron`):
 
 ```bash
 docker compose stop app                 # para escritas
-docker compose exec -T db sh -c \
-  'mysql -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"' \
-  < backup-2026-10-05-0300.sql
+pg_restore --clean --if-exists --no-owner --no-privileges \
+  --dbname="$DATABASE_URL" backup-2026-10-05-0300.dump
 docker compose up -d                     # app volta e passa pelo job de migração
 curl -fsS http://localhost:3000/api/system/health   # deve responder 200
+```
+
+Para dumps em SQL puro (`supabase db dump`):
+
+```bash
+psql "$DATABASE_URL" < backup-2026-10-05-0300.sql
 ```
 
 Mídia:
@@ -78,7 +91,7 @@ banco está vazio, nunca sobrescreve contas existentes.
 | `AUTH_SECRET` | `.env` do host / secrets do Swarm | anualmente ou ao suspeitar de vazamento |
 | `CREDENTIALS_ENCRYPTION_KEY` | cofre de senhas (1Password/Bitwarden/Vault) | **não rotacione** sem plano de re-cifragem |
 | `PAYMENT_WEBHOOK_SECRET` + `PAYMENT_GATEWAY_SECRET_KEY` | cofre + `.env` | a cada troca de credencial no gateway |
-| `MYSQL_ROOT_PASSWORD` / `MYSQL_PASSWORD` | `.env` | anualmente (exige ALTER USER + atualização da stack) |
+| Senha do `DATABASE_URL` (Supabase) | `.env` + cofre | anualmente (rotacione no painel do Supabase e atualize a stack) |
 
 - Chave de cofre nunca em chat, ticket, e-mail ou repositório.
 - Ao rotacionar `AUTH_SECRET`, todas as sessões são invalidadas (esperado).
@@ -90,12 +103,11 @@ banco está vazio, nunca sobrescreve contas existentes.
 
 ## 5. Verificação periódica (checklist mensal)
 
-1. `grep -c "INSERT INTO" backup.sql` > 0 (dump não vazio).
-2. Restauração em ambiente de homologação (`docker compose -f ... up` com banco novo) — **drill real**, não apenas dump.
+1. `pg_restore --list backup.dump | head` → dump legível e não vazio.
+2. Restauração em ambiente de homologação (banco novo + stack apontando para ele) — **drill real**, não apenas dump.
 3. `/api/system/health` → `200`.
 4. `npx prisma migrate status` → sem pendências.
-5. Espaço em disco dos volumes `mysql_data` e `app_data` dentro do previsto.
+5. Espaço em disco do volume `app_data` e do banco externo dentro do previsto.
 
-> Esta máquina de entrega não tinha Docker/MySQL ativos: nenhum drill foi
-> executado aqui. O primeiro drill é obrigatório antes de operar em produção
+> O primeiro drill é obrigatório antes de operar em produção
 > (registrado em `DEV/VERIFY.md`).

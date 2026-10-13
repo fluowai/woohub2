@@ -57,6 +57,10 @@ export async function POST(
             return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 401 });
         }
 
+        if (user.tenantRole === "USER") {
+            return NextResponse.json({ status: false, message: "Usuários operacionais não têm permissão para criar respostas automáticas." }, { status: 403 });
+        }
+
         const body = await request.json();
         const { keyword, response, matchType, isMedia, mediaUrl, mediaType, triggerType } = body;
 

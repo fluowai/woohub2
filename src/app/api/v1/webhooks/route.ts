@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
         return v1Ok(webhooks.map(mapWebhook), { total: webhooks.length });
     } catch (error) {
-        return v1ErrorResponse(error);
+        return await v1ErrorResponse(error);
     }
 }
 
@@ -67,6 +67,6 @@ export async function POST(request: NextRequest) {
 
         return v1Created(mapWebhook(webhook));
     } catch (error) {
-        return v1ErrorResponse(error);
+        return await v1ErrorResponse(error);
     }
 }

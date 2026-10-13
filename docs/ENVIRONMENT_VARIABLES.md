@@ -1,6 +1,6 @@
 # 🔐 Environment Variables Guide
 
-This document provides a comprehensive reference for all configuration options available in **WA-AKG**. 
+This document provides a comprehensive reference for all configuration options available in **Woohub**.
 
 > [!WARNING]
 > Never commit your `.env` file to version control (Git). It contains sensitive credentials that could compromise your system.
@@ -14,7 +14,7 @@ These variables are critical for the application to function.
 | Variable | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
 | `PORT` | string | `3000` | The port on which the server will listen. Ensure this port is free on your server! |
-| `DATABASE_URL` | string | — | The database connection string (e.g. `mysql://user:pass@localhost:3306/db` or `postgresql://user:pass@localhost:5432/db?schema=public`). |
+| `DATABASE_URL` | string | - | The PostgreSQL connection string (e.g. `postgresql://user:pass@localhost:5432/db?schema=public&sslmode=require`). |
 | `AUTH_SECRET` | string | — | Secure cryptographic key used for JWT session encryption. **Server will exit on startup if this is empty in production!** (Generate with `openssl rand -base64 32`). |
 | `BASE_URL` | string | `http://localhost:3000` | The unified public URL where your application is hosted. Essential for correct authentication callbacks and URL generation. |
 | `NODE_ENV` | string | `development` | Environment mode (`development` \| `production` \| `test`). |
@@ -41,7 +41,7 @@ Branding attributes and client interface pagination settings.
 
 | Variable | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `APP_NAME` | string | `WA-AKG` | Custom name displayed across the login screens, dashboard header, and sidebar footer. |
+| `APP_NAME` | string | `Woohub` | Custom name displayed across the login screens, dashboard header, and sidebar footer. |
 | `LOGO_URL` | string | — | Custom image URL for your brand logo (leave empty to use default asset). |
 | `FAVICON_URL` | string | — | Custom image URL for the browser tab favicon (leave empty to use default asset). |
 | `NEXT_PUBLIC_CHAT_PAGE_SIZE` | number | `50` | Default number of conversations loaded per page in the chat window. |
@@ -61,7 +61,7 @@ Interactive OpenAPI / Swagger documentation page settings.
 
 ---
 
-## 🔌 5. WhatsApp Core (Baileys Engine)
+## 🔌 5. WhatsApp Core Engine
 
 Configuration settings for the underlying WhatsApp WebSocket client.
 
@@ -114,8 +114,8 @@ Required ONLY if utilizing the `docker-compose.yml` stack deployment.
 
 | Variable | Required | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `MYSQL_ROOT_PASSWORD` | **Yes** | — | Root access password for the MySQL container. |
-| `MYSQL_DATABASE` | No | `wa_akg` | Target schema database name. |
+| `DATABASE_URL` | **Yes** | — | Connection string of the **external** PostgreSQL instance (no DB container ships with the stack). |
+| `LICENSE_KEY` | **Yes** | — | License key required by the stack interpolation (`:?`). |
 | `ADMIN_EMAIL` | **Yes** | — | Email of the default SuperAdmin generated on first boot. |
 | `ADMIN_PASSWORD` | **Yes** | — | Password of the default SuperAdmin generated on first boot. |
 

@@ -1,14 +1,14 @@
-# 🏗️ WA-AKG Project Architecture & Logic
+# 🏗️ Woohub Project Architecture & Logic
 
 > **Version**: 1.6.1  
 > **Last Updated**: June 2026  
-> **Tech Stack**: Next.js 16 (App Router), TypeScript, Prisma, MySQL/PostgreSQL, Baileys, Tailwind CSS.
+> **Tech Stack**: Next.js 16 (App Router), TypeScript, Prisma, PostgreSQL, Baileys, Tailwind CSS.
 
 ---
 
 ## 🏗️ System Architecture
 
-WA-AKG is a decoupled system where the WhatsApp engine (Baileys) runs as a core service, integrated into a Next.js App Router environment.
+Woohub is a decoupled system where the WhatsApp engine (Baileys) runs as a core service, integrated into a Next.js App Router environment.
 
 ```mermaid
 graph TD
@@ -31,7 +31,7 @@ graph TD
     
     subgraph Storage
         PRISMA[Prisma ORM]
-        DB[(PostgreSQL/MySQL)]
+        DB[(PostgreSQL)]
     end
 
     LB <--> Backend
@@ -105,16 +105,17 @@ Every incoming message follows this path:
 ## 🚀 Environment & Deployment
 
 Configuration is centralized in `.env`. The project natively supports standard bare-metal builds (`npm run build`) and Docker containerized deployment (`docker-compose.yml`) which coordinates:
-1. A MySQL 8.0 instance with persistent volume storage for schema data.
-2. Next.js gateway web container running on custom tsx server with automated startup database synchronization (`npx prisma db push`).
+1. An external PostgreSQL instance (Supabase/Neon/RDS) — reached via `DATABASE_URL`; no DB container ships with the stack.
+2. A one-shot `migrate` job (`scripts/migrate.sh`) that runs `prisma migrate deploy` and provisions the first admin.
+3. Next.js gateway web container running on the custom tsx server, started only after the migration job succeeds.
 
 > [!CAUTION]
-> Docker Compose sekarang membaca kredensial dari `.env` file. Jangan gunakan nilai default untuk `AUTH_SECRET`, `MYSQL_ROOT_PASSWORD`, `ADMIN_PASSWORD`, atau `NEXT_PUBLIC_SWAGGER_PASSWORD` di production. Jalankan `cp .env.example .env` dan edit sebelum `docker compose up`.
+> Docker Compose reads credentials from the `.env` file. Never keep default values for `AUTH_SECRET`, `DATABASE_URL`, or `ADMIN_PASSWORD` in production. Run `cp .env.example .env` and edit it before `docker compose up`.
 
 > [!IMPORTANT]
 > Always run `npm run db:push` after updates on bare-metal, or use Docker Compose which executes this step automatically on container startup.
 
 ---
 <div align="center">
-  <small>Technical Reference for WA-AKG dev team.</small>
+  <small>Technical Reference for Woohub dev team.</small>
 </div>

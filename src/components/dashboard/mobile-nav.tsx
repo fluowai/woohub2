@@ -39,6 +39,8 @@ import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import pkg from "../../../package.json";
 
+import { useRoleTheme } from "./role-theme";
+
 interface NavGroup {
     label: string;
     items: {
@@ -47,11 +49,44 @@ interface NavGroup {
         icon: React.ElementType;
         external?: boolean;
         superadminOnly?: boolean;
+        megaAdminOnly?: boolean;
         allowedRoles?: string[];
     }[];
 }
 
 // Keep in sync with sidebar-nav.tsx
+const megaAdminMobileGroups: NavGroup[] = [
+    {
+        label: "Administração Global",
+        items: [
+            { href: "/dashboard/mega-admin", label: "Visão geral", icon: LayoutDashboard },
+            { href: "/dashboard/mega-admin/resellers", label: "Revendedores", icon: Users },
+            { href: "/dashboard/mega-admin/direct-clients", label: "Clientes diretos", icon: UserCheck },
+            { href: "/dashboard/mega-admin/instances", label: "Instâncias", icon: HardDrive },
+            { href: "/dashboard/plans", label: "Planos e cobrança", icon: CreditCard },
+            { href: "/dashboard/mega-admin/domains", label: "Domínios", icon: Link2 },
+            { href: "/dashboard/system-monitor", label: "Saúde da API", icon: Activity },
+            { href: "/dashboard/mega-admin/audit", label: "Auditoria", icon: ScrollText },
+        ],
+    },
+];
+
+const superAdminMobileGroups: NavGroup[] = [
+    {
+        label: "Revenda White Label",
+        items: [
+            { href: "/dashboard/super-admin", label: "Visão geral", icon: LayoutDashboard },
+            { href: "/dashboard/super-admin/clients", label: "Meus clientes", icon: Users },
+            { href: "/dashboard/super-admin/instances", label: "Instâncias", icon: HardDrive },
+            { href: "/dashboard/super-admin/plans", label: "Planos de revenda", icon: CreditCard },
+            { href: "/dashboard/super-admin/billing", label: "Cobrança", icon: CreditCard },
+            { href: "/dashboard/super-admin/branding", label: "Minha marca", icon: Settings },
+            { href: "/dashboard/super-admin/domain", label: "Meu domínio", icon: Link2 },
+            { href: "/dashboard/super-admin/my-subscription", label: "Minha assinatura", icon: Tag },
+        ],
+    },
+];
+
 const navGroups: NavGroup[] = [
     {
         label: "Principal",
@@ -115,15 +150,31 @@ const navGroups: NavGroup[] = [
     },
 ];
 
-export function MobileNav({ appName = "Woohub" }: { appName?: string }) {
+export function MobileNav({ appName = "Woohub", theme, userRole: propUserRole }: { appName?: string; theme?: any; userRole?: string }) {
     const [open, setOpen] = useState(false);
     const pathname = usePathname();
     const { data: session } = useSession();
     // @ts-ignore
-    const userRole = session?.user?.role;
+    const sessionRole = session?.user?.role;
+    let userRole = propUserRole || sessionRole;
+
+    if (pathname.startsWith("/dashboard/mega-admin")) {
+        userRole = "MEGA_ADMIN";
+    } else if (pathname.startsWith("/dashboard/super-admin")) {
+        userRole = "SUPER_ADMIN";
+    }
+
+    const currentTheme = theme || useRoleTheme().theme;
+
+    const activeNavGroups =
+        userRole === "MEGA_ADMIN" ? megaAdminMobileGroups :
+        (userRole === "SUPER_ADMIN" || userRole === "SUPERADMIN") ? superAdminMobileGroups :
+        navGroups;
 
     const isActive = (href: string) => {
         if (href === "/dashboard") return pathname === "/dashboard";
+        if (href === "/dashboard/mega-admin") return pathname === "/dashboard/mega-admin" || pathname === "/dashboard";
+        if (href === "/dashboard/super-admin") return pathname === "/dashboard/super-admin" || pathname === "/dashboard";
         return pathname.startsWith(href);
     };
 
@@ -134,16 +185,19 @@ export function MobileNav({ appName = "Woohub" }: { appName?: string }) {
                     <Menu className="h-5 w-5" />
                 </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-[85vw] sm:w-[320px] p-0 flex flex-col">
-                <SheetHeader className="px-5 py-4 text-left border-b border-slate-100">
-                    <SheetTitle className="text-xl font-bold text-slate-800">{appName}</SheetTitle>
-                    <SheetDescription className="text-[11px] text-slate-400 -mt-1">API de WhatsApp</SheetDescription>
+            <SheetContent side="left" className={`w-[85vw] sm:w-[320px] p-0 flex flex-col ${currentTheme.sidebarBg} ${currentTheme.sidebarBorder}`}>
+                <SheetHeader className={`px-5 py-4 text-left border-b ${currentTheme.sidebarBorder}`}>
+                    <SheetTitle className={`text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r ${currentTheme.brandGradient}`}>
+                        {appName}
+                    </SheetTitle>
+                    <SheetDescription className={`text-[11px] text-muted-foreground -mt-1 ${currentTheme.accentColor}`}>API de WhatsApp</SheetDescription>
                 </SheetHeader>
 
                 <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-1">
-                    {navGroups.map((group) => {
+                    {activeNavGroups.map((group) => {
                         const visibleItems = group.items.filter((item) => {
-                            if (item.superadminOnly && userRole !== "SUPERADMIN") return false;
+                            if (item.superadminOnly && userRole !== "SUPERADMIN" && userRole !== "MEGA_ADMIN") return false;
+                            if (item.megaAdminOnly && userRole !== "MEGA_ADMIN") return false;
                             if (item.allowedRoles && (!userRole || !item.allowedRoles.includes(userRole))) return false;
                             return true;
                         });
@@ -152,7 +206,7 @@ export function MobileNav({ appName = "Woohub" }: { appName?: string }) {
                         return (
                             <div key={group.label} className="mb-1">
                                 {group.label !== "Principal" && (
-                                    <p className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                                    <p className={`px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider ${currentTheme.accentColor}`}>
                                         {group.label}
                                     </p>
                                 )}
@@ -168,17 +222,17 @@ export function MobileNav({ appName = "Woohub" }: { appName?: string }) {
                                                 transition-all duration-200 group relative
                                                 gap-3 px-3 py-2
                                                 ${isActive(href)
-                                                    ? "text-primary bg-primary/10 shadow-sm"
-                                                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                                    ? `text-transparent bg-clip-text bg-gradient-to-r ${currentTheme.brandGradient} shadow-sm ${currentTheme.glowColor}`
+                                                    : `text-muted-foreground hover:bg-muted/50 hover:text-foreground ${currentTheme.accentHover}`
                                                 }
                                             `}
                                         >
                                             {isActive(href) && (
-                                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-primary rounded-r-full" />
+                                                <div className={`absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full bg-gradient-to-b ${currentTheme.brandGradient}`} />
                                             )}
                                             <Icon
                                                 size={17}
-                                                className={`flex-shrink-0 transition-colors duration-200 ${isActive(href) ? "text-primary" : "text-muted-foreground/70 group-hover:text-foreground"}`}
+                                                className={`flex-shrink-0 transition-colors duration-200 ${isActive(href) ? `text-transparent bg-clip-text bg-gradient-to-r ${currentTheme.brandGradient}` : `text-muted-foreground/70 group-hover:text-foreground ${currentTheme.accentHover}`}`}
                                             />
                                             <span className="truncate">{label}</span>
                                         </Link>
@@ -189,20 +243,20 @@ export function MobileNav({ appName = "Woohub" }: { appName?: string }) {
                     })}
                 </nav>
 
-                <div className="p-4 border-t border-slate-100 bg-slate-50/50">
+                <div className={`p-4 border-t ${currentTheme.sidebarBorder} ${currentTheme.sidebarBg}/50`}>
                     <div className="flex items-center gap-3 mb-3">
-                        <div className="h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-semibold text-slate-600">
+                        <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold ${currentTheme.badgeBg} ${currentTheme.badgeText}`}>
                             {session?.user?.name?.charAt(0)?.toUpperCase() || "U"}
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-700 truncate">{session?.user?.name || "Usuário"}</p>
-                            <p className="text-[11px] text-slate-400 truncate">{session?.user?.email}</p>
+                            <p className={`text-sm font-medium truncate ${currentTheme.isDark ? "text-white" : "text-gray-900"}`}>{session?.user?.name || "Usuário"}</p>
+                            <p className="text-[11px] text-muted-foreground truncate">{session?.user?.email}</p>
                         </div>
                     </div>
                     <Button
                         variant="outline"
                         size="sm"
-                        className="w-full flex items-center justify-center gap-2 text-xs h-8"
+                        className={`w-full flex items-center justify-center gap-2 text-xs h-8 ${currentTheme.sidebarBorder} hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors`}
                         onClick={async () => {
                             setOpen(false);
                             await signOut({ callbackUrl: "/auth/login" });
@@ -210,7 +264,7 @@ export function MobileNav({ appName = "Woohub" }: { appName?: string }) {
                     >
                         <LogOut size={14} /> Sair
                     </Button>
-                    <p className="text-[10px] text-slate-300 text-center mt-2 font-mono">v{pkg.version}</p>
+                    <p className={`text-[10px] text-muted-foreground/50 text-center mt-2 font-mono ${currentTheme.isDark ? "text-gray-400" : "text-gray-500"}`}>v{pkg.version}</p>
                 </div>
             </SheetContent>
         </Sheet>

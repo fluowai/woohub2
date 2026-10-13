@@ -337,7 +337,9 @@ async function processAndSaveMessage(
                     select: { config: true }
                 });
                 antiDeleteEnabled = !!(s?.config as any)?.antiDelete;
-            } catch {}
+            } catch (err) {
+                logger.warn("Store", `Failed to read anti-delete config for ${sessionId}:`, err);
+            }
 
             if (antiDeleteEnabled) {
                 // Anti-delete: read original, keep content, append marker
@@ -394,8 +396,8 @@ async function processAndSaveMessage(
     }
 
     // Check if message already exists to avoid duplicates
-    // Baileys 'notify' event can sometimes trigger multiple times or for history
-    // Baileys 'notify' event can sometimes trigger multiple times or for history
+    // WhatsApp Engine 'notify' event can sometimes trigger multiple times or for history
+    // WhatsApp Engine 'notify' event can sometimes trigger multiple times or for history
     const existingMessage = await prisma.message.findUnique({
         where: { sessionId_keyId: { sessionId: dbSessionId, keyId: keyId! } },
         select: { id: true, status: true }

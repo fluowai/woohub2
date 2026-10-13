@@ -1,69 +1,68 @@
 <div align="center">
 
-# 🚀 WA-AKG: The Ultimate WhatsApp Gateway & Dashboard
+# 🚀 Woohub — API de WhatsApp para negócios
 
-[![WhatsApp Bot](https://img.shields.io/badge/WhatsApp-Bot-25D366?style=for-the-badge&logo=whatsapp&logoColor=white)](https://wa.me/)
+[![WhatsApp API](https://img.shields.io/badge/WhatsApp-API-25D366?style=for-the-badge&logo=whatsapp&logoColor=white)](https://wa.me/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?style=for-the-badge&logo=prisma&logoColor=white)](https://www.prisma.io/)
-[![Version](https://img.shields.io/badge/Version-1.6.2-blue?style=for-the-badge)](https://github.com/mrifqidaffaaditya/WA-AKG/releases)
-[![Main Branch](https://img.shields.io/badge/Branch-Main-green?style=for-the-badge&logo=git)](https://github.com/mrifqidaffaaditya/WA-AKG)
+[![Idioma](https://img.shields.io/badge/Idioma-pt--BR-yellow?style=for-the-badge)](docs/README.md)
 
-[![Active Apps](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi-wa-akg.aikeigroup.net%2Fapi%2Factive-apps&query=%24.activeCount&style=flat-square&color=25D366&logo=whatsapp&logoColor=white&label=)](https://api-wa-akg.aikeigroup.net/)
+**A Woohub conecta os números da sua empresa à uma API de WhatsApp completa:**
+**sessões multi-número, envio de mensagens e mídia, broadcast, autoresposta, agendamento, webhooks e painel — tudo em português.**
 
-**A professional, multi-session WhatsApp Gateway, Dashboard, and Automation System.**  
-Built with **Next.js 15**, **React**, and **Baileys** for high-performance messaging automation and real-time WhatsApp Bot Gateway services.
-
-> [!TIP]
-> **Looking for the latest features?** Check out the [beta branch](https://github.com/mrifqidaffaaditya/WA-AKG/tree/beta) or our [pre-releases](https://github.com/mrifqidaffaaditya/WA-AKG/releases) for experimental sources.
-
-[Features](#-key-features) • [User Guide](docs/USER_GUIDE.md) • [API Documentation](docs/API_DOCUMENTATION.md) • [Database Setup](docs/DATABASE_SETUP.md) • [Installation](#-quick-installation)
+[Por que a Woohub](#-por-que-a-woohub) • [Recursos](#-recursos-principais) • [Referência da API](#-referência-da-api) • [Documentação](#-documentação) • [Deploy](#-auto-hospedagem)
 
 </div>
 
 ---
 
-## 📖 Complete Documentation
+## 📖 Documentação
 
-WA-AKG comes with extensive documentation designed for both developers and users.
+Toda a documentação da Woohub está em português do Brasil:
 
-- **[Master Project Documentation](docs/PROJECT_DOCUMENTATION.md)**: Architecture, database, and logic flow.
-- **[API Documentation](docs/API_DOCUMENTATION.md)**: Comprehensive OpenAPI / Swagger guide for all **109+ endpoints**.
-- **[API Quick Reference](docs/API-QUICK-REFERENCE.md)**: Instantly jumpstart your integration with ready-to-use cURL/JavaScript snippets.
-- **[Environment Variables](docs/ENVIRONMENT_VARIABLES.md)**: Configuration and security guide.
+- **[Guia do usuário](docs/USER_GUIDE.md)**: painel, sessões e recursos do dia a dia.
+- **[Documentação da API](docs/API_DOCUMENTATION.md)**: referência completa com **mais de 100 endpoints**.
+- **[Referência rápida da API](docs/API-QUICK-REFERENCE.md)**: exemplos prontos de cURL e JavaScript/Python.
+- **[Arquitetura do projeto](docs/PROJECT_DOCUMENTATION.md)**: estrutura, modelos de dados e fluxos.
+- **[Variáveis de ambiente](docs/ENVIRONMENT_VARIABLES.md)**: configuração e segurança.
+- **[Banco de dados](docs/DATABASE_SETUP.md)**: preparação do PostgreSQL.
+- **[Guia de deploy](docs/DEPLOY.md)** e **[Backup e restauração](docs/BACKUP_RECOVERY.md)**.
 
 ---
 
-## 🌟 Why WA-AKG WhatsApp API Gateway?
+## 🌟 Por que a Woohub?
 
-WA-AKG transforms your WhatsApp into a fully programmable RESTful API. It's designed for scale, reliability, and ease of use, making it the perfect bridge between your business logic and WhatsApp's global reach. Excellent for developing a **WhatsApp Bot**, Automation, or Customer Service Gateway.
+A Woohub transforma o WhatsApp da sua empresa em uma API programável: sua aplicação, CRM ou chatbot fala com a Woohub por REST, e a Woohub cuida da conexão, das sessões, da entrega e dos eventos em tempo real.
 
-### 🏗️ How it Works
+> ℹ️ A Woohub se comunica com o WhatsApp por conexão própria de dispositivo (API não oficial). Não somos afiliados ao WhatsApp nem à Meta, e não garantimos proteção contra bloqueios de conta — use as boas práticas de envio e respeite os limites do seu plano.
+
+### 🏗️ Como funciona
 
 ```mermaid
 graph LR
-    User([User / App]) -->|REST API| API[WA-AKG Gateway]
-    API -->|Baileys| WhatsApp[[WhatsApp Server]]
-    API -->|Real-time| DB[(Prisma / DB)]
-    WhatsApp -.->|Webhook| API
-    API -.->|Event| Webhook([External CRM / API])
+    User([Seu app / CRM]) -->|REST API| API[Woohub]
+    API -->|Conexão em tempo real| WhatsApp[[Servidor do WhatsApp]]
+    API -->|Persistência| DB[(PostgreSQL / Prisma)]
+    WhatsApp -.->|Eventos| API
+    API -.->|Webhook| Webhook([Sua aplicação])
 ```
 
-### 🔥 Key Features
+### 🔥 Recursos principais
 
-- **📱 Multi-Session Management**: Connect and manage unlimited WhatsApp accounts simultaneously via simple QR code scans.
-- **⚡ Pro WhatsApp Engine**: Powered by `@whiskeysockets/baileys` for high-speed, stable, and secure WebSocket connections.
-- **📅 Advanced Scheduler**: Precise message planning with **Media Support** (Images, Video, Docs).
-- **📢 Safe Broadcast**: Built-in anti-ban mechanisms with randomized delays (10-30s) and batch processing.
-- **🤖 Smart Auto-Reply**: Keywords matching with **Context Support** (Group/Private/All) and **Media Attachments**.
-- **🛡️ Granular Access Control**: Full **Whitelist** & **Blacklist** support for both Bot Commands and Auto Replies.
-- **🔗 Enterprise Webhooks**: Robust real-time event forwarding for messages, connections, status changes, and group updates.
-- **📇 Advanced Contacts**: Rich contact management with LID, verified names, and profile pictures.
-- **🎨 Creative Tools**: Built-in Sticker Maker with background removal (`remove.bg` integration).
-- **📘 Open API Spec**: Fully documented via `swagger-ui-react` at `/docs`.
+- **📱 Multi-sessão**: conecte e gerencie vários números do WhatsApp simultaneamente, com pareamento por QR Code.
+- **⚡ API REST completa**: envio de texto, mídia, áudio, vídeos, documentos, stickers, localização, enquetes e respostas citadas.
+- **📅 Agendamento de mensagens**: planejamento preciso com suporte a mídia (imagens, vídeos, documentos).
+- **📢 Broadcast seguro**: processamento em lotes com atrasos aleatórios para campanhas de grande volume.
+- **🤖 Autoresposta inteligente**: correspondência por palavras-chave com contexto (grupo/privado/todos) e anexos de mídia.
+- **🛡️ Controle de acesso granular**: listas de permitidos e bloqueados para comandos e autorespostas; API keys com escopos por recurso.
+- **🔗 Webhooks em tempo real**: encaminhamento confiável de eventos de mensagens, conexão, status e grupos, com assinatura HMAC.
+- **🏢 Multi-empresa (tenancy)**: cada empresa com seus números, usuários, chaves, planos e cotas.
+- **💳 Planos e assinaturas**: cotas de uso, cobrança e painel de faturamento por empresa.
+- **📘 OpenAPI**: especificação pública em pt-BR disponível em `GET /api/v1/openapi.json` e Swagger UI interativo em `/docs`.
 
 <details>
-<summary>📂 <b>View Webhook Payload Example</b></summary>
+<summary>📂 <b>Exemplo de payload de webhook</b></summary>
 
 ```json
 {
@@ -76,11 +75,11 @@ graph LR
     "sender": "100429287395370@lid",
     "remoteJidAlt": "100429287395370@lid",
     "type": "TEXT",
-    "content": "saya sedang reply",
+    "content": "Olá, gostaria de mais informações",
     "isGroup": false,
     "quoted": {
       "type": "IMAGE",
-      "caption": "Ini caption dari reply",
+      "caption": "Imagem citada na resposta",
       "fileUrl": "/media/xgj7d9-A54FD0B6F..."
     }
   }
@@ -90,157 +89,102 @@ graph LR
 
 ---
 
-## 🧩 Integrations: Native n8n Support
+## 🚀 Começando
 
-WA-AKG natively supports **n8n**! You can build complex, no-code/low-code WhatsApp automation workflows using our official community nodes.
+### Pré-requisitos
 
-[![n8n nodes](https://img.shields.io/badge/n8n-nodes--wa--akg-EA4B71?style=for-the-badge&logo=n8n&logoColor=white)](https://www.npmjs.com/package/n8n-nodes-wa-akg)
+- Node.js 20+ (recomendado 22)
+- PostgreSQL 14+ (instância externa — Supabase, Neon ou local)
+- Docker + Docker Compose (caminho recomendado de deploy)
 
-- **Action Node**: Full control over messaging, groups, sessions, contacts, and labels directly from your n8n workflows.
-- **Trigger Node**: Instantly catch real-time webhooks (Message Received, Group Joined, etc.) and trigger your workflows automatically.
+### Instalação (desenvolvimento)
 
-👉 **[View on npm (n8n-nodes-wa-akg)](https://www.npmjs.com/package/n8n-nodes-wa-akg)**
-
----
-
-## 🚀 Quick Installation
-
-### 1. Prerequisites
-- Node.js 20+ (Node.js 22 recommended)
-- MySQL or PostgreSQL
-- Git
-- PM2 (Installed globally: `npm install -g pm2`)
-
-### 2. Setup
 ```bash
-# Clone and install
-git clone https://github.com/mrifqidaffaaditya/WA-AKG.git
-cd WA-AKG
 npm install
 
-# Configure environment
+# Configure o ambiente
 cp .env.example .env
-# Edit .env with your DATABASE_URL, AUTH_SECRET, PORT, etc.
+# Preencha DATABASE_URL, AUTH_SECRET, CREDENTIALS_ENCRYPTION_KEY, PORT etc.
 
-# Push schema and generate Prisma Client
+# Sincronize o schema e gere o Prisma Client
 npm run db:push
 
-# Create SuperAdmin account
-npm run make-admin admin@example.com password123
-```
+# Crie a conta de administrador
+npm run make-admin admin@example.com senha123
 
-### 3. Run (Development)
-```bash
+# Suba o servidor
 npm run dev
 ```
 
-### 4. Run (Production with PM2 - Recommended)
-We recommend deploying with **PM2** to run the app in the background and ensure it restarts automatically if the server rebooted or crashed.
+### Produção
 
-#### Option A: Automatic Setup Script (Easiest)
-We provide a built-in [start.sh](file:///home/aditya/project/WA-AKG/start.sh) script that automates everything: checking the configuration, installing dependencies, syncing the database schema, compiling production assets, and starting or reloading PM2:
+O guia completo (imagem, Compose, Swarm, proxy reverso e verificação pós-deploy) está em **[docs/DEPLOY.md](docs/DEPLOY.md)**:
+
 ```bash
-./start.sh
+docker compose up -d
 ```
 
-#### Option B: Manual Setup
-1. **Build the application**:
-   ```bash
-   npm run build
-   ```
-
-2. **Start with PM2**:
-   Using the built-in [ecosystem.config.js](file:///home/aditya/project/WA-AKG/ecosystem.config.js) configuration file:
-   ```bash
-   pm2 start ecosystem.config.js
-   ```
-
-3. **Manage the process**:
-   - View status: `pm2 status`
-   - View logs: `pm2 logs wa-akg`
-   - Stop process: `pm2 stop wa-akg`
-   - Restart process: `pm2 restart wa-akg`
-
-4. **Enable auto-start on server boot**:
-   ```bash
-   pm2 startup
-   # Copy-paste the command outputted by the command above
-   pm2 save
-   ```
-
 ---
 
-### 🐋 Alternative: Docker Deployment
-Although **PM2 is highly recommended**, you can also deploy using Docker Compose:
+## 📚 Referência da API
 
-1. **Prepare Environment**:
-   ```bash
-   cp .env.example .env
-   ```
-   Edit `.env` — set `DATABASE_URL` (points to the MySQL container), `AUTH_SECRET`, and other branding settings.
-
-2. **Start Services**:
-   ```bash
-   docker compose up -d
-   ```
-   This spins up the MySQL database container alongside the Next.js gateway application.
-
----
-
-## 📚 API Reference Overview
-
-WA-AKG provides a comprehensive REST API to integrate WhatsApp Messaging directly into your applications. Full details in [API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md).
+A Woohub expõe uma API REST para integrar mensagens do WhatsApp diretamente na sua aplicação. Detalhes completos em **[docs/API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md)**.
 
 > [!TIP]
-> Use the built-in **Swagger UI** for interactive exploration at `/docs`.
+> Use a **Swagger UI** interativa em `/docs` ou a especificação OpenAPI em `/api/v1/openapi.json`.
 
-| Method | Endpoint | Description |
+| Método | Endpoint | Descrição |
 | :--- | :--- | :--- |
-| `POST` | `/api/messages/{sessionId}/{jid}/send` | Send text, media, or stickers |
-| `POST` | `/api/messages/{sessionId}/broadcast` | Scalable bulk messaging |
-| `PATCH` | `/api/sessions/{id}/settings` | Update session configuration |
-| `GET` | `/api/groups/{sessionId}` | List all available groups |
-| `POST` | `/api/webhooks/{sessionId}` | Register real-time event listeners |
-| `POST` | `/api/autoreplies/{sessionId}` | Create context-aware auto-replies |
-| `POST` | `/api/auth/register` | Register new users via the web securely |
+| `POST` | `/api/messages/{sessionId}/{jid}/send` | Enviar texto, mídia ou stickers |
+| `POST` | `/api/messages/{sessionId}/broadcast` | Disparo em massa |
+| `PATCH` | `/api/sessions/{id}/settings` | Atualizar configurações da sessão |
+| `GET` | `/api/groups/{sessionId}` | Listar grupos disponíveis |
+| `POST` | `/api/webhooks/{sessionId}` | Registrar listeners de eventos |
+| `POST` | `/api/autoreplies/{sessionId}` | Criar autorespostas com contexto |
+| `POST` | `/api/v1/instances` | Criar instância na API versionada |
 
-### Example: Send Text Message
+### Exemplo: enviar mensagem de texto
+
 ```bash
 curl -X POST http://localhost:3000/api/messages/session_01/62812345678@s.whatsapp.net/send \
-  -H "X-API-Key: your_api_key" \
+  -H "X-API-Key: sua_api_key" \
   -H "Content-Type: application/json" \
   -d '{
-    "message": { "text": "Hello from WA-AKG!" }
+    "message": { "text": "Olá da Woohub!" }
   }'
 ```
 
 ---
 
-## ⚠️ Known Issues / Caveats
+## 🔐 Segurança
 
-> [!WARNING]
-> **Status Update Feature (POST `/api/status/update`)**
-> 
-> The WhatsApp status/story update feature is currently **experiencing known issues** and should be avoided in production:
-> - Text statuses with custom background colors may not display correctly
-> - Media statuses (images/videos) may fail to upload to WhatsApp servers
-> - The feature is under active development
-> 
-> We recommend waiting for the next release before using this endpoint in critical workflows.
+- **API Key**: endpoints protegidos pelo header `X-API-Key`, com escopos por recurso (`instances:send`, `messages:send`, `webhooks:write`…).
+- **Multi-empresa**: isolamento por tenant em todas as consultas; chave de cliente nunca alcança rotas administrativas.
+- **RBAC**: papéis `OWNER`, `ADMIN`, `STAFF`, `BILLING` (e `SUPERADMIN` auditado).
+- **Senhas**: hash com bcrypt; tokens de sessão JWT assinados com `AUTH_SECRET` (obrigatório — sem fallback).
+- **Credenciais de sessão**: criptografadas em repouso (AES-256-GCM).
+- **Webhooks**: assinatura HMAC-SHA256 para verificação no receptor.
+- **Validação de entrada**: schemas Zod nos endpoints críticos.
+- **Mídia**: prevenção de path traversal e acesso escopado por sessão.
+- **Rate limit**: 429 na borda da API com envelope de erro padronizado.
 
 ---
 
-## 🛡️ Security
-- **API Key Auth**: Secured endpoints using `X-API-Key` header.
-- **RBAC**: Multi-role support (`SUPERADMIN`, `OWNER`, `STAFF`).
-- **Encrypted Passwords**: All passwords hashed with bcrypt.
-- **JWT Encryption**: Session tokens signed with `AUTH_SECRET` (wajib diisi — tidak ada fallback).
-- **Input Validation**: Zod schemas on critical endpoints.
-- **Media Protection**: Path traversal prevention, session-scoped media access.
+## ⚠️ Problemas conhecidos
+
+> [!WARNING]
+> **Atualização de status (POST `/api/status/update`)**
+>
+> O recurso de status/story do WhatsApp está com **problemas conhecidos** e deve ser evitado em produção:
+> - Status de texto com cores de fundo próprias podem não exibir corretamente.
+> - Status de mídia (imagens/vídeos) podem falhar no upload.
+> - O recurso está em desenvolvimento ativo.
+>
+> Recomendamos aguardar a próxima versão antes de usar esse endpoint em fluxos críticos.
 
 ---
 
 <div align="center">
-  Built with ❤️ by <a href="https://github.com/mrifqidaffaaditya">Aditya</a>  
-  Licensed under <a href="LICENSE">MIT</a>
+  <b>Woohub</b> — API de WhatsApp para negócios<br/>
+  Documentação em português do Brasil · Licença <a href="LICENSE">MIT</a>
 </div>

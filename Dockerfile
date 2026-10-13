@@ -43,6 +43,12 @@ ENV HOSTNAME=0.0.0.0
 ENV TZ=America/Sao_Paulo
 EXPOSE 3000
 
-# Sem `prisma db push`, sem migração e sem criação de admin no boot:
-# migração e admin são responsabilidade do job único (scripts/migrate.sh).
-CMD ["sh", "-c", "node node_modules/tsx/dist/cli.mjs src/server/index.ts"]
+# Sem `prisma db push`, sem migracao e sem criacao de admin no boot:
+# migracao e admin sao responsabilidade do job unico (scripts/migrate.sh).
+
+# License gate: valida a licenca ANTES de subir a app / rodar a migracao.
+# `-- "$@"` repassa o CMD (ou o `command:` da stack) para o gate, que o executa
+# so depois de validar. Sem CMD, o gate sobe src/server/index.ts.
+# Public key Ed25519 via LICENSE_PUBLIC_KEY (env) ou scripts/license.pub.
+ENTRYPOINT ["sh", "-c", "exec node node_modules/tsx/dist/cli.mjs scripts/license-entrypoint.ts -- \"$@\"", "woohub-gate"]
+CMD ["node", "node_modules/tsx/dist/cli.mjs", "src/server/index.ts"]

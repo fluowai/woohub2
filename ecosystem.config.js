@@ -1,10 +1,10 @@
 module.exports = {
   apps: [
     {
-      name: "wa-akg",
-      script: "npx",
-      args: "tsx src/server/index.ts",
-      interpreter: "none", // Avoid PM2 trying to run npx as a Node.js script directly
+      name: "woohub",
+      script: "node_modules/tsx/dist/cli.mjs",
+      args: "src/server/index.ts",
+      interpreter: "node",
       watch: false,
       autorestart: true,
       max_memory_restart: "1G",

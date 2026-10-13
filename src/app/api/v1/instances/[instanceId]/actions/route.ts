@@ -68,6 +68,6 @@ export async function POST(
 
         return v1Ok({ action, session_id: ref.sessionId });
     } catch (error) {
-        return v1ErrorResponse(error);
+        return await v1ErrorResponse(error);
     }
 }

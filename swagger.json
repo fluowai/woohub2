@@ -1,7 +1,7 @@
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "WA-AKG API Documentation",
+    "title": "Woohub API Documentation",
     "version": "1.2.0",
     "description": "\n# WhatsApp AI Gateway - Complete API Reference\n\nProfessional WhatsApp Gateway with **64 API endpoints** for complete WhatsApp automation.\n\n## 🔐 Authentication\nAll endpoints require authentication via:\n1. **API Key Header**: `X-API-Key: your-api-key`\n2. **Session Cookie**: `next-auth.session-token` (automatically sent by browser)\n\n## 📋 Common Parameters\n- **sessionId**: Unique session identifier (e.g., \"mysession-01\")\n- **jid**: WhatsApp JID format:\n  - Personal: `628123456789@s.whatsapp.net`\n  - Group: `120363123456789@g.us`\n\n## 📊 Rate Limits\n- Phone check: Max 50 numbers per request\n- Broadcast: 10-20s random delay between messages\n- Message history: Max 100 messages\n                "
   },
@@ -1542,7 +1542,7 @@
                       "sticker": {
                         "url": "https://example.com/sticker.webp",
                         "pack": "My Stickers",
-                        "author": "WA-AKG"
+                        "author": "Woohub"
                       }
                     }
                   }
@@ -1581,7 +1581,7 @@
                       "id": "3EB01234567890"
                     },
                     "message": {
-                      "conversation": "Hello from WA-AKG!"
+                      "conversation": "Olá da Woohub!"
                     },
                     "messageTimestamp": "1678901234"
                   }
@@ -2804,95 +2804,6 @@
         }
       }
     },
-    "/messages/{sessionId}/{jid}/spam": {
-      "post": {
-        "tags": [
-          "Messaging"
-        ],
-        "summary": "Message bombing (Spam)",
-        "description": "Send a message multiple times in a row in the background",
-        "parameters": [
-          {
-            "name": "sessionId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "jid",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "message"
-                ],
-                "properties": {
-                  "message": {
-                    "type": "string",
-                    "example": "Check our new catalog!"
-                  },
-                  "count": {
-                    "type": "integer",
-                    "default": 10,
-                    "example": 5
-                  },
-                  "delay": {
-                    "type": "integer",
-                    "default": 500,
-                    "example": 1000,
-                    "description": "Delay in ms"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Spam started",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
-                    },
-                    "message": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "500": {
-            "description": "Failed to start spam"
-          },
-          "503": {
-            "$ref": "#/components/responses/SessionNotReady"
-          }
-        }
-      }
-    },
     "/messages/{sessionId}/{jid}/sticker": {
       "post": {
         "tags": [
@@ -2933,7 +2844,7 @@
                   },
                   "pack": {
                     "type": "string",
-                    "description": "Sticker pack name (default: WA-AKG)"
+                    "description": "Sticker pack name (default: Woohub)"
                   },
                   "author": {
                     "type": "string",
@@ -6968,7 +6879,7 @@
                     },
                     "appName": {
                       "type": "string",
-                      "example": "WA-AKG"
+                      "example": "Woohub"
                     },
                     "logoUrl": {
                       "type": "string",

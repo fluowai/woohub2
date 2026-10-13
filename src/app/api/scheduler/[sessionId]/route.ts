@@ -69,6 +69,10 @@ export async function POST(
             return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 401 });
         }
 
+        if (user.tenantRole === "USER") {
+            return NextResponse.json({ status: false, message: "Usuários operacionais não têm permissão para criar agendamentos." }, { status: 403 });
+        }
+
         const body = await request.json();
         const { jid, content, sendAt, mediaUrl, mediaType, cronExpression, recurrenceRule } = body;
 
@@ -93,7 +97,7 @@ export async function POST(
         // Fetch system timezone
         // @ts-ignore
         const systemConfig = await prisma.systemConfig.findUnique({ where: { id: "default" } });
-        const timezone = systemConfig?.timezone || "Asia/Jakarta";
+        const timezone = systemConfig?.timezone || "America/Sao_Paulo";
 
         console.log(`[Scheduler:POST] Received sendAt: ${sendAt}, using timezone: ${timezone}`);
         const utcDate = moment.tz(sendAt, timezone).toDate();

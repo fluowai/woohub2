@@ -136,7 +136,7 @@ export default function TenantsPage() {
                             </div>
                             <div className="space-y-1">
                                 <Label htmlFor="t-slug">Slug</Label>
-                                <Input id="t-slug" required pattern="^[a-z0-9-]+$" value={form.slug}
+                                <Input id="t-slug" required pattern="^[a-z0-9\\-]+$" value={form.slug}
                                     onChange={(e) => setForm({ ...form, slug: e.target.value })}
                                     placeholder="minha-empresa" />
                             </div>

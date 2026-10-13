@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
 import { waManager } from "@/modules/whatsapp/manager";
+import { safeErrorMessage } from "@/lib/safe-error";
 
 export async function PUT(
     request: NextRequest,
@@ -32,14 +33,14 @@ export async function PUT(
 
         const buffer = Buffer.from(await image.arrayBuffer());
 
-        // WhatsApp Baileys updates profile picture
+        // WhatsApp Engine updates profile picture
         await instance.socket.updateProfilePicture(instance.socket.user?.id || "", buffer);
 
         return NextResponse.json({ status: true, message: "Profile picture updated" });
 
     } catch (error: any) {
         console.error("Update profile picture error:", error);
-        return NextResponse.json({ status: false, message: error.message }, { status: 500 });
+        return NextResponse.json({ status: false, message: safeErrorMessage(error, "Failed to update picture") }, { status: 500 });
     }
 }
 
@@ -64,13 +65,13 @@ export async function DELETE(
             return NextResponse.json({ status: false, message: "WhatsApp instance not connected" }, { status: 503 });
         }
 
-        // WhatsApp Baileys removes profile picture
+        // WhatsApp Engine removes profile picture
         await instance.socket.removeProfilePicture(instance.socket.user?.id || "");
 
         return NextResponse.json({ status: true, message: "Profile picture removed" });
 
     } catch (error: any) {
         console.error("Remove profile picture error:", error);
-        return NextResponse.json({ status: false, message: error.message }, { status: 500 });
+        return NextResponse.json({ status: false, message: safeErrorMessage(error, "Failed to update picture") }, { status: 500 });
     }
 }

@@ -46,7 +46,7 @@ export default function PrivacyPage() {
                         <p className="lead text-lg text-muted-foreground mb-8">
                             Na Woohub, acreditamos que seus dados são sua propriedade. Esta Política de Privacidade detalha
                             os limites estritos sobre como as informações são tratadas ao usar nossa plataforma de
-                            WhatsApp auto-hospedada e de código aberto.
+                            WhatsApp auto-hospedada.
                         </p>
 
                         <h2 className="flex items-center gap-2 mt-8 text-2xl border-b pb-2">
@@ -85,7 +85,7 @@ export default function PrivacyPage() {
 
                         <h2 className="mt-8 text-2xl border-b pb-2">4. Integrações de terceiros</h2>
                         <p>
-                            A Woohub utiliza a biblioteca <code>@whiskeysockets/baileys</code> para se comunicar
+                            A Woohub utiliza bibliotecas especializadas para se comunicar
                             diretamente com os servidores do WhatsApp. Ao usar este gateway, seu servidor estabelece uma
                             conexão direta por WebSocket com o WhatsApp. Fique atento: o uso do WhatsApp continua
                             sujeito à Política de Privacidade da Meta.
@@ -95,8 +95,7 @@ export default function PrivacyPage() {
                             <p className="font-semibold mb-2">Precisa de mais detalhes?</p>
                             <p className="text-sm text-muted-foreground mb-0">
                                 Se você tem dúvidas específicas sobre o tratamento de dados ou deseja auditar o código,
-                                visite nosso <Link href="https://github.com/mrifqidaffaaditya/WA-AKG">repositório no GitHub</Link>{" "}
-                                (a Woohub é derivada do projeto WA-AKG, licença MIT).
+                                entre em contato com os mantenedores do projeto para mais esclarecimentos.
                             </p>
                         </div>
                     </div>

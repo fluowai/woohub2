@@ -16,7 +16,7 @@ export async function GET(
         const webhook = await requireWebhook(user, webhookId);
         return v1Ok(mapWebhook(webhook));
     } catch (error) {
-        return v1ErrorResponse(error);
+        return await v1ErrorResponse(error);
     }
 }
 
@@ -60,7 +60,7 @@ export async function PATCH(
 
         return v1Ok(mapWebhook(updated));
     } catch (error) {
-        return v1ErrorResponse(error);
+        return await v1ErrorResponse(error);
     }
 }
 
@@ -76,6 +76,6 @@ export async function DELETE(
         await prisma.webhook.delete({ where: { id: webhook.id } });
         return v1NoContent();
     } catch (error) {
-        return v1ErrorResponse(error);
+        return await v1ErrorResponse(error);
     }
 }

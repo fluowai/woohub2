@@ -1,38 +1,38 @@
-# 📂 Knowledge Base Index
+# 📂 Índice da documentação WooHub
 
-Welcome to the internal documentation portal for **WA-AKG**. Use the links below to navigate the technical and user-facing guides.
+Portal de documentação técnica e operacional da **WooHub**, em português do Brasil.
 
 ---
 
-## 📘 Essential Guides
+## 📘 Guias principais
 
-| Document | Purpose |
+| Documento | Objetivo |
 | :--- | :--- |
-| **[API Documentation](./API_DOCUMENTATION.md)** | Full REST API reference for all **86 endpoints**. |
-| **[User Guide](./USER_GUIDE.md)** | Step-by-step instructions for dashboard features. |
-| **[Project Architecture](./PROJECT_DOCUMENTATION.md)** | Detailed system logic, diagrams, and database schema. |
-| **[Environment Config](./ENVIRONMENT_VARIABLES.md)** | Secure configuration and server setup. |
+| **[Documentação da API](./API_DOCUMENTATION.md)** | Referência REST dos endpoints públicos. |
+| **[Guia do usuário](./USER_GUIDE.md)** | Instruções do painel e das instâncias. |
+| **[Arquitetura](./PROJECT_DOCUMENTATION.md)** | Lógica, fluxos e banco de dados. |
+| **[Configuração do ambiente](./ENVIRONMENT_VARIABLES.md)** | Configuração segura do servidor. |
 
 ---
 
-## 🛠️ Infrastructure & Maintenance
+## 🛠️ Infraestrutura e manutenção
 
-- **[Database Setup](./DATABASE_SETUP.md)**: Schema migrations, provider switching, and Docker Compose database stack.
-- **[Update Guide](./UPDATE_GUIDE.md)**: How to sync from upstream and apply patches.
-- **[Quick Reference](./API-QUICK-REFERENCE.md)**: Handy cURL snippets and JID formats.
+- **[Banco de dados](./DATABASE_SETUP.md)**: migrações e configuração do banco.
+- **[Atualização](./UPDATE_GUIDE.md)**: atualização controlada da aplicação.
+- **[Referência rápida](./API-QUICK-REFERENCE.md)**: exemplos cURL e formatos de identificador.
 
 ---
 
-## 🚦 Getting Started (Programmatically)
+## 🚦 Primeiros passos pela API
 
-1. **Auth**: Get your key via Dashboard Settings → include `X-API-Key`.
-2. **Session**: Create one via `/api/sessions` and scan the QR.
-3. **Automate**: Register a URL via `/api/webhooks` to start receiving events.
+1. **Autenticação**: gere uma chave no painel e envie `X-API-Key`.
+2. **Instância**: crie uma instância em `/api/v1/instances` e leia o QR Code.
+3. **Automação**: registre uma URL em `/api/v1/webhooks` para receber eventos.
 
-> [!IMPORTANT]
-> Pastikan `AUTH_SECRET` sudah diset di `.env` sebelum menjalankan aplikasi.
+> **Importante:** configure `AUTH_SECRET`, `DATABASE_URL` e a chave de criptografia
+> antes de iniciar a WooHub.
 
 ---
 <div align="center">
-  **Version**: 1.6.1 | **Build Status**: Stable
+  **Versão**: 1.6.4 | **Status**: documentação WooHub
 </div>

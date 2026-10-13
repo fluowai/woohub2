@@ -35,6 +35,6 @@ export async function POST(
             status: after?.status ?? "CONNECTING",
         });
     } catch (error) {
-        return v1ErrorResponse(error);
+        return await v1ErrorResponse(error);
     }
 }

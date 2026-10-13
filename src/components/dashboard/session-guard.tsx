@@ -10,7 +10,7 @@ export function SessionGuard({ children }: { children: ReactNode }) {
     const { sessionId, loading, sessions } = useSession();
 
     if (loading) {
-        return <div className="flex h-full items-center justify-center p-8">Loading session...</div>;
+        return <div className="flex h-full items-center justify-center p-8">Carregando instância...</div>;
     }
 
     if (!sessionId) {
@@ -20,17 +20,17 @@ export function SessionGuard({ children }: { children: ReactNode }) {
                     <QrCode className="h-12 w-12 text-green-600" />
                 </div>
                 <div className="space-y-2 max-w-md">
-                    <h2 className="text-2xl font-bold tracking-tight">No Active Session</h2>
+                    <h2 className="text-2xl font-bold tracking-tight">Nenhuma instância ativa</h2>
                     <p className="text-gray-500">
-                        Please select a WhatsApp session from the top navigation bar to access this feature.
+                        Selecione uma instância de WhatsApp na barra superior para usar este recurso.
                     </p>
                 </div>
 
                 {sessions.length === 0 && (
                     <div className="flex flex-col gap-2">
-                        <p className="text-sm text-gray-500">You don't have any sessions yet.</p>
+                        <p className="text-sm text-gray-500">Você ainda não tem instâncias.</p>
                         <Link href="/dashboard/sessions">
-                            <Button variant="outline">Create a Session</Button>
+                            <Button variant="outline">Criar instância</Button>
                         </Link>
                     </div>
                 )}

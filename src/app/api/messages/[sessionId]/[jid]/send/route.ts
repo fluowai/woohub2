@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from "next/server";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
 import { ChatService } from "@/modules/whatsapp/chat.service";
 import { quotaErrorResponse } from "@/lib/quota";
+import { safeErrorMessage } from "@/lib/safe-error";
 
 export async function POST(
     request: NextRequest,
@@ -37,7 +38,7 @@ export async function POST(
         const quotaError = quotaErrorResponse(error);
         if (quotaError) return quotaError;
         console.error("Send message error:", error);
-        const errorMsg = error?.message || "Failed to send message";
+        const errorMsg = safeErrorMessage(error, "Failed to send message");
         return NextResponse.json({ status: false, message: errorMsg, error: errorMsg }, { status: 500 });
     }
 }

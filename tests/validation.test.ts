@@ -1,8 +1,8 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
+import { z } from "zod";
 
 describe("tenant schema validation", () => {
-    it("accepts valid tenant data", async () => {
-        const { z } = await import("zod");
+    it("accepts valid tenant data", () => {
         const schema = z.object({
             name: z.string().min(1).max(120),
             slug: z.string().min(2).max(40).regex(/^[a-z0-9-]+$/),
@@ -11,8 +11,7 @@ describe("tenant schema validation", () => {
         expect(result.success).toBe(true);
     });
 
-    it("rejects invalid slug", async () => {
-        const { z } = await import("zod");
+    it("rejects invalid slug", () => {
         const schema = z.object({
             slug: z.string().min(2).max(40).regex(/^[a-z0-9-]+$/),
         });
@@ -22,8 +21,7 @@ describe("tenant schema validation", () => {
 });
 
 describe("plan schema validation", () => {
-    it("accepts valid plan data", async () => {
-        const { z } = await import("zod");
+    it("accepts valid plan data", () => {
         const schema = z.object({
             code: z.string().min(2).max(40).regex(/^[a-z0-9-]+$/),
             name: z.string().min(1).max(80),

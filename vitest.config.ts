@@ -17,20 +17,20 @@ export default defineConfig({
             deps: {
                 // next-auth (ESM) importa `next/server` sem extensão — só funciona
                 // com resolução de bundler; inline faz o Vite resolver (alias acima).
-                inline: ["next-auth", "@auth/core"],
+                inline: ["next", "next-auth", "@auth/core"],
             },
         },
         env: {
             // Banco nunca é conectado nos testes unitários, mas o PrismaClient
             // exige a variável presente ao ser instanciado.
-            DATABASE_URL: "mysql://test:test@127.0.0.1:3306/woohub_test",
+            DATABASE_URL: "postgresql://test:test@127.0.0.1:5432/woohub_test",
             AUTH_SECRET: "test-secret-not-used-outside-tests",
             NODE_ENV: "test",
         },
         coverage: {
             provider: "v8",
             reporter: ["text", "json", "html"],
-            include: ["src/lib/**/*.ts"],
+            include: ["src/lib/**/*.ts", "src/modules/**/*.ts"],
         },
     },
 });

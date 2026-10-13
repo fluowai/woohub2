@@ -60,6 +60,10 @@ export async function POST(
         return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 401 });
     }
 
+    if (user.tenantRole === "USER" || !user.permissions.has("webhooks:write")) {
+        return NextResponse.json({ status: false, message: "Usuários operacionais não têm permissão para criar webhooks." }, { status: 403 });
+    }
+
     const { sessionId } = await params;
 
     const hasAccess = await canAccessSession(user.id, user.role, sessionId);

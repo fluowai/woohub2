@@ -30,6 +30,6 @@ export async function GET(
 
         return v1Ok(mapMessage(message));
     } catch (error) {
-        return v1ErrorResponse(error);
+        return await v1ErrorResponse(error);
     }
 }

@@ -1,6 +1,6 @@
 import { prisma } from "./prisma";
 import { logger } from "./logger";
-import { currentContext } from "./access";
+import { currentContext, currentContextAsync } from "./access";
 
 /**
  * Append-only audit trail.
@@ -11,6 +11,7 @@ import { currentContext } from "./access";
 
 export interface AuditEntry {
     tenantId?: string | null;
+    resellerId?: string | null;
     actorUserId?: string | null;
     actorLabel?: string;
     actorType?: "USER" | "API_KEY" | "SYSTEM";
@@ -23,11 +24,12 @@ export interface AuditEntry {
 }
 
 export async function audit(entry: AuditEntry): Promise<void> {
-    const context = currentContext();
+    const context = (await currentContextAsync()) ?? currentContext() ?? null;
     try {
         await prisma.auditLog.create({
             data: {
                 tenantId: entry.tenantId ?? context?.tenantId ?? null,
+                resellerId: entry.resellerId ?? context?.resellerId ?? null,
                 actorUserId: entry.actorUserId ?? context?.userId ?? null,
                 actorLabel: entry.actorLabel ?? context?.email ?? context?.apiKey?.publicId ?? "system",
                 actorType: entry.actorType ?? (context?.authMethod === "apiKey" ? "API_KEY" : "USER"),
@@ -44,3 +46,5 @@ export async function audit(entry: AuditEntry): Promise<void> {
         logger.error("Audit", `Failed to record audit entry for ${entry.action}:`, error);
     }
 }
+
+export const recordAudit = audit;

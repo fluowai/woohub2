@@ -43,7 +43,7 @@ export async function PUT(
             }
         } else {
             // Mark all messages in chat as read
-            // Note: lastMessages is required by Baileys but can be empty array
+            // Note: lastMessages is required by WhatsApp Engine but can be empty array
             await instance.socket.chatModify(
                 { markRead: true, lastMessages: [] },
                 decodedJid

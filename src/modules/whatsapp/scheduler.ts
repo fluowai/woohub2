@@ -38,12 +38,27 @@ const checkScheduledMessages = async () => {
 
         const dueMessages = await prisma.scheduledMessage.findMany({
             where: { status: "PENDING", sendAt: { lte: now } },
-            include: { session: true },
+            include: {
+                session: {
+                    include: {
+                        tenant: {
+                            include: { reseller: true },
+                        },
+                    },
+                },
+            },
         });
         if (dueMessages.length === 0) return;
 
         for (const msg of dueMessages) {
             const correlationId = `scheduled:${msg.id}`;
+
+            // Check if tenant or reseller is suspended
+            const tenant = (msg.session as any).tenant;
+            if (tenant?.status !== "ACTIVE" || (tenant?.reseller && tenant.reseller.status !== "ACTIVE")) {
+                logger.warn("Scheduler", `Session ${msg.session.sessionId} tenant/reseller is suspended, skipping msg ${msg.id}`);
+                continue;
+            }
 
             // Already queued or running (recurring messages re-enter the window on purpose).
             if (await hasActiveJob(correlationId)) continue;

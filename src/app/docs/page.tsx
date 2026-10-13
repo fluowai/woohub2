@@ -88,25 +88,27 @@ export default async function PublicDocsPage() {
             <header className="bg-white border-b sticky top-0 z-30 shadow-sm/50">
                 <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <span className="text-xl font-extrabold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                            Woohub
-                        </span>
-                        <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold tracking-wide border border-blue-200">
+                        <Link href="/" className="flex items-center gap-2">
+                            <span className="text-xl font-extrabold text-[#ff5a00]">
+                                Woohub
+                            </span>
+                        </Link>
+                        <span className="px-2.5 py-0.5 rounded-full bg-orange-50 text-[#ff5a00] text-xs font-semibold tracking-wide border border-orange-200">
                             {version}
                         </span>
                     </div>
                     <div className="flex items-center gap-4">
                         <Link
                             href="/swagger"
-                            className="text-sm font-medium text-gray-500 hover:text-blue-600 transition-colors"
+                            className="text-sm font-medium text-slate-600 hover:text-[#ff5a00] transition-colors"
                         >
                             Swagger UI
                         </Link>
                         <Link
                             href="/dashboard"
-                            className="text-sm font-medium px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all shadow-md hover:shadow-lg"
+                            className="text-sm font-medium px-4 py-2 bg-[#ff5a00] hover:bg-[#ea5300] text-white rounded-lg transition-all shadow-xs"
                         >
-                            Dashboard
+                            Painel de Controle
                         </Link>
                     </div>
                 </div>

@@ -34,6 +34,6 @@ export async function POST(
             status: after?.status ?? "STOPPED",
         });
     } catch (error) {
-        return v1ErrorResponse(error);
+        return await v1ErrorResponse(error);
     }
 }

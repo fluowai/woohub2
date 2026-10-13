@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { normalizeJid } from "@/lib/jid-utils";
 import { waManager } from "@/modules/whatsapp/manager";
 import { onMessageSent } from "@/lib/webhook";
@@ -37,30 +38,32 @@ export class ChatService {
     ) {
         // 1. Get latest message per remoteJid with cursor pagination
         // Uses m1.timestamp < before (when provided) to load older chats
-        // Build params: [dbSessionId, dbSessionId, (before?), limit]
-        const qParams: any[] = [dbSessionId, dbSessionId];
-        if (before) qParams.push(new Date(before));
-        qParams.push(limit);
+        // PostgreSQL: identificadores entre aspas duplas e placeholders ${param}.
+        const beforeFragment = before
+            ? Prisma.sql`AND m1."timestamp" < ${new Date(before)}`
+            : Prisma.empty;
 
-        const rawLastMessages = await prisma.$queryRawUnsafe<Array<{
-            remoteJid: string;
-            content: string | null;
-            timestamp: Date;
-            type: string;
-        }>>(`
-            SELECT m1.remoteJid, m1.content, m1.timestamp, m1.type
-            FROM \`Message\` m1
+        const rawLastMessages = await prisma.$queryRaw<
+            Array<{
+                remoteJid: string;
+                content: string | null;
+                timestamp: Date;
+                type: string;
+            }>
+        >(Prisma.sql`
+            SELECT m1."remoteJid", m1."content", m1."timestamp", m1."type"
+            FROM "Message" m1
             INNER JOIN (
-                SELECT remoteJid, MAX(timestamp) as max_ts
-                FROM \`Message\`
-                WHERE sessionId = ?
-                GROUP BY remoteJid
-            ) m2 ON m1.remoteJid = m2.remoteJid AND m1.timestamp = m2.max_ts
-            WHERE m1.sessionId = ?
-            ${before ? 'AND m1.timestamp < ?' : ''}
-            ORDER BY m1.timestamp DESC
-            LIMIT ?
-        `, ...qParams);
+                SELECT "remoteJid", MAX("timestamp") as max_ts
+                FROM "Message"
+                WHERE "sessionId" = ${dbSessionId}
+                GROUP BY "remoteJid"
+            ) m2 ON m1."remoteJid" = m2."remoteJid" AND m1."timestamp" = m2."max_ts"
+            WHERE m1."sessionId" = ${dbSessionId}
+            ${beforeFragment}
+            ORDER BY m1."timestamp" DESC
+            LIMIT ${limit}
+        `);
 
         // Fast return if no messages
         if (rawLastMessages.length === 0) return [];

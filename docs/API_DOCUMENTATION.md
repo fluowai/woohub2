@@ -1,4 +1,4 @@
-# WA-AKG API Documentation
+# Documentação da API Woohub
 
 # WhatsApp AI Gateway — Complete API Reference
 
@@ -432,7 +432,7 @@ Content-Type: application/json
   "message": "string",
   "result": [
     {
-      "text": "Hello from WA-AKG!"
+      "text": "Olá da Woohub!"
     }
   ]
 }
@@ -1195,11 +1195,11 @@ Get all sessions accessible to the authenticated user (role-based filtering)
       "email": "user@example.com"
     },
     "botConfig": {
-      "text": "Hello from WA-AKG!"
+      "text": "Olá da Woohub!"
     },
     "webhooks": [
       {
-        "text": "Hello from WA-AKG!"
+        "text": "Olá da Woohub!"
       }
     ],
     "_count": {
@@ -1286,11 +1286,11 @@ Content-Type: application/json
   "status": "Connected",
   "userId": "string",
   "botConfig": {
-    "text": "Hello from WA-AKG!"
+    "text": "Olá da Woohub!"
   },
   "webhooks": [
     {
-      "text": "Hello from WA-AKG!"
+      "text": "Olá da Woohub!"
     }
   ],
   "_count": {
@@ -1544,11 +1544,11 @@ Get detailed information about a specific session including uptime and status
   "status": "Connected",
   "userId": "string",
   "botConfig": {
-    "text": "Hello from WA-AKG!"
+    "text": "Olá da Woohub!"
   },
   "webhooks": [
     {
-      "text": "Hello from WA-AKG!"
+      "text": "Olá da Woohub!"
     }
   ],
   "_count": {
@@ -1564,7 +1564,7 @@ Get detailed information about a specific session including uptime and status
   "messageCount": 0,
   "hasInstance": true,
   "me": {
-    "text": "Hello from WA-AKG!"
+    "text": "Olá da Woohub!"
   }
 }
 ```
@@ -1614,7 +1614,7 @@ Start, stop, restart, or logout a session
   "status": true,
   "message": "Operation successful",
   "data": {
-    "text": "Hello from WA-AKG!"
+    "text": "Olá da Woohub!"
   }
 }
 ```
@@ -1712,7 +1712,7 @@ Permanently deletes session and logs out from WhatsApp
   "status": true,
   "message": "Operation successful",
   "data": {
-    "text": "Hello from WA-AKG!"
+    "text": "Olá da Woohub!"
   }
 }
 ```
@@ -1902,7 +1902,7 @@ Content-Type: application/json
   "status": true,
   "message": "Operation successful",
   "data": {
-    "text": "Hello from WA-AKG!"
+    "text": "Olá da Woohub!"
   }
 }
 ```
@@ -1952,7 +1952,7 @@ Content-Type: application/json
 ```json
 {
   "message": {
-    "text": "Hello from WA-AKG!"
+    "text": "Olá da Woohub!"
   },
   "mentions": [
     "628123456789@s.whatsapp.net"
@@ -1993,7 +1993,7 @@ Content-Type: application/json
       "id": "3EB01234567890"
     },
     "message": {
-      "conversation": "Hello from WA-AKG!"
+      "conversation": "Olá da Woohub!"
     },
     "messageTimestamp": "1678901234"
   }
@@ -2006,7 +2006,7 @@ Content-Type: application/json
 curl -X POST "http://localhost:3000/api/messages/sales-01/628123456789@s.whatsapp.net/send" \
   -H "X-API-Key: your-api-key" \
   -H "Content-Type: application/json" \
-  -d '{"message":{"text":"Hello from WA-AKG!"},"mentions":["628123456789@s.whatsapp.net"]}'
+  -d '{"message":{"text":"Olá da Woohub!"},"mentions":["628123456789@s.whatsapp.net"]}'
 ```
 
 ---
@@ -2075,7 +2075,7 @@ Content-Type: application/json
   "status": true,
   "message": "Operation successful",
   "data": {
-    "text": "Hello from WA-AKG!"
+    "text": "Olá da Woohub!"
   }
 }
 ```
@@ -2740,7 +2740,7 @@ Content-Type: application/json
   "status": true,
   "message": "Operation successful",
   "data": {
-    "text": "Hello from WA-AKG!"
+    "text": "Olá da Woohub!"
   }
 }
 ```
@@ -2981,81 +2981,6 @@ curl -X POST "http://localhost:3000/api/messages/session-01/628123456789@s.whats
 
 ---
 
-### \[POST\] /messages/{sessionId}/{jid}/spam
-
-**Message bombing (Spam)**
-
-Send a message multiple times in a row in the background
-
-#### Parameters
-
-| Name | Located in | Required | Type | Description |
-| :--- | :--- | :--- | :--- | :--- |
-| `sessionId` | path | ✅ Yes | string | — |
-| `jid` | path | ✅ Yes | string | — |
-
-#### Headers
-
-```
-X-API-Key: your-api-key
-Content-Type: application/json
-```
-
-#### Request Body (`application/json`)
-
-| Field | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `message` | string | ✅ Yes | — |
-| `count` | integer | No | **Default:** `10` |
-| `delay` | integer | No | Delay in ms **Default:** `500` |
-
-**Example:**
-
-```json
-{
-  "message": "Check our new catalog!",
-  "count": 5,
-  "delay": 1000
-}
-```
-
-#### Responses
-
-| Code | Description |
-| :--- | :--- |
-| `200` | Spam started |
-| `401` | Unauthorized - Invalid or missing API key |
-| `403` | Forbidden - Access denied |
-| `500` | Failed to start spam |
-| `503` | Session not connected or ready |
-
-**Response Fields (`200`):**
-
-| Field | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `success` | boolean | No | — |
-| `message` | string | No | — |
-
-**Response Example (`200`):**
-
-```json
-{
-  "success": true,
-  "message": "string"
-}
-```
-
-#### cURL Example
-
-```bash
-curl -X POST "http://localhost:3000/api/messages/session-01/628123456789@s.whatsapp.net/spam" \
-  -H "X-API-Key: your-api-key" \
-  -H "Content-Type: application/json" \
-  -d '{"message":"Check our new catalog!","count":5,"delay":1000}'
-```
-
----
-
 ### \[POST\] /messages/{sessionId}/{jid}/sticker
 
 **Send sticker**
@@ -3081,7 +3006,7 @@ Content-Type: application/json
 | Field | Type | Required | Description |
 | :--- | :--- | :--- | :--- |
 | `file` | string (binary) | ✅ Yes | — |
-| `pack` | string | No | Sticker pack name (default: WA-AKG) |
+| `pack` | string | No | Sticker pack name (default: Woohub) |
 | `author` | string | No | Sticker author name (default: User) |
 | `type` | string | No | Sticker crop type (default: full) **Options:** `full`, `crop`, `circle` |
 | `quality` | integer | No | Image quality (default: 50) |
@@ -3936,7 +3861,7 @@ Fetch profile information of the connected WhatsApp account
   "success": true,
   "jid": "string",
   "status": {
-    "text": "Hello from WA-AKG!"
+    "text": "Olá da Woohub!"
   }
 }
 ```
@@ -4007,7 +3932,7 @@ Content-Type: application/json
   "status": true,
   "message": "Operation successful",
   "data": {
-    "text": "Hello from WA-AKG!"
+    "text": "Olá da Woohub!"
   }
 }
 ```
@@ -4080,7 +4005,7 @@ Content-Type: application/json
   "status": true,
   "message": "Operation successful",
   "data": {
-    "text": "Hello from WA-AKG!"
+    "text": "Olá da Woohub!"
   }
 }
 ```
@@ -4130,7 +4055,7 @@ curl -X PUT "http://localhost:3000/api/profile/session-01/status" \
   "status": true,
   "message": "Operation successful",
   "data": {
-    "text": "Hello from WA-AKG!"
+    "text": "Olá da Woohub!"
   }
 }
 ```
@@ -4201,7 +4126,7 @@ Content-Type: application/json
   "status": true,
   "message": "Operation successful",
   "data": {
-    "text": "Hello from WA-AKG!"
+    "text": "Olá da Woohub!"
   }
 }
 ```
@@ -5024,11 +4949,11 @@ curl -X GET "http://localhost:3000/api/webhooks/session-01/abc123/logs?limit=50&
 
 ## 🔐 Webhook HMAC Verification
 
-WA-AKG signs every webhook request with HMAC-SHA256 when you set a `secret` on your webhook. Receiver **must** verify signature before processing payload.
+Woohub signs every webhook request with HMAC-SHA256 when you set a `secret` on your webhook. Receiver **must** verify signature before processing payload.
 
 ### How It Works
 
-When secret set, WA-AKG sends header:
+When secret set, Woohub sends header:
 
 ```
 X-Webhook-Signature: sha256=<hex-encoded-hmac>
@@ -5043,7 +4968,7 @@ Signature = HMAC-SHA256(webhook-secret, raw-request-body).
 ```javascript
 import crypto from "crypto";
 
-const WEBHOOK_SECRET = "your-webhook-secret"; // same as set in WA-AKG
+const WEBHOOK_SECRET = "your-webhook-secret"; // same as set in Woohub
 
 app.post("/webhook", express.raw({ type: "application/json" }), (req, res) => {
   const sig = req.headers["x-webhook-signature"];
@@ -5108,7 +5033,7 @@ import hashlib
 from flask import Flask, request, abort
 
 app = Flask(__name__)
-WEBHOOK_SECRET = b"your-webhook-secret"  # same as set in WA-AKG
+WEBHOOK_SECRET = b"your-webhook-secret"  # same as set in Woohub
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
@@ -5219,7 +5144,7 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 
 ### Testing Your Webhook Receiver
 
-WA-AKG includes built-in webhook test payload. You can also trigger test event manually:
+Woohub includes built-in webhook test payload. You can also trigger test event manually:
 
 ```bash
 # Create webhook with secret
@@ -5242,7 +5167,7 @@ Then send a message to a WhatsApp session. Check your server logs — should sho
 
 ## 🎯 Webhook Payload Examples
 
-When WA-AKG sends a POST to your webhook URL, the body has this structure:
+When Woohub sends a POST to your webhook URL, the body has this structure:
 
 ```json
 {
@@ -5805,7 +5730,7 @@ curl -X POST "http://localhost:3000/api/user/api-key" \
   "status": true,
   "message": "Operation successful",
   "data": {
-    "text": "Hello from WA-AKG!"
+    "text": "Olá da Woohub!"
   }
 }
 ```
@@ -6066,7 +5991,7 @@ curl -X GET "http://localhost:3000/api/labels/session-01" \
   "status": true,
   "message": "Operation successful",
   "data": {
-    "text": "Hello from WA-AKG!"
+    "text": "Olá da Woohub!"
   }
 }
 ```
@@ -6316,7 +6241,7 @@ Get all chats associated with a specific label
 {
   "success": true,
   "label": {
-    "text": "Hello from WA-AKG!"
+    "text": "Olá da Woohub!"
   },
   "chats": [
     "string"
@@ -6502,7 +6427,7 @@ Content-Type: application/json
   "status": true,
   "message": "Operation successful",
   "data": {
-    "text": "Hello from WA-AKG!"
+    "text": "Olá da Woohub!"
   }
 }
 ```
@@ -6552,7 +6477,7 @@ curl -X PATCH "http://localhost:3000/api/notifications/read" \
   "status": true,
   "message": "Operation successful",
   "data": {
-    "text": "Hello from WA-AKG!"
+    "text": "Olá da Woohub!"
   }
 }
 ```
@@ -6664,7 +6589,7 @@ curl -X POST "http://localhost:3000/api/settings/system" \
 ```json
 {
   "id": "default",
-  "appName": "WA-AKG",
+  "appName": "Woohub",
   "logoUrl": "https://example.com/logo.png",
   "timezone": "Asia/Jakarta"
 }
@@ -6749,7 +6674,7 @@ Content-Type: application/json
   "status": true,
   "message": "Operation successful",
   "data": {
-    "text": "Hello from WA-AKG!"
+    "text": "Olá da Woohub!"
   }
 }
 ```
@@ -6832,7 +6757,7 @@ Content-Type: application/json
   "status": true,
   "message": "Operation successful",
   "data": {
-    "text": "Hello from WA-AKG!"
+    "text": "Olá da Woohub!"
   }
 }
 ```
@@ -7016,7 +6941,7 @@ curl -X POST "http://localhost:3000/api/contacts/session-01/628123456789@s.whats
   "status": true,
   "message": "Operation successful",
   "data": {
-    "text": "Hello from WA-AKG!"
+    "text": "Olá da Woohub!"
   }
 }
 ```
@@ -7046,11 +6971,11 @@ curl -X POST "http://localhost:3000/api/contacts/session-01/628123456789@s.whats
   "status": "Connected",
   "userId": "string",
   "botConfig": {
-    "text": "Hello from WA-AKG!"
+    "text": "Olá da Woohub!"
   },
   "webhooks": [
     {
-      "text": "Hello from WA-AKG!"
+      "text": "Olá da Woohub!"
     }
   ],
   "_count": {

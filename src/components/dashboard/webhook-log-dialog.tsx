@@ -87,7 +87,7 @@ export default function WebhookLogDialog({ webhookId, webhookName, targetSession
     const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<"payload" | "response" | "headers">("payload");
     const [showMobileDetails, setShowMobileDetails] = useState(false);
-    const [timezone, setTimezone] = useState<string>("Asia/Jakarta");
+    const [timezone, setTimezone] = useState<string>("America/Sao_Paulo");
 
     // Reset log selection and fetch timezone when dialog changes state
     useEffect(() => {

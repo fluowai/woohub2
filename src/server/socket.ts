@@ -20,6 +20,8 @@ interface SocketIdentity {
     kind: "session" | "apiKey";
     userId: string | null;
     tenantId: string;
+    resellerId: string | null;
+    isMegaAdmin: boolean;
     isSuperAdmin: boolean;
     label: string;
 }
@@ -42,7 +44,10 @@ async function identifyByApiKey(rawKey: string): Promise<SocketIdentity | null> 
     if (!legacy && !isValidKeyFormat(rawKey)) return null;
 
     let record = legacy
-        ? await prisma.apiKey.findUnique({ where: { hash: hashApiKey(rawKey) }, include: { tenant: true } })
+        ? await prisma.apiKey.findUnique({
+              where: { hash: hashApiKey(rawKey) },
+              include: { tenant: { include: { reseller: true } } },
+          })
         : null;
 
     if (!record) {
@@ -50,7 +55,7 @@ async function identifyByApiKey(rawKey: string): Promise<SocketIdentity | null> 
         if (!publicId) return null;
         record = await prisma.apiKey.findUnique({
             where: { publicId },
-            include: { tenant: true },
+            include: { tenant: { include: { reseller: true } } },
         });
         if (!record || !verifyKeyHash(rawKey, record.hash)) return null;
     }
@@ -58,11 +63,14 @@ async function identifyByApiKey(rawKey: string): Promise<SocketIdentity | null> 
     if (record.revokedAt) return null;
     if (record.expiresAt && record.expiresAt.getTime() < Date.now()) return null;
     if (record.tenant.status !== "ACTIVE") return null;
+    if (record.tenant.reseller && record.tenant.reseller.status !== "ACTIVE") return null;
 
     return {
         kind: "apiKey",
         userId: record.createdById,
         tenantId: record.tenantId,
+        resellerId: record.tenant.resellerId,
+        isMegaAdmin: false,
         isSuperAdmin: false,
         label: `apikey:${record.publicId}`,
     };
@@ -95,17 +103,28 @@ async function identifyBySessionCookie(cookieHeader?: string): Promise<SocketIde
     });
     if (!user) return null;
 
+    const isMegaAdmin = user.role === "MEGA_ADMIN";
+    const isSuperAdmin = (user.role === "SUPER_ADMIN" || user.role === "SUPERADMIN") && !isMegaAdmin;
+
+    let resellerId: string | null = null;
+    if (isSuperAdmin) {
+        const r = await prisma.reseller.findFirst({ where: { ownerId: user.id } });
+        resellerId = r?.id ?? null;
+    }
+
     const membership = await prisma.tenantMember.findFirst({
         where: { userId: user.id },
-        select: { tenantId: true },
+        include: { tenant: true },
     });
-    if (!membership && user.role !== "SUPERADMIN") return null;
+    if (!membership && !isSuperAdmin && !isMegaAdmin) return null;
 
     return {
         kind: "session",
         userId: user.id,
         tenantId: membership?.tenantId ?? "platform",
-        isSuperAdmin: user.role === "SUPERADMIN",
+        resellerId: resellerId ?? membership?.tenant?.resellerId ?? null,
+        isMegaAdmin,
+        isSuperAdmin,
         label: user.email ?? user.id,
     };
 }
@@ -122,11 +141,21 @@ async function authenticate(socket: Socket): Promise<SocketIdentity | null> {
 async function canAccessInstance(identity: SocketIdentity, sessionRef: string): Promise<boolean> {
     const session = await prisma.session.findFirst({
         where: { OR: [{ id: sessionRef }, { sessionId: sessionRef }] },
-        select: { id: true, userId: true, tenantId: true },
+        include: { tenant: true },
     });
     if (!session) return false;
 
-    if (identity.isSuperAdmin) return true;
+    // Mega Admin has global access to all instances
+    if (identity.isMegaAdmin) return true;
+
+    // Super Admin can only access instances belonging to their reseller's clients
+    if (identity.isSuperAdmin) {
+        if (session.tenant && identity.resellerId) {
+            return session.tenant.resellerId === identity.resellerId;
+        }
+        return false;
+    }
+
     if (!identity.tenantId || identity.tenantId === "platform") return false;
     if (session.tenantId && session.tenantId !== identity.tenantId) return false;
     if (session.userId === identity.userId) return true;

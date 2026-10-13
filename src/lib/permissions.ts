@@ -27,6 +27,18 @@ export const PERMISSIONS = [
     "audit:read",
     "plan:manage",
     "platform:admin",
+    "resellers:manage",
+    "domains:manage",
+    "features:manage",
+    "system:monitor",
+    "reseller:manage",
+    "reseller:clients:read",
+    "reseller:clients:write",
+    "reseller:plans:manage",
+    "reseller:branding:manage",
+    "reseller:domains:manage",
+    "reseller:quotas:read",
+    "reseller:audit:read",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -44,7 +56,7 @@ export const API_KEY_SCOPES = [
 
 export type ApiKeyScope = (typeof API_KEY_SCOPES)[number];
 
-export type TenantRole = "OWNER" | "ADMIN" | "STAFF" | "BILLING";
+export type TenantRole = "OWNER" | "ADMIN" | "STAFF" | "BILLING" | "USER";
 
 const TENANT_PERMISSIONS: Record<TenantRole, readonly Permission[]> = {
     OWNER: [
@@ -97,7 +109,29 @@ const TENANT_PERMISSIONS: Record<TenantRole, readonly Permission[]> = {
         "logs:read",
     ],
     BILLING: ["billing:read", "billing:write", "members:read", "audit:read", "instances:read"],
+    USER: [
+        "instances:read",
+        "messages:read",
+        "messages:send",
+        "contacts:read",
+        "groups:read",
+        "logs:read",
+    ],
 };
+
+export const SUPER_ADMIN_PERMISSIONS: readonly Permission[] = [
+    "reseller:clients:read",
+    "reseller:clients:write",
+    "reseller:plans:manage",
+    "reseller:branding:manage",
+    "reseller:domains:manage",
+    "reseller:quotas:read",
+    "reseller:audit:read",
+    "instances:read",
+    "billing:read",
+    "billing:write",
+    "audit:read",
+];
 
 export function permissionsForRole(role: TenantRole): readonly Permission[] {
     return TENANT_PERMISSIONS[role] ?? [];
@@ -121,6 +155,7 @@ export function parseScopes(raw: string | null | undefined): Set<ApiKeyScope> {
  * Used only as a fallback during migration; explicit membership always wins.
  */
 export function fallbackTenantRole(platformRole: string): TenantRole {
+    if (platformRole === "MEGA_ADMIN") return "OWNER";
     if (platformRole === "SUPERADMIN") return "OWNER";
     if (platformRole === "STAFF") return "STAFF";
     return "OWNER";

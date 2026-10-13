@@ -35,7 +35,7 @@ export async function PUT(
         const decodedJid = decodeURIComponent(jid);
 
         // Archive or unarchive chat
-        // Note: lastMessages is required by Baileys but can be empty array
+        // Note: lastMessages is required by WhatsApp Engine but can be empty array
         await instance.socket.chatModify(
             { archive: archive, lastMessages: [] },
             decodedJid

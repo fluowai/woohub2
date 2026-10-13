@@ -83,7 +83,7 @@ export function redactApiKey(key: string): string {
 }
 
 // ---------------------------------------------------------------------------------------
-// Legacy upstream keys (WA-AKG v1.x): `wag_...`, stored in plaintext in User.apiKey.
+// Legacy upstream keys (Woohub v1.x): `wag_...`, stored in plaintext in User.apiKey.
 // Migrated by scripts/migrate-tenancy.js into ApiKey rows (hash only). Kept readable for
 // one deprecation window so existing integrations do not break the day tenancy lands.
 // ---------------------------------------------------------------------------------------

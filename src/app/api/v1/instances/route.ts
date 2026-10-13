@@ -2,7 +2,6 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { getAccessibleSessions } from "@/lib/api-auth";
 import { waManager } from "@/modules/whatsapp/manager";
-import { assertInstanceQuota } from "@/lib/quota";
 import { audit } from "@/lib/audit";
 import { badRequest, forbidden, requireUser, v1Created, v1ErrorResponse, v1Ok } from "@/lib/v1/http";
 import { mapInstance } from "@/lib/v1/instance";
@@ -21,7 +20,7 @@ export async function GET(request: NextRequest) {
         const sessions = await getAccessibleSessions(user.id, user.role);
         return v1Ok(sessions.map(mapInstance), { total: sessions.length });
     } catch (error) {
-        return v1ErrorResponse(error);
+        return await v1ErrorResponse(error);
     }
 }
 
@@ -38,8 +37,6 @@ export async function POST(request: NextRequest) {
         const parsed = createSchema.safeParse(await request.json().catch(() => null));
         if (!parsed.success) throw badRequest("Informe um nome válido para a instância", parsed.error.flatten());
 
-        await assertInstanceQuota(user.tenantId);
-
         const session = await waManager.createSession(user.id, parsed.data.name, parsed.data.session_id, user.tenantId ?? undefined);
 
         await audit({
@@ -51,6 +48,6 @@ export async function POST(request: NextRequest) {
 
         return v1Created(mapInstance(session));
     } catch (error) {
-        return v1ErrorResponse(error);
+        return await v1ErrorResponse(error);
     }
 }

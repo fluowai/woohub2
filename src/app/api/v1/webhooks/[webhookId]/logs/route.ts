@@ -47,6 +47,6 @@ export async function GET(
             { limit, webhook_id: webhook.id }
         );
     } catch (error) {
-        return v1ErrorResponse(error);
+        return await v1ErrorResponse(error);
     }
 }

@@ -53,51 +53,51 @@
 
 :root {
   --radius: 0.75rem;
-  /* Light Mode - Woohub: fundo claro, quente e neutro */
-  --background: oklch(0.995 0.002 60);
-  --foreground: oklch(0.16 0.01 60);
+  /* Light Mode - Woohub: fundo limpo, sutil tom slate/azul fresco */
+  --background: oklch(0.985 0.005 240);
+  --foreground: oklch(0.18 0.02 250);
   
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.16 0.01 60);
+  --card-foreground: oklch(0.18 0.02 250);
   
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.16 0.01 60);
+  --popover-foreground: oklch(0.18 0.02 250);
   
-  /* Primary - Woohub Orange (laranja, branco e preto) */
-  --primary: oklch(0.646 0.222 41.116);
+  /* Primary - WooHub Electric / Ocean Blue (#0284c7 / #0ea5e9) */
+  --primary: oklch(0.58 0.19 240);
   --primary-foreground: oklch(1 0 0);
   
-  /* Secondary - Cinza quente */
-  --secondary: oklch(0.96 0.005 70);
-  --secondary-foreground: oklch(0.25 0.01 60);
+  /* Secondary - Soft Sky / Slate */
+  --secondary: oklch(0.96 0.015 240);
+  --secondary-foreground: oklch(0.25 0.02 250);
   
-  --muted: oklch(0.96 0.004 70);
-  --muted-foreground: oklch(0.47 0.01 60);
+  --muted: oklch(0.96 0.01 240);
+  --muted-foreground: oklch(0.52 0.02 250);
   
-  --accent: oklch(0.97 0.015 60);
-  --accent-foreground: oklch(0.22 0.01 60);
+  --accent: oklch(0.96 0.03 235);
+  --accent-foreground: oklch(0.35 0.15 240);
   
   --destructive: oklch(0.6 0.25 25);
   --destructive-foreground: oklch(0.98 0 0);
   
-  --border: oklch(0.92 0.005 70);
-  --input: oklch(0.92 0.005 70);
-  --ring: oklch(0.646 0.222 41.116);
+  --border: oklch(0.92 0.008 240);
+  --input: oklch(0.92 0.008 240);
+  --ring: oklch(0.58 0.19 240);
   
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.75 0.15 75);
-  --chart-3: oklch(0.5 0.1 260);
-  --chart-4: oklch(0.8 0.15 80);
-  --chart-5: oklch(0.45 0.05 60);
+  --chart-1: oklch(0.58 0.19 240);
+  --chart-2: oklch(0.72 0.16 220);
+  --chart-3: oklch(0.48 0.18 250);
+  --chart-4: oklch(0.82 0.12 210);
+  --chart-5: oklch(0.65 0.05 240);
 
   --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.2 0.01 60);
-  --sidebar-primary: oklch(0.646 0.222 41.116);
+  --sidebar-foreground: oklch(0.25 0.02 250);
+  --sidebar-primary: oklch(0.58 0.19 240);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.96 0.01 60);
-  --sidebar-accent-foreground: oklch(0.2 0.01 60);
-  --sidebar-border: oklch(0.92 0.005 70);
-  --sidebar-ring: oklch(0.646 0.222 41.116);
+  --sidebar-accent: oklch(0.96 0.03 235);
+  --sidebar-accent-foreground: oklch(0.35 0.15 240);
+  --sidebar-border: oklch(0.93 0.008 240);
+  --sidebar-ring: oklch(0.58 0.19 240);
 }
 
 .dark {
@@ -112,9 +112,9 @@
   --popover: oklch(0.18 0.03 240);
   --popover-foreground: oklch(0.98 0.01 240);
   
-  /* Primary - Woohub Orange (brilhante no escuro) */
-  --primary: oklch(0.72 0.19 47);
-  --primary-foreground: oklch(0.16 0.03 60);
+  /* Primary - WooHub Electric Blue */
+  --primary: oklch(0.65 0.19 240);
+  --primary-foreground: oklch(1 0 0);
   
   --secondary: oklch(0.22 0.04 240);
   --secondary-foreground: oklch(0.95 0.02 240);
@@ -129,22 +129,22 @@
   
   --border: oklch(0.25 0.04 240);
   --input: oklch(0.25 0.04 240);
-  --ring: oklch(0.72 0.19 47);
+  --ring: oklch(0.65 0.19 240);
 
-  --chart-1: oklch(0.72 0.19 47);
-  --chart-2: oklch(0.8 0.15 85);
-  --chart-3: oklch(0.6 0.1 260);
-  --chart-4: oklch(0.85 0.15 80);
-  --chart-5: oklch(0.7 0.13 60);
+  --chart-1: oklch(0.65 0.19 240);
+  --chart-2: oklch(0.75 0.16 220);
+  --chart-3: oklch(0.55 0.18 250);
+  --chart-4: oklch(0.85 0.12 210);
+  --chart-5: oklch(0.7 0.08 240);
 
   --sidebar: oklch(0.16 0.02 240);
   --sidebar-foreground: oklch(0.95 0.01 240);
-  --sidebar-primary: oklch(0.72 0.19 47);
+  --sidebar-primary: oklch(0.65 0.19 240);
   --sidebar-primary-foreground: oklch(1 0 0);
   --sidebar-accent: oklch(0.22 0.04 240);
   --sidebar-accent-foreground: oklch(0.98 0.01 240);
   --sidebar-border: oklch(0.25 0.04 240);
-  --sidebar-ring: oklch(0.72 0.19 47);
+  --sidebar-ring: oklch(0.65 0.19 240);
 }
 
 @layer base {
@@ -163,11 +163,11 @@
   }
   
   .glass-panel {
-    @apply bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/50;
+    @apply bg-white/80 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200/80 dark:border-slate-800/50;
   }
   
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-amber-500;
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-sky-500 to-blue-600;
   }
   
   .hover-lift {

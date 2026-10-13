@@ -1,10 +1,10 @@
-# 📖 WA-AKG User Manual
+# 📖 Woohub User Manual
 
-Welcome to the **WA-AKG** User Guide. This document provides step-by-step instructions on how to use the dashboard features effectively.
+Bem-vindo ao **WooHub**. Este guia apresenta, em português do Brasil, as principais funções do painel.
 
 ---
 
-## 🚀 Quick Start: Connecting WhatsApp
+## 🚀 Primeiros passos: conectando o WhatsApp
 
 Before you can use any automation features, you must link a WhatsApp account.
 
@@ -87,5 +87,5 @@ Check the **Settings** page to customize:
 
 ---
 <div align="center">
-  **Version**: 1.6.1 | **Support**: [GitHub Issues](https://github.com/mrifqidaffaaditya/WA-AKG/issues)
+  **Version**: 1.6.1 | **Support**: [GitHub Issues](https://woohub.app)
 </div>

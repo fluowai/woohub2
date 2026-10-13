@@ -4,6 +4,7 @@ import { Server } from "socket.io";
 import { logger } from "@/lib/logger";
 import nodeCrypto from "node:crypto";
 import { emitToInstance } from "@/lib/realtime";
+import { createSessionWithCapacity } from "@/lib/commercial";
 
 export class WhatsAppManager {
     private static instance: WhatsAppManager;
@@ -42,15 +43,19 @@ export class WhatsAppManager {
             if (authCount === 0) {
                 // No credentials â€” session was created but never connected
                 // Set to STOPPED so it doesn't spam reconnect
-                await prisma.session.update({
-                    where: { sessionId: session.sessionId },
-                    data: { status: "STOPPED" }
-                }).catch(() => {});
+                // NUMBER_MISMATCH has no creds on purpose (wrong scan was wiped)
+                // and must survive restarts so the support panel stays visible.
+                if (session.status !== "NUMBER_MISMATCH") {
+                    await prisma.session.update({
+                        where: { sessionId: session.sessionId },
+                        data: { status: "STOPPED" }
+                    }).catch((err) => logger.warn("Manager", `Failed to persist status for ${session.sessionId}:`, err));
+                }
                 continue;
             }
 
             const instance = new WhatsAppInstance(session.sessionId, session.userId, this.io);
-            instance.onRemovedFromManager = () => this.removeInstance(session.sessionId);
+            instance.onRemovedFromManager = () => this.removeInstance(session.sessionId, instance);
             this.sessions.set(session.sessionId, instance);
             await instance.init();
             started++;
@@ -77,8 +82,10 @@ export class WhatsAppManager {
             ownerTenantId = membership?.tenantId ?? null;
         }
 
-        const session = await prisma.session.create({
-            data: {
+        const session = await createSessionWithCapacity({
+            tenantId: ownerTenantId ?? "",
+            create: (tx) => tx.session.create({
+              data: {
                 userId,
                 tenantId: ownerTenantId,
                 name,
@@ -91,7 +98,8 @@ export class WhatsAppManager {
                         autoReplyMode: "ALL"
                     }
                 }
-            }
+              }
+            })
         });
 
         // Don't init socket â€” user clicks Start manually
@@ -104,12 +112,14 @@ export class WhatsAppManager {
     }
 
     /** Remove instance from memory manager (cleanup after stop/logout) */
-    public removeInstance(sessionId: string) {
+    public removeInstance(sessionId: string, expected?: WhatsAppInstance) {
         const inst = this.sessions.get(sessionId);
-        if (inst) {
-            logger.info("Manager", `Removing session ${sessionId} from memory.`);
-            this.sessions.delete(sessionId);
-        }
+        if (!inst) return;
+        // A delayed `connection.close` from a replaced socket must never evict the
+        // instance that took over the session.
+        if (expected && inst !== expected) return;
+        logger.info("Manager", `Removing session ${sessionId} from memory.`);
+        this.sessions.delete(sessionId);
     }
 
     async deleteSession(sessionId: string) {
@@ -121,48 +131,57 @@ export class WhatsAppManager {
         await prisma.session.delete({ where: { sessionId } });
     }
 
+    /**
+     * Clean shutdown of every live instance (SIGTERM/SIGINT).
+     * Detaches Baileys listeners and closes sockets without rewriting session
+     * status in the DB, so the next boot re-connects them as before.
+     */
+    async shutdownAll() {
+        const instances = [...this.sessions.entries()];
+        this.sessions.clear();
+        await Promise.allSettled(instances.map(([, instance]) => instance.shutdown()));
+        logger.info("Manager", `Shut down ${instances.length} session(s).`);
+    }
+
     async stopSession(sessionId: string) {
         const instance = this.sessions.get(sessionId);
         if (instance) {
+            // shutdown() detaches the Baileys listeners before closing the socket, so a
+            // late `connection: 'close'` cannot re-write the DB or evict a replacement.
             await instance.shutdown();
-            instance.status = "STOPPED";
-            emitToInstance(this.io, sessionId, "connection.update", { status: "STOPPED", qr: null });
-            await prisma.session.update({
-                where: { sessionId },
-                data: { status: "STOPPED" }
-            }).catch(() => {});
-            // Remove from memory immediately
             this.sessions.delete(sessionId);
         }
+        emitToInstance(this.io, sessionId, "connection.update", { status: "STOPPED", qr: null });
+        await prisma.session.update({
+            where: { sessionId },
+            data: { status: "STOPPED", qr: null }
+        }).catch((err) => logger.warn("Manager", `Failed to persist status for ${sessionId}:`, err));
     }
 
     async startSession(sessionId: string) {
-        // If already running, do nothing
-        const existingInstance = this.sessions.get(sessionId);
-        if (existingInstance && existingInstance.status === "CONNECTED") {
-            return;
-        }
-
         const session = await prisma.session.findUnique({ where: { sessionId } });
         if (!session) throw new Error("Session not found");
 
-        // Create fresh instance
         let instance = this.sessions.get(sessionId);
         if (!instance) {
-            instance = new WhatsAppInstance(sessionId, session.userId, this.io!);
-            instance.onRemovedFromManager = () => this.removeInstance(sessionId);
-            this.sessions.set(sessionId, instance);
-        } else {
-            // Reset stopped flag for retry
-            instance.isStopped = false;
+            const created = new WhatsAppInstance(sessionId, session.userId, this.io!);
+            created.onRemovedFromManager = () => this.removeInstance(sessionId, created);
+            this.sessions.set(sessionId, created);
+            instance = created;
+        } else if (instance.status === "CONNECTED" && instance.socket) {
+            // Already running with a live socket.
+            return;
         }
 
+        // init() disposes any previous socket, so calling it twice never opens two
+        // connections with the same credentials, and it clears the stale QR.
+        instance.isStopped = false;
         await instance.init();
     }
 
     async restartSession(sessionId: string) {
         await this.stopSession(sessionId);
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 500));
         await this.startSession(sessionId);
     }
 

@@ -6,10 +6,17 @@ import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
 import { enqueueSendJob } from "@/lib/queue";
 import { z } from "zod";
 
+const MAX_BROADCAST_RECIPIENTS = Math.max(
+    1,
+    parseInt(process.env.MAX_BROADCAST_RECIPIENTS || "5000", 10)
+);
+
 const broadcastBodySchema = z.object({
-    recipients: z.array(z.string()).min(1),
-    message: z.string().min(1),
-    delay: z.number().optional()
+    recipients: z.array(z.string().min(1)).min(1).max(MAX_BROADCAST_RECIPIENTS),
+    message: z.string().min(1).max(65536),
+    // Delay between recipients (ms): at least 500ms so a broadcast can never
+    // degenerate into an unthrottled blast.
+    delay: z.number().int().min(500).max(60000).optional()
 });
 
 /**
@@ -27,6 +34,10 @@ export async function POST(
         const user = await getAuthenticatedUser(request);
         if (!user) {
             return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 401 });
+        }
+
+        if (user.tenantRole === "USER") {
+            return NextResponse.json({ status: false, message: "Usuários operacionais não têm permissão para criar disparos em massa." }, { status: 403 });
         }
 
         const { sessionId } = await params;
@@ -57,7 +68,7 @@ export async function POST(
             return NextResponse.json({ status: false, message: "Session not found", error: "Session not found" }, { status: 404 });
         }
 
-        const stepDelay = delay || 2000;
+        const stepDelay = delay ?? 2000;
         const startAt = Date.now();
 
         // --- Save BroadcastLog & recipients to DB ---

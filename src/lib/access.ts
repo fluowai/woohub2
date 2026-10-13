@@ -6,7 +6,9 @@ import { auth } from "./auth";
 import {
     API_KEY_SCOPES,
     ApiKeyScope,
+    PERMISSIONS,
     Permission,
+    SUPER_ADMIN_PERMISSIONS,
     TenantRole,
     fallbackTenantRole,
     parseScopes,
@@ -35,6 +37,8 @@ export interface AccessContext {
     name: string | null;
     platformRole: string;
     isSuperAdmin: boolean;
+    isMegaAdmin: boolean;
+    resellerId: string | null;
     tenantId: string | null;
     tenantRole: TenantRole | null;
     permissions: Set<Permission>;
@@ -65,6 +69,45 @@ export function currentContext(): AccessContext | undefined {
     return storage.getStore();
 }
 
+/**
+ * Async variant used by request-scoped consumers (audit, error envelopes).
+ *
+ * The proxy resolves identity in the middleware scope, which does not always
+ * propagate through the router's async chain — so when the AsyncLocalStorage
+ * store is empty it falls back to the `x-woohub-*` headers the proxy publishes
+ * on the incoming request.
+ */
+export async function currentContextAsync(): Promise<AccessContext | null> {
+    const stored = storage.getStore();
+    if (stored) return stored;
+    try {
+        const { headers } = await import("next/headers");
+        const h = await headers();
+        const requestId = h.get("x-woohub-request-id");
+        if (!requestId) return null;
+        const scopes = (h.get("x-woohub-scopes") || "").split(" ").filter(Boolean);
+        const keyPublicId = h.get("x-woohub-key");
+        return {
+            authMethod: h.get("x-woohub-auth") === "apiKey" ? "apiKey" : "session",
+            requestId,
+            userId: h.get("x-woohub-user"),
+            email: null,
+            name: null,
+            platformRole: "STAFF",
+            isSuperAdmin: false,
+            isMegaAdmin: false,
+            resellerId: null,
+            tenantId: h.get("x-woohub-tenant"),
+            tenantRole: null,
+            permissions: new Set<Permission>(scopes as Permission[]),
+            apiKey: keyPublicId ? { id: "", publicId: keyPublicId, scopes: new Set(scopes as ApiKeyScope[]), instanceId: null } : null,
+            ip: h.get("x-woohub-ip"),
+        };
+    } catch {
+        return null;
+    }
+}
+
 export function runWithContext<T>(context: AccessContext, fn: () => T): T {
     return storage.run(context, fn);
 }
@@ -78,6 +121,8 @@ export function runWithContext<T>(context: AccessContext, fn: () => T): T {
 export function requiredScopeFor(pathname: string, method: string): ApiKeyScope | null {
     // Administrative / self-service surfaces: client keys are rejected outright.
     const adminPrefixes = [
+        "/api/mega-admin",
+        "/api/super-admin",
         "/api/users",
         "/api/user",
         "/api/tenants",
@@ -172,7 +217,10 @@ async function authenticateApiKey(rawKey: string, pathname: string, method: stri
     // Legacy `wag_...` keys are looked up by hash (the plaintext is never stored by Woohub;
     // scripts/migrate-tenancy.js copies User.apiKey into ApiKey.hash once).
     let record = legacy
-        ? await prisma.apiKey.findUnique({ where: { hash: hashApiKey(rawKey) }, include: { tenant: true } })
+        ? await prisma.apiKey.findUnique({
+              where: { hash: hashApiKey(rawKey) },
+              include: { tenant: { include: { reseller: true } } },
+          })
         : null;
 
     if (!record) {
@@ -182,7 +230,7 @@ async function authenticateApiKey(rawKey: string, pathname: string, method: stri
         }
         record = await prisma.apiKey.findUnique({
             where: { publicId },
-            include: { tenant: true },
+            include: { tenant: { include: { reseller: true } } },
         });
         if (!record || !verifyKeyHash(rawKey, record.hash)) {
             return { ok: false, status: 401, code: "invalid_api_key", message: "Invalid API key" };
@@ -196,6 +244,9 @@ async function authenticateApiKey(rawKey: string, pathname: string, method: stri
     }
     if (record.tenant.status !== "ACTIVE") {
         return { ok: false, status: 403, code: "tenant_disabled", message: "Company is not active" };
+    }
+    if (record.tenant.reseller && record.tenant.reseller.status !== "ACTIVE") {
+        return { ok: false, status: 403, code: "tenant_disabled", message: "Reseller account is suspended" };
     }
 
     const scopes = parseScopes(record.scopes);
@@ -256,6 +307,8 @@ async function authenticateApiKey(rawKey: string, pathname: string, method: stri
             name: record.name,
             platformRole: "STAFF",
             isSuperAdmin: false,
+            isMegaAdmin: false,
+            resellerId: record.tenant.resellerId,
             tenantId: record.tenantId,
             tenantRole: "STAFF",
             permissions: new Set<Permission>([...scopes] as Permission[]),
@@ -328,27 +381,49 @@ export async function ensureTenantForUser(user: { id: string; email: string; nam
 async function authenticateSession(pathname: string, method: string): Promise<AuthResult> {
     const session = await auth();
     const userId = session?.user?.id;
-    if (!userId) {
+    const userEmail = session?.user?.email;
+    if (!userId && !userEmail) {
         return { ok: false, status: 401, code: "missing_credentials", message: "Authentication required" };
     }
 
-    const user = await prisma.user.findUnique({
-        where: { id: userId },
+    const user = await prisma.user.findFirst({
+        where: {
+            OR: [
+                ...(userId ? [{ id: userId }] : []),
+                ...(userEmail ? [{ email: userEmail }] : []),
+            ],
+        },
         select: { id: true, email: true, name: true, role: true },
     });
     if (!user) {
         return { ok: false, status: 401, code: "missing_credentials", message: "Authentication required" };
     }
 
-    const isSuperAdmin = user.role === "SUPERADMIN";
+    const isMegaAdmin = user.role === "MEGA_ADMIN";
+    const isSuperAdmin = (user.role === "SUPER_ADMIN" || user.role === "SUPERADMIN") && !isMegaAdmin;
 
     let tenantId: string | null = null;
     let tenantRole: TenantRole | null = null;
-    const membership = await prisma.tenantMember.findFirst({ where: { userId: user.id } });
+    let resellerId: string | null = null;
+
+    if (isSuperAdmin) {
+        const reseller = await prisma.reseller.findFirst({ where: { ownerId: user.id } });
+        if (reseller) {
+            resellerId = reseller.id;
+        }
+    }
+
+    const membership = await prisma.tenantMember.findFirst({
+        where: { userId: user.id },
+        include: { tenant: true },
+    });
     if (membership) {
         tenantId = membership.tenantId;
         tenantRole = membership.role;
-    } else if (!isSuperAdmin) {
+        if (!resellerId && membership.tenant?.resellerId) {
+            resellerId = membership.tenant.resellerId;
+        }
+    } else if (!isSuperAdmin && !isMegaAdmin) {
         // Lazily provision the initial company (migration safety net).
         const provisioned = await ensureTenantForUser(user);
         tenantId = provisioned.tenantId;
@@ -359,9 +434,10 @@ async function authenticateSession(pathname: string, method: string): Promise<Au
     if (tenantRole) {
         for (const p of permissionsForRole(tenantRole)) permissions.add(p);
     }
-    if (isSuperAdmin) {
-        permissions.add("platform:admin");
-        for (const p of permissionsForRole("OWNER")) permissions.add(p);
+    if (isMegaAdmin) {
+        for (const p of PERMISSIONS) permissions.add(p);
+    } else if (isSuperAdmin) {
+        for (const p of SUPER_ADMIN_PERMISSIONS) permissions.add(p);
     }
 
     void pathname;
@@ -377,6 +453,8 @@ async function authenticateSession(pathname: string, method: string): Promise<Au
             name: user.name,
             platformRole: user.role,
             isSuperAdmin,
+            isMegaAdmin,
+            resellerId,
             tenantId,
             tenantRole,
             permissions,
@@ -418,12 +496,35 @@ export async function authenticateRequest(request: NextRequest): Promise<AuthRes
 
 export function hasPermission(context: AccessContext | null | undefined, permission: Permission): boolean {
     if (!context) return false;
-    if (context.permissions.has(permission)) return true;
-    return context.isSuperAdmin && permission !== "platform:admin" ? true : false;
+    if (context.isMegaAdmin) return true;
+    return context.permissions.has(permission);
 }
 
 export function isPlatformAdmin(context: AccessContext | null | undefined): boolean {
-    return !!context && context.isSuperAdmin;
+    return !!context && context.isMegaAdmin;
+}
+
+export function isMegaAdmin(context: AccessContext | null | undefined): boolean {
+    return !!context && context.isMegaAdmin;
+}
+
+export function isSuperAdmin(context: AccessContext | null | undefined): boolean {
+    return !!context && context.isSuperAdmin && !context.isMegaAdmin;
+}
+
+export function isReseller(context: AccessContext | null | undefined): boolean {
+    return !!context && context.isSuperAdmin && !context.isMegaAdmin;
+}
+
+export function isTenantAdmin(context: AccessContext | null | undefined): boolean {
+    if (!context) return false;
+    if (context.isMegaAdmin) return true;
+    return context.tenantRole === "ADMIN" || context.tenantRole === "OWNER";
+}
+
+export function isOperationalUser(context: AccessContext | null | undefined): boolean {
+    if (!context) return false;
+    return context.tenantRole === "USER";
 }
 
 export { API_KEY_SCOPES };

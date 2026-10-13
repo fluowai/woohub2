@@ -10,7 +10,7 @@ import { logger } from "@/lib/logger";
 import { decryptJson, encryptJson, isEncrypted } from "@/lib/security/crypto";
 
 /**
- * Baileys auth state stored in the database with application-level encryption.
+ * WhatsApp Engine auth state stored in the database with application-level encryption.
  *
  * - Every value is encrypted with AES-256-GCM (authenticated) before persistence.
  * - The envelope carries key id, nonce and tag; the key itself only exists in the
@@ -44,6 +44,17 @@ function fromStoredValue(raw: unknown, sessionId: string, key: string): unknown 
     }
     // Legacy plaintext row (pre-encryption). Returned as-is and re-encrypted on next write.
     return raw;
+}
+
+/**
+ * Reverses `BufferJSON.replacer`: rows are persisted as JSON, so every Buffer comes back
+ * as `{ type: 'Buffer', data: [...] }`. Baileys feeds these straight into
+ * `cipher.update()` / signal crypto, which only accept real Buffers/TypedArrays —
+ * without this the noise handshake dies with ERR_INVALID_ARG_TYPE.
+ */
+function reviveValue<T>(value: unknown): T {
+    if (value === null || value === undefined) return value as T;
+    return JSON.parse(JSON.stringify(value), BufferJSON.reviver) as T;
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -107,7 +118,8 @@ export const usePrismaAuthState = async (
 
     // Throws when existing credentials cannot be read/decrypted: never fall back to initAuthCreds().
     const storedCreds = await readData("creds", "me");
-    const creds: AuthenticationCreds = (storedCreds as AuthenticationCreds) || initAuthCreds();
+    const creds: AuthenticationCreds =
+        (storedCreds ? reviveValue<AuthenticationCreds>(storedCreds) : null) || initAuthCreds();
     if (!storedCreds) {
         logger.info("Auth", `No stored credentials for session ${sessionId}; a fresh login will be required.`);
     }
@@ -120,12 +132,9 @@ export const usePrismaAuthState = async (
                     const data: { [key: string]: SignalDataTypeMap[typeof type] } = {};
                     await Promise.all(
                         ids.map(async (id) => {
-                            let value = (await readData(type, id)) as SignalDataTypeMap[typeof type] | null;
-                            if (type === "app-state-sync-key" && value) {
-                                value = BufferJSON.reviver(null, value as never);
-                            }
+                            const value = await readData(type, id);
                             if (value) {
-                                data[id] = value;
+                                data[id] = reviveValue<SignalDataTypeMap[typeof type]>(value);
                             }
                         })
                     );

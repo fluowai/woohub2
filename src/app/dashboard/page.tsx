@@ -25,7 +25,38 @@ export const dynamic = 'force-dynamic';
 export default async function DashboardPage() {
     const session = await auth();
     if (!session?.user) {
-        redirect("/login");
+        redirect("/auth/login");
+    }
+
+    const userId = session.user.id;
+    const userEmail = session.user.email;
+    let userRole = (session.user as any)?.role;
+
+    if (userId || userEmail) {
+        try {
+            const dbUser = await prisma.user.findFirst({
+                where: {
+                    OR: [
+                        ...(userId ? [{ id: userId }] : []),
+                        ...(userEmail ? [{ email: userEmail }] : []),
+                    ],
+                },
+                select: { role: true },
+            });
+            if (dbUser?.role) {
+                userRole = dbUser.role;
+            }
+        } catch {
+            // fallback to session role
+        }
+    }
+
+    // Role-based routing to respective panels matching mockup
+    if (userRole === "MEGA_ADMIN") {
+        redirect("/dashboard/mega-admin");
+    }
+    if (userRole === "SUPER_ADMIN" || userRole === "SUPERADMIN") {
+        redirect("/dashboard/super-admin");
     }
 
     const sessions = await getAccessibleSessions(session.user.id!, session.user.role || "OWNER");

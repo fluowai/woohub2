@@ -1,0 +1,16 @@
+diff --git a/node_modules/whatsapp-rust-bridge/package.json b/node_modules/whatsapp-rust-bridge/package.json
+index 4d9c3d1..7f6a1ac 100644
+--- a/node_modules/whatsapp-rust-bridge/package.json
++++ b/node_modules/whatsapp-rust-bridge/package.json
+@@ -15,10 +15,11 @@
+         "pkg/whatsapp_rust_bridge.d.ts"
+     ],
+     "exports": {
+         ".": {
++            "require": "./dist/index.js",
+             "import": "./dist/index.js",
+             "types": "./dist/index.d.ts"
+         }
+     },
+     "scripts": {
+         "bench": "bun run build && bun run benches/binary.ts && bun run benches/signal.ts && bun run benches/curve.ts && bun run benches/crypto.ts",

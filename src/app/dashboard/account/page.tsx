@@ -86,6 +86,10 @@ export default function AccountPage() {
             toast.error("A nova senha deve ter pelo menos 8 caracteres");
             return;
         }
+        if (!/[a-z]/.test(newPw) || !/[A-Z]/.test(newPw) || !/[0-9]/.test(newPw)) {
+            toast.error("A nova senha deve conter letras maiúsculas, minúsculas e números");
+            return;
+        }
         setChangingPw(true);
         try {
             const res = await fetch("/api/user/profile", {

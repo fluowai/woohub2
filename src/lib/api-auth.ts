@@ -29,6 +29,7 @@ export interface AuthenticatedUser {
     tenantRole: TenantRole | null;
     permissions: Set<Permission>;
     scopes: Set<string>;
+    isMegaAdmin: boolean;
     context: AccessContext;
 }
 
@@ -43,6 +44,7 @@ function toUser(context: AccessContext): AuthenticatedUser {
         tenantRole: context.tenantRole,
         permissions: context.permissions,
         scopes: context.apiKey ? new Set(context.apiKey.scopes) : new Set([...context.permissions]),
+        isMegaAdmin: context.isMegaAdmin,
         context,
     };
 }
@@ -85,17 +87,20 @@ export async function authorizeRequest(request: NextRequest): Promise<
     return { ok: true, user: toUser(result.context) };
 }
 
-/**
- * Check if user has required role (explicit comparison, no numeric hierarchy).
- */
+/** Check if user has required role (explicit comparison, no numeric hierarchy). */
 export function hasRole(userRole: string, requiredRole: TenantRole | "SUPERADMIN"): boolean {
-    if (requiredRole === "SUPERADMIN") return userRole === "SUPERADMIN";
+    if (requiredRole === "SUPERADMIN") return userRole === "SUPERADMIN" || userRole === "MEGA_ADMIN";
     return userRole === requiredRole;
 }
 
 /** Platform administration check. Prefer can(user, 'platform:admin'). */
 export function isAdmin(userRole: string): boolean {
-    return userRole === "SUPERADMIN";
+    return userRole === "SUPERADMIN" || userRole === "MEGA_ADMIN";
+}
+
+/** Mega Admin check - can manage everything including SUPERADMINs. */
+export function isMegaAdmin(userRole: string): boolean {
+    return userRole === "MEGA_ADMIN";
 }
 
 export function can(user: AuthenticatedUser | null, permission: Permission): boolean {
@@ -109,12 +114,13 @@ interface SessionWhere {
     userId: string;
     tenantId: string | null;
     sessionId: string;
+    tenant: { resellerId: string | null } | null;
 }
 
 async function findSessionForAuth(sessionId: string): Promise<SessionWhere | null> {
     return prisma.session.findFirst({
         where: { OR: [{ id: sessionId }, { sessionId }] },
-        select: { id: true, userId: true, tenantId: true, sessionId: true },
+        select: { id: true, userId: true, tenantId: true, sessionId: true, tenant: { select: { resellerId: true } } },
     });
 }
 
@@ -134,11 +140,11 @@ async function membershipOf(userId: string): Promise<{ tenantId: string; role: T
 export async function canAccessSession(userId: string, userRole: string, sessionId: string): Promise<boolean> {
     const context = currentContext() ?? null;
 
-    if (userRole === "SUPERADMIN") {
+    if (userRole === "MEGA_ADMIN") {
         await audit({
             actorLabel: context?.email || userId,
             actorType: context?.authMethod === "apiKey" ? "API_KEY" : "USER",
-            action: "superadmin.access",
+            action: "mega_admin.access",
             resource: "session",
             resourceId: sessionId,
             metadata: { reason: "platform_admin" },
@@ -148,6 +154,20 @@ export async function canAccessSession(userId: string, userRole: string, session
 
     const session = await findSessionForAuth(sessionId);
     if (!session) return false;
+
+    if (userRole === "SUPERADMIN") {
+        const resellerId = context?.resellerId;
+        if (!resellerId || session.tenant?.resellerId !== resellerId) return false;
+        await audit({
+            actorLabel: context?.email || userId,
+            actorType: context?.authMethod === "apiKey" ? "API_KEY" : "USER",
+            action: "superadmin.access",
+            resource: "session",
+            resourceId: sessionId,
+            metadata: { resellerId, reason: "reseller_scope" },
+        });
+        return true;
+    }
 
     const membership = await membershipOf(userId);
     if (!membership) return false;
@@ -172,10 +192,15 @@ export async function canAccessSession(userId: string, userRole: string, session
  * Used for protecting management endpoints (e.g. granting/revoking access).
  */
 export async function isSessionOwner(userId: string, userRole: string, sessionId: string): Promise<boolean> {
-    if (userRole === "SUPERADMIN") return true;
+    const context = currentContext() ?? null;
+    if (userRole === "MEGA_ADMIN") return true;
 
     const session = await findSessionForAuth(sessionId);
     if (!session) return false;
+
+    if (userRole === "SUPERADMIN") {
+        return Boolean(context?.resellerId && session.tenant?.resellerId === context.resellerId);
+    }
 
     if (session.userId === userId) {
         const membership = await membershipOf(userId);
@@ -210,8 +235,18 @@ const SESSION_INCLUDE = {
  * - STAFF sees owned + explicitly assigned instances only.
  */
 export async function getAccessibleSessions(userId: string, userRole: string) {
-    if (userRole === "SUPERADMIN") {
+    const context = currentContext() ?? null;
+    if (userRole === "MEGA_ADMIN") {
         return prisma.session.findMany({
+            orderBy: { createdAt: "desc" },
+            include: SESSION_INCLUDE,
+        });
+    }
+
+    if (userRole === "SUPERADMIN") {
+        if (!context?.resellerId) return [];
+        return prisma.session.findMany({
+            where: { tenant: { resellerId: context.resellerId } },
             orderBy: { createdAt: "desc" },
             include: SESSION_INCLUDE,
         });

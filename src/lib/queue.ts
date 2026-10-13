@@ -32,7 +32,7 @@ export interface SendPayload {
 export interface EnqueueSendOptions {
     tenantId: string;
     sessionPk: string; // Session.id (CUID)
-    instanceId: string; // Baileys sessionId
+    instanceId: string; // WhatsApp Engine sessionId
     payload: SendPayload | WebhookJobPayload;
     /** Job kind: send_message (default) or webhook. */
     type?: string;
@@ -244,6 +244,17 @@ async function runJob(job: {
         if (isWebhook) {
             await executeWebhookJob(job.payload as unknown as WebhookJobPayload, job.attempts);
         } else {
+            const sessionRecord = await prisma.session.findUnique({
+                where: { sessionId: job.instanceId },
+                include: { tenant: { include: { reseller: true } } },
+            });
+            if (sessionRecord?.tenant?.status && sessionRecord.tenant.status !== "ACTIVE") {
+                throw Object.assign(new Error("Empresa cliente suspensa. Envio bloqueado."), { quotaDenied: true });
+            }
+            if (sessionRecord?.tenant?.reseller && sessionRecord.tenant.reseller.status !== "ACTIVE") {
+                throw Object.assign(new Error("Revendedor suspenso. Envio bloqueado."), { quotaDenied: true });
+            }
+
             const instance = waManager.getInstance(job.instanceId);
             if (!instance?.socket) {
                 throw Object.assign(new Error("Instance is not connected"), { retryable: true, notAvailable: true });

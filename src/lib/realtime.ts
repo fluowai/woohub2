@@ -10,7 +10,7 @@ import { logger } from "./logger";
  *   instance room:  i:<tenantId>:<sessionPk>
  *   user room:      u:<tenantId>:<userId>
  *
- * A short-lived cache maps the Baileys instance id (used by every emit site) to its room.
+ * A short-lived cache maps the WhatsApp Engine instance id (used by every emit site) to its room.
  */
 
 interface CachedRoom {
@@ -41,7 +41,7 @@ export function invalidateInstanceRoom(sessionIdOrPk?: string): void {
     instanceRooms.clear();
 }
 
-/** Resolves the tenant-scoped room for an instance id (Baileys sessionId or CUID). */
+/** Resolves the tenant-scoped room for an instance id (WhatsApp Engine sessionId or CUID). */
 export async function resolveInstanceRoom(sessionIdOrPk: string): Promise<string | null> {
     const cached = instanceRooms.get(sessionIdOrPk);
     if (cached && cached.expires > Date.now()) return cached.room;

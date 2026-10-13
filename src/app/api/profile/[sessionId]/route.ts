@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
 import { waManager } from "@/modules/whatsapp/manager";
+import { safeErrorMessage } from "@/lib/safe-error";
 
 export async function GET(
     request: NextRequest,
@@ -32,7 +33,7 @@ export async function GET(
         try {
             const statusResult = await (instance.socket as any).fetchStatus(myJid);
             if (statusResult) {
-                // Baileys might return an array or an object depending on version
+                // WhatsApp Engine might return an array or an object depending on version
                 if (Array.isArray(statusResult)) {
                     const first = statusResult[0];
                     if (first?.status) status = first.status;
@@ -64,6 +65,6 @@ export async function GET(
 
     } catch (error: any) {
         console.error("Fetch profile error:", error);
-        return NextResponse.json({ status: false, message: error.message }, { status: 500 });
+        return NextResponse.json({ status: false, message: safeErrorMessage(error, "Failed to update profile") }, { status: 500 });
     }
 }

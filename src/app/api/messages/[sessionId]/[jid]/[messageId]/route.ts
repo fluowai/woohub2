@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { waManager } from "@/modules/whatsapp/manager";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { safeErrorMessage } from "@/lib/safe-error";
 
 // DELETE: Delete message for everyone
 export async function DELETE(
@@ -92,6 +93,6 @@ export async function PATCH(
         return NextResponse.json({ status: true, message: "Message edited successfully" });
     } catch (error: any) {
         console.error("Edit message error:", error);
-        return NextResponse.json({ status: false, message: "Failed to edit message", error: error.message || "Failed to edit message" }, { status: 500 });
+        return NextResponse.json({ status: false, message: "Failed to edit message", error: safeErrorMessage(error, "Failed to edit message") }, { status: 500 });
     }
 }

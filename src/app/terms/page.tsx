@@ -84,7 +84,7 @@ export default function TermsPage() {
                         <h2 className="mt-8 text-2xl border-b pb-2">4. Isenções e limitações</h2>
                         <p>
                             A Woohub é fornecida "como está", sem garantias de qualquer tipo. Utilizamos bibliotecas de
-                            terceiros (como o Baileys) para conectar aos protocolos do WhatsApp Web. Mudanças nos
+                            terceiros para conectar aos protocolos do WhatsApp Web. Mudanças nos
                             sistemas internos do WhatsApp podem ocasionalmente interromper o serviço. Não nos
                             responsabilizamos por suspensões ou banimentos de conta impostos pelo WhatsApp em
                             consequência do seu uso.

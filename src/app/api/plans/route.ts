@@ -28,6 +28,11 @@ const planSchema = z.object({
     sendLimit: z.number().int().min(0).max(100_000_000).default(500),
     storageLimitMb: z.number().int().min(0).max(10_000_000).default(100),
     retentionDays: z.number().int().min(0).max(3650).default(30),
+    commercialMode: z.enum(["DIRECT", "RESELLER", "WHITE_LABEL"]).default("DIRECT"),
+    maxInstallations: z.number().int().min(0).max(10_000).default(0),
+    trialDays: z.number().int().min(0).max(365).default(0),
+    gracePeriodDays: z.number().int().min(0).max(90).default(0),
+    resellerId: z.string().min(1).nullable().optional(),
     sort: z.number().int().default(0),
 });
 
@@ -70,6 +75,12 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ status: false, message: "Plan code already exists", error: "Duplicate code" }, { status: 409 });
         }
 
+        if (parsed.data.commercialMode === "RESELLER" && !parsed.data.resellerId) {
+            return NextResponse.json({ status: false, message: "Planos RESELLER exigem uma revenda." }, { status: 422 });
+        }
+        if (parsed.data.commercialMode !== "RESELLER" && parsed.data.resellerId) {
+            return NextResponse.json({ status: false, message: "Somente planos RESELLER podem pertencer a uma revenda." }, { status: 422 });
+        }
         const plan = await prisma.plan.create({ data: parsed.data });
 
         await audit({

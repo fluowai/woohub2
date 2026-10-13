@@ -83,13 +83,13 @@ export function SessionManager({ user }: { user: any }) {
 
     const createSession = async () => {
         if (!newSessionName) {
-            toast.error("Session name is required");
+            toast.error("Informe o nome da instância");
             return;
         }
 
         // If ID matches existing
         if (newSessionId && sessions.some(s => s.sessionId === newSessionId)) {
-            toast.error("Session ID already exists");
+            toast.error("Esse ID de instância já existe");
             return;
         }
 
@@ -107,18 +107,18 @@ export function SessionManager({ user }: { user: any }) {
             const responseData = await res.json();
             const session = responseData?.data;
 
-            if (!res.ok || !session) throw new Error(responseData.error || responseData.message || "Failed to create");
+            if (!res.ok || !session) throw new Error(responseData.error || responseData.message || "Falha ao criar");
 
             setSessions([...sessions, session]);
             setNewSessionName("");
             setNewSessionId("");
-            toast.success("Session created successfully");
+            toast.success("Instância criada com sucesso");
 
             // Optionally redirect immediately or let user choose
             // router.push(`/dashboard/sessions/${session.sessionId}`);
         } catch (e: any) {
             console.error(e);
-            toast.error(e.message || "Failed to create session");
+            toast.error(e.message || "Falha ao criar a instância");
         } finally {
             setLoading(false);
         }
@@ -128,70 +128,79 @@ export function SessionManager({ user }: { user: any }) {
         router.push(`/dashboard/sessions/${sessionId}`);
     }
 
+    const isOperational = user?.role === "USER";
+
     return (
         <div className="space-y-8">
-            {/* Create New Session Card */}
-            <Card className="bg-slate-50 border-dashed border-2">
-                <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                        <Plus className="h-5 w-5" /> Create New Session
-                    </CardTitle>
-                    <CardDescription>
-                        Add a new WhatsApp account to manage.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                        <div className="space-y-2">
-                            <Label htmlFor="session-name">Session Name</Label>
-                            <Input
-                                id="session-name"
-                                value={newSessionName}
-                                onChange={e => setNewSessionName(e.target.value)}
-                                placeholder="My Business WA"
-                            />
+            {/* Create New Session Card (Hidden for operational USER) */}
+            {!isOperational ? (
+                <Card className="bg-slate-50 border-dashed border-2">
+                    <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                            <Plus className="h-5 w-5" /> Nova instância
+                        </CardTitle>
+                        <CardDescription>
+                            Adicione um número do WhatsApp para gerenciar.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                            <div className="space-y-2">
+                                <Label htmlFor="session-name">Nome da instância</Label>
+                                <Input
+                                    id="session-name"
+                                    value={newSessionName}
+                                    onChange={e => setNewSessionName(e.target.value)}
+                                    placeholder="Minha Empresa WA"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="session-id">ID personalizado (opcional)</Label>
+                                <Input
+                                    id="session-id"
+                                    value={newSessionId}
+                                    onChange={e => setNewSessionId(e.target.value.replace(/[^a-zA-Z0-9-_]/g, ''))}
+                                    placeholder="id-unico-123"
+                                />
+                                <p className="text-[10px] text-muted-foreground">Apenas letras, números e hifens.</p>
+                            </div>
+                            <Button onClick={createSession} disabled={loading}>
+                                {loading ? 'Criando...' : 'Criar instância'}
+                            </Button>
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="session-id">Custom Session ID (Optional)</Label>
-                            <Input
-                                id="session-id"
-                                value={newSessionId}
-                                onChange={e => setNewSessionId(e.target.value.replace(/[^a-zA-Z0-9-_]/g, ''))}
-                                placeholder="unique-id-123"
-                            />
-                            <p className="text-[10px] text-muted-foreground">Only letters, numbers, hyphens.</p>
-                        </div>
-                        <Button onClick={createSession} disabled={loading}>
-                            {loading ? 'Creating...' : 'Create Session'}
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
+                    </CardContent>
+                </Card>
+            ) : (
+                <div className="p-4 bg-white border border-slate-200 rounded-xl text-xs text-slate-600 shadow-xs">
+                    <span className="font-semibold text-slate-800">Modo Operacional: </span>
+                    Você tem acesso de consulta às instâncias da empresa para atendimento e envio de mensagens autorizadas.
+                </div>
+            )}
 
             {/* Sessions Table Card */}
             <div>
                 {sessions.length === 0 ? (
-                    <div className="text-center py-10 text-muted-foreground bg-slate-50 dark:bg-slate-900 rounded-lg border border-border/50">
-                        No sessions found. Create one above to get started.
-                    </div>
+                        <div className="text-center py-10 text-muted-foreground bg-slate-50 dark:bg-slate-900 rounded-lg border border-border/50">
+                            Nenhuma instância encontrada. Crie uma acima para começar.
+                        </div>
                 ) : (
                     <Card className="glass-panel border-border/50 shadow-sm overflow-hidden">
-                        <CardHeader className="pb-3 pt-5 px-5">
-                            <CardTitle className="text-base font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                                Active Sessions ({sessions.length})
-                            </CardTitle>
-                            <CardDescription>
-                                List of active WhatsApp sessions and their current connection status.
-                            </CardDescription>
-                        </CardHeader>
+                            <CardHeader className="pb-3 pt-5 px-5">
+                                <CardTitle className="text-base font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                                    Instâncias ativas ({sessions.length})
+                                </CardTitle>
+                                <CardDescription>
+                                    Lista das instâncias de WhatsApp e o status de conexão atual.
+                                </CardDescription>
+                            </CardHeader>
                         <CardContent className="p-0 overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow className="hover:bg-transparent">
-                                        <TableHead className="px-5 text-xs uppercase tracking-wider font-semibold">Session / Device</TableHead>
+                                        <TableHead className="px-5 text-xs uppercase tracking-wider font-semibold">Instância / dispositivo</TableHead>
                                         <TableHead className="text-xs uppercase tracking-wider font-semibold">Status</TableHead>
-                                        <TableHead className="text-xs uppercase tracking-wider font-semibold">Owner</TableHead>
-                                        <TableHead className="text-right px-5 text-xs uppercase tracking-wider font-semibold">Actions</TableHead>
+                                        <TableHead className="text-xs uppercase tracking-wider font-semibold">Responsável</TableHead>
+                                        <TableHead className="text-right px-5 text-xs uppercase tracking-wider font-semibold">Ações</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -219,7 +228,7 @@ export function SessionManager({ user }: { user: any }) {
                                             <TableCell className="py-3">
                                                 {session.user ? (
                                                     <div className="leading-tight">
-                                                        <div className="font-semibold text-slate-700 dark:text-slate-300 text-xs">{session.user.name || "No Name"}</div>
+                                                        <div className="font-semibold text-slate-700 dark:text-slate-300 text-xs">{session.user.name || "Sem nome"}</div>
                                                         <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">{session.user.email}</div>
                                                     </div>
                                                 ) : (
@@ -228,22 +237,35 @@ export function SessionManager({ user }: { user: any }) {
                                             </TableCell>
                                             <TableCell className="py-3 text-right px-5">
                                                 <div className="flex items-center justify-end gap-2">
-                                                    <Button 
-                                                        variant="outline" 
-                                                        size="sm" 
-                                                        className="h-8 px-2.5 text-xs rounded-lg hover:bg-primary/5 transition-colors border-border/50"
-                                                        onClick={() => router.push(`/dashboard/sessions/access?session=${session.sessionId}`)}
-                                                    >
-                                                        <UserPlus className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" /> Share
-                                                    </Button>
-                                                    <Button 
-                                                        variant="outline" 
-                                                        size="sm" 
-                                                        className="h-8 px-2.5 text-xs rounded-lg hover:bg-primary/5 transition-colors border-border/50"
-                                                        onClick={() => handleManageSession(session.sessionId)}
-                                                    >
-                                                        <Settings className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" /> Manage
-                                                    </Button>
+                                                    {!isOperational ? (
+                                                        <>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="h-8 px-2.5 text-xs rounded-lg hover:bg-primary/5 transition-colors border-border/50"
+                                                                onClick={() => router.push(`/dashboard/sessions/access?session=${session.sessionId}`)}
+                                                            >
+                                                                <UserPlus className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" /> Compartilhar
+                                                            </Button>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="h-8 px-2.5 text-xs rounded-lg hover:bg-primary/5 transition-colors border-border/50"
+                                                                onClick={() => handleManageSession(session.sessionId)}
+                                                            >
+                                                                <Settings className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" /> Gerenciar
+                                                            </Button>
+                                                        </>
+                                                    ) : (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="h-8 px-2.5 text-xs rounded-lg hover:bg-orange-50 hover:text-[#ff5a00] transition-colors border-border/50"
+                                                            onClick={() => router.push('/dashboard/chat')}
+                                                        >
+                                                            Atendimento
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             </TableCell>
                                         </TableRow>

@@ -6,7 +6,7 @@ import { HttpError, forbidden, notFound } from "./http";
 /**
  * Shared resolution helpers for the v1 public API.
  *
- * Instance references accept either the internal id (CUID) or the Baileys session id,
+ * Instance references accept either the internal id (CUID) or the WhatsApp Engine session id,
  * so clients can use whichever identifier they stored.
  */
 

@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 
 /**
- * Authenticated encryption for sensitive records (Baileys credentials, webhook secrets).
+ * Authenticated encryption for sensitive records (WhatsApp Engine credentials, webhook secrets).
  *
  * Envelope format:  v1.<keyId>.<iv>.<tag>.<ciphertext>   (base64url segments)
  * Algorithm:        AES-256-GCM (12-byte IV, 128-bit tag)

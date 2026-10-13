@@ -63,11 +63,16 @@ export async function GET(
             message: "Session details retrieved successfully",
             data: {
                 ...session,
+                // Prefer the QR held by the live instance: the DB copy can be stale.
+                qr: instance?.qr ?? session.qr,
                 status: instance?.status || session.status, // Prefer live status
+                linkedPhone: instance?.linkedPhone ?? session.linkedPhone,
+                mismatchPhone: instance?.mismatchPhone ?? session.mismatchPhone,
                 uptime,
                 me,
                 hasInstance: !!instance,
-                pairingCode: instance?.pairingCode || null
+                pairingCode: instance?.pairingCode || null,
+                qrGeneratedAt: instance?.qrGeneratedAt ?? null
             }
         });
 

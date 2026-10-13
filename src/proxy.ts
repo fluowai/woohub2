@@ -21,11 +21,13 @@ import { logger } from "@/lib/logger";
 
 // Gateway webhooks cannot present credentials: authenticity is verified by the
 // HMAC signature inside the handler (`src/lib/payments.ts`), never by the client.
-const PUBLIC_API_PREFIXES = ["/api/auth", "/api/docs", "/api/payments/webhook"];
+// License routes (/api/license/*) are verified via the license key itself.
+const PUBLIC_API_PREFIXES = ["/api/auth", "/api/docs", "/api/payments/webhook", "/api/license"];
 // The OpenAPI document is a static contract (no tenant data) and must be fetchable
 // without credentials so external tooling can read it. The health endpoint only
 // reports process/database liveness for orchestrator probes.
 const PUBLIC_API_EXACT = ["/api/v1/openapi.json", "/api/system/health"];
+const CENTRAL_ONLY_PREFIXES = ["/api/mega-admin", "/api/super-admin", "/api/license/portainer-stack", "/api/license/portainer-template"];
 
 const RATE_LIMIT_PER_MINUTE = Math.max(1, parseInt(process.env.RATE_LIMIT_PER_MINUTE || "120", 10));
 const AUTH_RATE_LIMIT_PER_15MIN = Math.max(1, parseInt(process.env.AUTH_RATE_LIMIT_PER_15MIN || "10", 10));
@@ -121,6 +123,9 @@ export async function proxy(request: NextRequest) {
     }
 
     if (pathname.startsWith("/api/")) {
+        if ((process.env.DEPLOYMENT_MODE || "CENTRAL").toUpperCase() === "WHITE_LABEL" && CENTRAL_ONLY_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
+            return NextResponse.json(errorBody(pathname, "central_route_unavailable", "Esta rota só está disponível na central de licenças"), { status: 404 });
+        }
         const credentialGuard = protectCredentialEndpoint(request, pathname);
         if (credentialGuard) return credentialGuard;
 
@@ -161,6 +166,7 @@ export async function proxy(request: NextRequest) {
             const headers = new Headers(request.headers);
             headers.set("x-woohub-request-id", result.context.requestId);
             headers.set("x-woohub-auth", result.context.authMethod);
+            if (result.context.ip) headers.set("x-woohub-ip", result.context.ip);
             if (result.context.tenantId) headers.set("x-woohub-tenant", result.context.tenantId);
             if (result.context.apiKey) headers.set("x-woohub-key", result.context.apiKey.publicId);
             if (result.context.userId) headers.set("x-woohub-user", result.context.userId);
@@ -199,7 +205,21 @@ export async function proxy(request: NextRequest) {
         }
     }
 
-    const publicRoutes = ["/auth/login", "/auth/register", "/terms", "/privacy"];
+    // Recursos técnicos do navegador não podem ser redirecionados para o login.
+    // Caso contrário, o carregamento do favicon/ícone e dos probes do DevTools
+    // gera uma sequência contínua de requisições à própria tela de login.
+    const publicRoutes = [
+        "/auth/login",
+        "/auth/register",
+        "/login",
+        "/register",
+        "/terms",
+        "/privacy",
+        "/docs",
+        "/swagger",
+        "/icon",
+        "/.well-known",
+    ];
 
     const staticExtensions = [".svg", ".ico", ".png", ".jpg", ".jpeg", ".webp", ".woff", ".woff2", ".ttf"];
     if (pathname.lastIndexOf("/") === 0 && staticExtensions.some((ext) => pathname.endsWith(ext))) {
@@ -211,7 +231,7 @@ export async function proxy(request: NextRequest) {
     if (pathname.startsWith("/dashboard")) {
         const session = await auth();
         if (!session?.user) {
-            const loginUrl = new URL("/auth/login", request.url);
+            const loginUrl = new URL("/login", request.url);
             loginUrl.searchParams.set("callbackUrl", pathname);
             return NextResponse.redirect(loginUrl);
         }
@@ -228,7 +248,7 @@ export async function proxy(request: NextRequest) {
 
     if (publicRoutes.some((route) => pathname.startsWith(route))) {
         const session = await auth();
-        if (session?.user && (pathname.startsWith("/auth/login") || pathname.startsWith("/auth/register"))) {
+        if (session?.user && (pathname.startsWith("/auth/login") || pathname.startsWith("/auth/register") || pathname.startsWith("/login") || pathname.startsWith("/register"))) {
             return NextResponse.redirect(new URL("/dashboard", request.url));
         }
         return NextResponse.next();
@@ -236,7 +256,7 @@ export async function proxy(request: NextRequest) {
 
     const session = await auth();
     if (!session?.user) {
-        const loginUrl = new URL("/auth/login", request.url);
+        const loginUrl = new URL("/login", request.url);
         loginUrl.searchParams.set("callbackUrl", pathname);
         return NextResponse.redirect(loginUrl);
     }

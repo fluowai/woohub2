@@ -29,73 +29,73 @@ export default function ErrorPage({
   }
 
   return (
-    <div className="flex-1 flex items-center justify-center p-4 sm:p-6 md:p-8 min-h-[80vh] w-full" suppressHydrationWarning>
-      <div className="w-full max-w-lg bg-background/50 dark:bg-background/20 backdrop-blur-3xl border border-destructive/20 shadow-2xl shadow-destructive/5 rounded-3xl p-8 sm:p-12 flex flex-col items-center relative overflow-hidden" suppressHydrationWarning>
-        {/* Glow Effect behind the card content */}
-        <div className="absolute inset-0 bg-gradient-to-b from-destructive/10 to-transparent pointer-events-none" suppressHydrationWarning />
+    <div className="flex-1 flex items-center justify-center p-4 sm:p-6 md:p-8 min-h-[85vh] w-full" suppressHydrationWarning>
+      <div className="w-full max-w-lg bg-background/70 dark:bg-card/40 backdrop-blur-3xl border border-destructive/20 shadow-2xl shadow-destructive/10 rounded-3xl p-8 sm:p-12 flex flex-col items-center relative overflow-hidden" suppressHydrationWarning>
+        {/* Glow Effect */}
+        <div className="absolute inset-0 bg-gradient-to-b from-destructive/15 via-transparent to-transparent pointer-events-none" suppressHydrationWarning />
         
         {/* Decorative Icon */}
-        <div className="relative w-24 h-24 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mb-8 ring-8 ring-destructive/5" suppressHydrationWarning>
+        <div className="relative w-24 h-24 bg-destructive/10 text-destructive rounded-3xl flex items-center justify-center mb-6 ring-8 ring-destructive/5 shadow-inner" suppressHydrationWarning>
           <AlertTriangle className="size-12 animate-pulse" />
         </div>
 
         {/* Text Content */}
-        <div className="relative text-center mb-10 w-full" suppressHydrationWarning>
-          <h1 className="text-6xl font-black tracking-tight text-destructive font-mono mb-3 drop-shadow-sm" suppressHydrationWarning>
-            Error 500
+        <div className="relative text-center mb-8 w-full" suppressHydrationWarning>
+          <div className="inline-block px-3 py-1 rounded-full text-xs font-semibold tracking-wider uppercase bg-destructive/10 text-destructive mb-3">
+            Erro 500
+          </div>
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground mb-3">
+            Instabilidade no Sistema
           </h1>
-          <h2 className="text-xl font-bold text-foreground mb-4" suppressHydrationWarning>
-            Sistem Mengalami Kendala
-          </h2>
-          <p className="text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto" suppressHydrationWarning>
-            Maaf, terjadi kesalahan tak terduga pada aplikasi. Tim kami telah diberitahu mengenai masalah ini.
+          <p className="text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto">
+            Ocorreu uma falha inesperada no processamento desta página. Você pode tentar recarregar ou retornar ao painel.
           </p>
         </div>
 
         {/* Actions */}
-        <div className="relative w-full flex flex-col sm:flex-row gap-4 mb-6" suppressHydrationWarning>
+        <div className="relative w-full flex flex-col sm:flex-row gap-3 mb-6" suppressHydrationWarning>
           <Button
             onClick={() => reset()}
             variant="outline"
-            className="w-full flex-1 flex items-center justify-center gap-2 h-12 border-destructive/20 hover:bg-destructive/10 text-destructive hover:text-destructive rounded-xl transition-all shadow-sm"
+            className="w-full flex-1 flex items-center justify-center gap-2 h-11 border-destructive/20 hover:bg-destructive/10 text-foreground hover:text-destructive rounded-xl transition-all shadow-sm font-medium"
           >
             <RotateCcw className="size-4" />
-            <span>Coba Lagi</span>
+            <span>Tentar Novamente</span>
           </Button>
           <Button
             asChild
             variant="default"
-            className="w-full flex-1 flex items-center justify-center gap-2 h-12 bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg shadow-destructive/20 rounded-xl transition-all"
+            className="w-full flex-1 flex items-center justify-center gap-2 h-11 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 rounded-xl transition-all font-medium"
           >
             <Link href="/dashboard">
               <Home className="size-4" />
-              <span>Dashboard</span>
+              <span>Painel Principal</span>
             </Link>
           </Button>
         </div>
         
         {/* Error Details */}
-        <div className="relative w-full border-t border-border/40 pt-6" suppressHydrationWarning>
+        <div className="relative w-full border-t border-border/40 pt-4" suppressHydrationWarning>
           <button
             onClick={() => setShowDetails(!showDetails)}
             className="flex items-center justify-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors mx-auto w-full py-2"
           >
             {showDetails ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
-            <span>{showDetails ? 'Sembunyikan detail teknis' : 'Lihat detail teknis'}</span>
+            <span>{showDetails ? 'Ocultar detalhes técnicos' : 'Ver detalhes técnicos'}</span>
           </button>
 
           {showDetails && (
-            <div className="mt-4 p-5 bg-black/5 dark:bg-white/5 rounded-xl border border-border/30 text-left space-y-3 max-h-56 overflow-y-auto font-mono text-[11px] leading-relaxed break-all text-muted-foreground custom-scrollbar" suppressHydrationWarning>
+            <div className="mt-3 p-4 bg-muted/60 dark:bg-black/30 rounded-xl border border-border/30 text-left space-y-2 max-h-56 overflow-y-auto font-mono text-[11px] leading-relaxed break-all text-muted-foreground custom-scrollbar" suppressHydrationWarning>
               <div suppressHydrationWarning>
-                <span className="font-semibold text-foreground">Message:</span> {error.message || 'Unknown runtime error'}
+                <span className="font-semibold text-foreground">Mensagem:</span> {error.message || 'Erro inesperado em tempo de execução'}
               </div>
               {error.digest && (
                 <div suppressHydrationWarning>
-                  <span className="font-semibold text-foreground">Digest ID:</span> {error.digest}
+                  <span className="font-semibold text-foreground">ID do erro:</span> {error.digest}
                 </div>
               )}
               {error.stack && (
-                <div className="whitespace-pre-wrap mt-2 pt-3 border-t border-border/20 text-[10px] opacity-80" suppressHydrationWarning>
+                <div className="whitespace-pre-wrap mt-2 pt-2 border-t border-border/20 text-[10px] opacity-80" suppressHydrationWarning>
                   {error.stack}
                 </div>
               )}

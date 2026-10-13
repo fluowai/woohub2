@@ -116,7 +116,7 @@ function normalizePayloadData(event: WebhookEventType, data: any): any {
         // If data is already simplified, return it
         if (data.type && data.content) return data;
 
-        // If data is raw Baileys message (which we shouldn't be passing raw anymore, but just in case)
+        // If data is raw WhatsApp Engine message (which we shouldn't be passing raw anymore, but just in case)
         // Ideally the caller (onMessageReceived) should have already simplified it.
         // But let's handle the specific fields passed by onMessageReceived below.
         return data;
@@ -512,7 +512,7 @@ export async function downloadAndSaveMedia(message: WAMessage, sessionId: string
                 return null;
             }
         } else {
-            // Regular encrypted media — use Baileys downloadMediaMessage
+            // Regular encrypted media — use WhatsApp Engine downloadMediaMessage
             try {
                 buffer = await downloadMediaMessage(
                     message,
@@ -570,7 +570,7 @@ export async function downloadAndSaveMedia(message: WAMessage, sessionId: string
 }
 
 /**
- * Get WA-AKG's own clean phone JID for a session
+ * Get Woohub's own clean phone JID for a session
  * Strips device suffix (e.g. :47@s.whatsapp.net → @s.whatsapp.net)
  */
 function getOwnJid(sessionId: string): string | null {
@@ -578,7 +578,7 @@ function getOwnJid(sessionId: string): string | null {
         const instance = waManager.getInstance(sessionId);
         const jid = instance?.socket?.user?.id || null;
         if (!jid) return null;
-        // Strip device suffix (e.g. :47) — Baileys includes device ID in user.id
+        // Strip device suffix (e.g. :47) — WhatsApp Engine includes device ID in user.id
         return jid.replace(/:\d+(?=@)/g, '');
     } catch {
         return null;
@@ -664,7 +664,7 @@ export async function onMessageReceived(sessionId: string, message: any, existin
 
         // Simplified Fields — always @s.whatsapp.net format
         from: normalizedFrom,       // Sender — who sent it (#O in DM), consistent: "from" = who sent it
-        receiver: getOwnJid(sessionId), // WA-AKG's own number (#M)
+        receiver: getOwnJid(sessionId), // Woohub's own number (#M)
         sender: sender,             // Who Sent It (normalized JID or enriched Object)
         isGroup: isGroup,           // Boolean
         chatType: getChatType(remoteJid), // PERSONAL | GROUP | STATUS | NEWSLETTER
@@ -714,7 +714,7 @@ export async function onMessageSent(sessionId: string, message: any, existingFil
         },
 
         // Simplified Fields — always @s.whatsapp.net format
-        from: getOwnJid(sessionId), // Sender — WA-AKG's own number (#M), consistent: "from" = who sent it
+        from: getOwnJid(sessionId), // Sender — Woohub's own number (#M), consistent: "from" = who sent it
         receiver: normalizedFrom,   // Who the message was sent TO — other party (#O) in DM, group JID in group chat
         sender: sender,             // "ME" or normalized JID
         isGroup: isGroup,           // Boolean
@@ -741,7 +741,7 @@ export async function fireSentWebhook(
     sendResult: any
 ) {
     try {
-        // Handle WAMessage vs MessageKey — Baileys can return either
+        // Handle WAMessage vs MessageKey — WhatsApp Engine can return either
         const key = sendResult?.key || sendResult || {};
         const webhookMsg: any = {
             key: {
@@ -796,7 +796,7 @@ export function onConnectionUpdate(sessionId: string, status: string, qr?: strin
 }
 
 /**
- * Extract content and type from Baileys message
+ * Extract content and type from WhatsApp Engine message
  */
 function extractMessageContent(msg: any): { type: string, content: string, caption?: string } {
     const messageContent = normalizeMessageContent(msg.message);
@@ -877,7 +877,7 @@ async function extractQuotedMessageAsync(msg: any, sessionId: string): Promise<a
         if (contextInfo.stanzaId) {
             try {
                 // We need the dbSessionId... this is tricky without fetching session again.
-                // But we can try to look up by sessionId (baileys ID) and keyId
+                // But we can try to look up by sessionId (WhatsApp Engine ID) and keyId
                 // Message table has @@unique([sessionId, keyId]). BUT sessionId there is the CUID, not the string.
 
                 // Fetch CUID First

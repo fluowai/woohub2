@@ -3,17 +3,51 @@
 
 generator client {
   provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
 }
-
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 enum Role {
+  MEGA_ADMIN
+  SUPER_ADMIN
   SUPERADMIN
   OWNER
   STAFF
+}
+
+enum ResellerStatus {
+  ACTIVE
+  SUSPENDED
+  CANCELED
+}
+
+enum DomainType {
+  PLATFORM
+  RESELLER
+}
+
+enum CommercialMode {
+  DIRECT
+  RESELLER
+  WHITE_LABEL
+}
+
+enum DomainStatus {
+  PENDING_VERIFICATION
+  VERIFIED
+  ACTIVE
+  FAILED
+  SUSPENDED
+}
+
+enum CertStatus {
+  PENDING
+  ISSUED
+  FAILED
+  EXTERNAL
 }
 
 // Tenant-scoped roles. Platform role stays on User.role (SUPERADMIN = platform admin).
@@ -22,6 +56,7 @@ enum TenantRole {
   ADMIN
   STAFF
   BILLING
+  USER
 }
 
 enum SubscriptionStatus {
@@ -92,6 +127,8 @@ model User {
   sessionAccesses SessionAccess[]
   memberships TenantMember[]
   apiKeysCreated ApiKey[] @relation("ApiKeyCreator")
+  resellersOwned Reseller[] @relation("ResellerOwner")
+  stackTemplates StackTemplate[]
 }
 
 // A company/workspace. All customer resources are isolated by tenant.
@@ -100,9 +137,15 @@ model Tenant {
   slug      String   @unique
   name      String
   status    String   @default("ACTIVE") // ACTIVE, SUSPENDED, CLOSED
+  commercialMode CommercialMode @default(DIRECT)
+  resellerId String? // null = direct client of Mega Admin; non-null = client of a reseller
+  maxInstances Int   @default(1)
+  features  Json?    // Enabled features
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  reseller      Reseller?            @relation(fields: [resellerId], references: [id], onDelete: SetNull)
+  instanceAllocations InstanceAllocation[]
   members       TenantMember[]
   apiKeys       ApiKey[]
   sessions      Session[]
@@ -114,6 +157,7 @@ model Tenant {
   messageJobs   MessageJob[]
 
   @@index([status])
+  @@index([resellerId])
 }
 
 model TenantMember {
@@ -157,6 +201,7 @@ model ApiKey {
 model Plan {
   id             String   @id @default(cuid())
   code           String   @unique
+  commercialMode CommercialMode @default(DIRECT)
   name           String
   description    String?  @db.Text
   priceCents     Int      @default(0)
@@ -168,21 +213,33 @@ model Plan {
   sendLimit      Int      @default(500)  // outbound messages per period
   storageLimitMb Int      @default(100)
   retentionDays  Int      @default(30)
+  maxInstallations Int   @default(0) // 0 = not applicable; never means unlimited
+  trialDays      Int      @default(0)
+  gracePeriodDays Int     @default(0)
   features       Json?    // enabled feature flags
   status         String   @default("ACTIVE") // ACTIVE, ARCHIVED
   sort           Int      @default(0)
+  resellerId     String?  // null = platform plan; non-null = resale plan
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  reseller      Reseller?      @relation(fields: [resellerId], references: [id], onDelete: Cascade)
   subscriptions Subscription[]
 
   @@index([status])
+  @@index([resellerId])
 }
 
 model Subscription {
   id                 String             @id @default(cuid())
-  tenantId           String
+  tenantId           String?
+  resellerId         String?            // subscription between reseller and mega admin
   planId             String
+  commercialMode     CommercialMode @default(DIRECT)
+  contractedMaxInstances Int?
+  contractedMaxUsers Int?
+  contractedMaxInstallations Int?
+  termsVersion       String?
   status             SubscriptionStatus @default(TRIALING)
   currentPeriodStart DateTime
   currentPeriodEnd   DateTime
@@ -194,11 +251,13 @@ model Subscription {
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
-  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  plan     Plan     @relation(fields: [planId], references: [id])
+  tenant   Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  reseller Reseller? @relation("ResellerSubscriptions", fields: [resellerId], references: [id], onDelete: Cascade)
+  plan     Plan      @relation(fields: [planId], references: [id])
   invoices Invoice[]
 
   @@unique([tenantId])
+  @@index([resellerId])
   @@index([status])
 }
 
@@ -258,6 +317,7 @@ model UsageCounter {
 model AuditLog {
   id           String   @id @default(cuid())
   tenantId     String?
+  resellerId   String?
   actorUserId  String?
   actorLabel   String   // user email, api key publicId, or "system"
   actorType    String   @default("USER") // USER, API_KEY, SYSTEM
@@ -269,9 +329,11 @@ model AuditLog {
   requestId    String?
   createdAt    DateTime @default(now())
 
-  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant   Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  reseller Reseller? @relation(fields: [resellerId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, createdAt])
+  @@index([resellerId, createdAt])
   @@index([action, createdAt])
 }
 
@@ -327,8 +389,10 @@ model Session {
   tenantId    String? // company that owns this instance (backfilled by scripts/migrate-tenancy.js)
   name        String    // e.g. "Marketing WA"
   sessionId   String    @unique // The unique ID used for Baileys auth
-  status      String    @default("DISCONNECTED") // STOPPED, CONNECTING, QR_REQUIRED, CONNECTED, DISCONNECTED, LOGGED_OUT, ERROR, ZOMBIE
+  status      String    @default("DISCONNECTED") // STOPPED, CONNECTING, QR_REQUIRED, CONNECTED, DISCONNECTED, LOGGED_OUT, ERROR, ZOMBIE, SCAN_QR, NUMBER_MISMATCH
   qr          String?   @db.Text
+  linkedPhone String?   // digits-only number this instance is allowed to connect with
+  mismatchPhone String? // last scanned number that did not match linkedPhone
   config      Json?     // Store instance specific config (e.g. "read_receipts": true)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -535,7 +599,7 @@ model BotConfig {
   enabled       Boolean  @default(true)
   
   // Bot Command Access
-  botName       String   @default("WA-AKG Bot")
+  botName       String   @default("WooHub Bot")
   botMode       AccessMode @default(OWNER)
   botAllowedJids Json?     // Array of JIDs ["628123@s.whatsapp.net"]
   botBlockedJids Json?     // Array of JIDs ["628123@s.whatsapp.net"] for BLACKLIST mode
@@ -675,3 +739,282 @@ model BroadcastRecipient {
 
   @@index([broadcastLogId])
 }
+
+model PlatformConfig {
+  id                  String   @id @default("default") // Singleton ID
+  platformName        String   @default("Woohub")
+  primaryDomain       String?  @default("woohub.local")
+  supportEmail        String?  @default("suporte@woohub.local")
+  enableRegistration  Boolean  @default(true)
+  defaultFeatures     Json?
+  maxResellers        Int?     @default(100)
+  globalWebhookSecret String?
+  gatewayConfig       Json?
+  updatedAt           DateTime @updatedAt
+}
+
+model Reseller {
+  id                  String               @id @default(cuid())
+  name                String
+  slug                String               @unique
+  ownerId             String
+  status              ResellerStatus       @default(ACTIVE)
+  commercialMode      CommercialMode       @default(RESELLER)
+  maxInstances        Int                  @default(10)
+  maxTenants          Int                  @default(20)
+  maxUsers            Int                  @default(50)
+  features            Json?
+  storageLimitMb      Int                  @default(1024)
+  retentionDays       Int                  @default(30)
+  customDomainAllowed Boolean              @default(false)
+  notes               String?              @db.Text
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  owner               User                 @relation("ResellerOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  branding            Branding?
+  domains             Domain[]
+  tenants             Tenant[]
+  plans               Plan[]
+  subscriptions       Subscription[]       @relation("ResellerSubscriptions")
+  instanceAllocations InstanceAllocation[]
+  auditLogs           AuditLog[]
+  installations       Installation[]
+  licenses            License[]
+
+  @@index([status])
+  @@index([ownerId])
+}
+
+model InstanceAllocation {
+  id            String   @id @default(cuid())
+  resellerId    String
+  tenantId      String
+  allocated     Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  reseller      Reseller @relation(fields: [resellerId], references: [id], onDelete: Cascade)
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([resellerId, tenantId])
+  @@index([resellerId])
+  @@index([tenantId])
+}
+
+model Domain {
+  id                 String       @id @default(cuid())
+  hostname           String       @unique
+  type               DomainType   @default(RESELLER)
+  resellerId         String?
+  status             DomainStatus @default(PENDING_VERIFICATION)
+  verificationToken  String
+  verificationMethod String       @default("DNS_TXT")
+  certificateStatus  CertStatus   @default(PENDING)
+  validatedAt        DateTime?
+  dnsInstructions    Json?
+  history            Json?
+  notes              String?      @db.Text
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  reseller           Reseller?    @relation(fields: [resellerId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([resellerId])
+}
+
+model Branding {
+  id              String   @id @default(cuid())
+  resellerId      String   @unique
+  name            String
+  logoUrl         String?
+  faviconUrl      String?
+  primaryColor    String   @default("#ff5a00")
+  secondaryColor  String   @default("#0f172a")
+  accentColor     String   @default("#f97316")
+  supportEmail    String?
+  supportPhone    String?
+  commercialLinks Json?
+  docBrandName    String?
+  customCss       String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  reseller        Reseller @relation(fields: [resellerId], references: [id], onDelete: Cascade)
+}
+
+enum LicenseStatus {
+  ACTIVE
+  EXPIRED
+  SUSPENDED
+  REVOKED
+  PENDING
+}
+
+enum LicenseType {
+  TRIAL
+  STANDARD
+  PROFESSIONAL
+  ENTERPRISE
+  RESELLER
+}
+
+enum StackTemplateStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum InstallationStatus {
+  DRAFT
+  RESERVED
+  PREPARED
+  ACTIVATING
+  ACTIVE
+  DEGRADED
+  OFFLINE
+  LICENSE_RESTRICTED
+  RETIRED
+}
+
+enum InstallationMode {
+  COMPOSE
+  SWARM
+}
+
+model License {
+  id              String        @id @default(cuid())
+  licenseKey      String        @unique // Format: WOHUB-XXXX-XXXX-XXXX-XXXX
+  status          LicenseStatus @default(PENDING)
+  type            LicenseType   @default(TRIAL)
+  commercialMode  CommercialMode @default(WHITE_LABEL)
+  resellerId      String?
+  issuedTo        String        // Company/Reseller name
+  issuedToEmail   String        // Contact email
+  maxInstances    Int           @default(1)
+  maxTenants      Int           @default(1)
+  maxUsers        Int           @default(5)
+  maxResellers    Int           @default(0)
+  features        Json?         // Enabled features list
+  issuedAt        DateTime      @default(now())
+  expiresAt       DateTime?
+  lastValidatedAt DateTime?
+  validationCount Int           @default(0)
+  revokedAt       DateTime?
+  revokedReason   String?
+  metadata        Json?         // Additional data (IP, domain, etc)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  validations     LicenseValidation[]
+  installations   Installation[]
+  reseller        Reseller?      @relation(fields: [resellerId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([issuedToEmail])
+  @@index([expiresAt])
+  @@index([resellerId, status])
+}
+
+model StackTemplate {
+  id          String             @id @default(cuid())
+  name        String
+  slug        String             @unique
+  description String?            @db.Text
+  status      StackTemplateStatus @default(DRAFT)
+  edition     String             @default("RESELLER")
+  createdById String
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  createdBy   User               @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  versions    StackTemplateVersion[]
+  entitlements TemplateEntitlement[]
+
+  @@index([status])
+}
+
+model StackTemplateVersion {
+  id              String   @id @default(cuid())
+  templateId      String
+  version         String
+  composeYaml     String   @db.Text
+  parametersSchema Json
+  requirements    Json?
+  images          Json?
+  healthchecks    Json?
+  migrationNotes  String?  @db.Text
+  publishedAt     DateTime?
+  createdAt       DateTime @default(now())
+
+  template        StackTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  installations   Installation[]
+
+  @@unique([templateId, version])
+  @@index([templateId, publishedAt])
+}
+
+model TemplateEntitlement {
+  id          String   @id @default(cuid())
+  templateId  String
+  licenseType LicenseType
+  createdAt   DateTime @default(now())
+
+  template    StackTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, licenseType])
+}
+
+model Installation {
+  id                 String             @id @default(cuid())
+  resellerId         String
+  licenseId          String
+  templateVersionId  String
+  name               String
+  domain             String?
+  mode               InstallationMode
+  status             InstallationStatus @default(DRAFT)
+  capacity           Int                @default(1)
+  bootstrapHash      String?            @unique
+  bootstrapExpiresAt DateTime?
+  installationKeyHash String?           @unique
+  activationNonce    String?
+  protocolVersion    Int                @default(1)
+  licenseRevision    Int                @default(1)
+  reportedInstances  Int                @default(0)
+  reportedConnected  Int                @default(0)
+  reportedState      String?
+  reportedVersion    String?
+  lastHeartbeatAt    DateTime?
+  transferRequestedAt DateTime?
+  activatedAt        DateTime?
+  lastContactAt      DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  reseller           Reseller           @relation(fields: [resellerId], references: [id], onDelete: Cascade)
+  license            License            @relation(fields: [licenseId], references: [id], onDelete: Restrict)
+  templateVersion    StackTemplateVersion @relation(fields: [templateVersionId], references: [id], onDelete: Restrict)
+
+  @@index([resellerId, status])
+  @@index([licenseId])
+  @@index([lastContactAt])
+}
+
+model LicenseValidation {
+  id          String   @id @default(cuid())
+  licenseId   String
+  ip          String?
+  domain      String?
+  userAgent   String?
+  success     Boolean  @default(true)
+  error       String?
+  createdAt   DateTime @default(now())
+
+  license     License  @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+
+  @@index([licenseId])
+  @@index([createdAt])
+}
+

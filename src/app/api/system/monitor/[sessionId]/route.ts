@@ -3,6 +3,8 @@ import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
 import { waManager } from "@/modules/whatsapp/manager";
 
 import { prisma } from "@/lib/prisma";
+import { safeErrorMessage } from "@/lib/safe-error";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -72,7 +74,9 @@ export async function GET(
                     pingStatus = "Online";
                 }
             }
-        } catch (e) { }
+        } catch (e) {
+            logger.debug("Monitor", `Failed to read socket state for ${sessionId}:`, e);
+        }
 
 
 
@@ -94,6 +98,6 @@ export async function GET(
 
     } catch (error: any) {
         console.error("Session Monitor API Error:", error);
-        return NextResponse.json({ status: false, message: error.message }, { status: 500 });
+        return NextResponse.json({ status: false, message: safeErrorMessage(error, "Failed to load monitor data") }, { status: 500 });
     }
 }

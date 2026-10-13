@@ -2,6 +2,9 @@ import { NextResponse, NextRequest } from "next/server";
 import { waManager } from "@/modules/whatsapp/manager";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
+import { normalizePhone, samePhone } from "@/lib/phone";
+import { safeErrorMessage } from "@/lib/safe-error";
+import { logger } from "@/lib/logger";
 
 export async function POST(
     request: NextRequest,
@@ -24,12 +27,44 @@ export async function POST(
         }
 
         // Validate Action
-        const validActions = ["start", "stop", "restart", "logout", "pair"];
+        const validActions = ["start", "stop", "restart", "logout", "pair", "qr"];
         if (!validActions.includes(action)) {
             return NextResponse.json({ status: false, message: "Invalid action", error: "Invalid action" }, { status: 400 });
         }
 
         const body = await request.json().catch(() => ({}));
+
+        const sessionRow = await prisma.session.findUnique({
+            where: { sessionId },
+            select: { linkedPhone: true }
+        });
+        if (!sessionRow) {
+            return NextResponse.json({ status: false, message: "Session not found", error: "Session not found" }, { status: 404 });
+        }
+
+        const registeredPhone = normalizePhone(sessionRow.linkedPhone) || null;
+        const requestedPhone = normalizePhone(body.phone || body.phoneNumber || null);
+
+        if (requestedPhone && registeredPhone && !samePhone(registeredPhone, requestedPhone)) {
+            return NextResponse.json({
+                status: false,
+                code: "NUMBER_MISMATCH",
+                message: `O numero ${requestedPhone} difere do numero registrado desta instancia (${registeredPhone}). Entre em contato com o suporte.`,
+                error: "NUMBER_MISMATCH",
+                data: { linkedPhone: registeredPhone, requestedPhone }
+            }, { status: 409 });
+        }
+
+        const registersPhone = !registeredPhone && requestedPhone &&
+            (action === "start" || action === "restart" || action === "qr" || action === "pair");
+        if (registersPhone) {
+            await prisma.session.update({
+                where: { sessionId },
+                data: { linkedPhone: requestedPhone, mismatchPhone: null }
+            }).catch((err) => logger.warn("Session", `Failed to persist linked phone for ${sessionId}:`, err));
+            const inst = waManager.getInstance(sessionId);
+            if (inst) inst.linkedPhone = requestedPhone;
+        }
 
         switch (action) {
             case "pair":
@@ -47,6 +82,10 @@ export async function POST(
                 await waManager.stopSession(sessionId);
                 break;
             case "restart":
+            case "qr":
+                // "qr" is the explicit "generate a brand new QR" action: it tears the
+                // connection down and opens a fresh one, so a stale/expired code can
+                // always be replaced.
                 await waManager.restartSession(sessionId);
                 break;
             case "logout":
@@ -64,10 +103,26 @@ export async function POST(
                 break;
         }
 
-        return NextResponse.json({ status: true, message: `Session ${action}ed successfully` });
+        const messages: Record<string, string> = {
+            start: "Session started successfully",
+            stop: "Session stopped successfully",
+            restart: "Session restarted successfully",
+            qr: "Generating a new QR code",
+            logout: "Session disconnected successfully",
+        };
+        return NextResponse.json({ status: true, message: messages[action] || `Session ${action}ed successfully` });
 
     } catch (error) {
+        const err = error as { code?: string; message?: string };
+        if (err?.code === "NUMBER_MISMATCH") {
+            return NextResponse.json({
+                status: false,
+                code: "NUMBER_MISMATCH",
+                message: err.message,
+                error: "NUMBER_MISMATCH"
+            }, { status: 409 });
+        }
         console.error("Session action error:", error);
-        return NextResponse.json({ error: `Failed to ${(error as any).message || "perform action"}` }, { status: 500 });
+        return NextResponse.json({ error: `Failed to ${safeErrorMessage(error, "perform action")}` }, { status: 500 });
     }
 }

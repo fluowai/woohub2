@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "./prisma";
 import { logger } from "./logger";
+import { CommercialRuleError } from "./commercial";
 
 /**
  * Plan quotas (per company).
@@ -57,6 +58,9 @@ export function isQuotaError(error: unknown): error is QuotaError {
 
 /** Shared error response so every route answers the same way. */
 export function quotaErrorResponse(error: unknown): NextResponse | null {
+    if (error instanceof CommercialRuleError) {
+        return NextResponse.json({ status: false, code: error.code, message: error.message, error: error.message }, { status: error.status });
+    }
     if (!isQuotaError(error)) return null;
     return NextResponse.json(
         { status: false, code: error.code, message: error.message, error: error.message },

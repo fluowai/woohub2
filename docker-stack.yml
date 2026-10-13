@@ -1,71 +1,62 @@
 # =============================================================================
 # Woohub — Docker Swarm stack (Portainer / produção com Swarm)
 #
-#   docker stack deploy -c docker-stack.yml woo-woohub
+#   docker stack deploy --env-file .env -c docker-stack.yml woo-woohub
+#
+# BANCO EXTERNO (PostgreSQL gerenciado — Supabase):
+#   Nao ha servico de banco nesta stack. DATABASE_URL deve vir do .env e apontar
+#   para o pooler SESSION (porta 5432) com sslmode=require. A porta 6543
+#   (pooler transacional) TRAVA com o Prisma — nao use.
 #
 # REGRAS DESTA STACK:
 #   - imagem já construída e com tag FIXA (nunca `latest`, nunca `build:`);
 #   - 1 réplica do app no MVP (rate limit/fila/worker são de processo único);
-#   - banco só na rede overlay interna, porta não publicada;
-#   - migração é um serviço escalado sob demanda (replicas: 0 em repouso).
+#   - migração é um serviço escalado sob demanda (replicas: 0 em repouso);
+#   - LICENÇA OBRIGATÓRIA: sem `LICENSE_KEY` o deploy falha na interpolação
+#     (o Portainer nem cria os serviços) e, mesmo com a chave presente mas
+#     inválida, o container sai com código 1 na porta de entrada — serviço
+#     `Failed`/`0 de 1`, nunca Running. Ver docs/DEPLOY.md.
+#
+# TIPOS DE LICENÇA ACEITOS PELO GATE (`scripts/license-entrypoint.ts`):
+#   - `WOHUB1.<payload>.<assinatura>` → verificada offline (recomendado);
+#     exige LICENSE_PUBLIC_KEY (SPKI base64/PEM Ed25519) ou `scripts/license.pub`.
+#   - `WOHUB-XXXX-XXXX-XXXX-XXXX`     → verificada na tabela `License` do banco
+#     (o registro precisa existir antes; em banco novo use chave assinada).
 #
 # Recursos do Compose que NÃO valem no Swarm (ver docs/DEPLOY.md):
 #   - `depends_on` (inclusive condition: service_healthy / service_completed_successfully)
 #   - `restart:` no nível do serviço  -> use `deploy.restart_policy`
 #   - `container_name`                -> o Swarm gera nomes próprios
 # =============================================================================
-services:
-  db:
-    image: mysql:8.0.46
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?defina MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-woohub}
-      MYSQL_USER: ${MYSQL_USER:-woohub}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?defina MYSQL_PASSWORD}
-      TZ: America/Sao_Paulo
-    volumes:
-      - mysql_data:/var/lib/mysql
-    networks:
-      - backend
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "5"
-    deploy:
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 5
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 1g
+# -----------------------------------------------------------------------------
+# Gate de licença (compartilhado por todos os serviços).
+# `:?` falha o deploy na interpolação: sem LICENSE_KEY o Portainer nem cria as
+# tarefas. A validação em si acontece na porta de entrada do container.
+# -----------------------------------------------------------------------------
+x-license-env: &license-env
+  LICENSE_KEY: ${LICENSE_KEY:?defina LICENSE_KEY (WOHUB1.<payload>.<assinatura> ou WOHUB-XXXX-XXXX-XXXX-XXXX)}
+  LICENSE_PUBLIC_KEY: ${LICENSE_PUBLIC_KEY:-}
+  LICENSE_SERVER_URL: ${LICENSE_SERVER_URL:-}
+  LICENSE_GRACE_PERIOD_HOURS: ${LICENSE_GRACE_PERIOD_HOURS:-24}
+  LICENSE_DOMAIN: ${LICENSE_DOMAIN:-}
 
+services:
   # Job de migração — em repouso com 0 réplicas. Execute POR RELEASE, um por vez:
   #   docker service scale woo-woohub_migrate=1
   #   docker service logs -f woo-woohub_migrate
   #   docker service scale woo-woohub_migrate=0
+  # Passa pelo mesmo gate de licença do app: sem chave válida o job não roda.
   migrate:
-    image: woohub/app:${WOHUB_TAG:-1.6.4}
+    image: ${DOCKER_IMAGE:-ghcr.io/woohub/app}:${WOHUB_TAG:-1.6.4}
     command: ["sh", "scripts/migrate.sh"]
     environment:
-      DATABASE_URL: ${DATABASE_URL:-mysql://woohub:CHANGE_ME@db:3306/woohub?connection_limit=5}
+      <<: *license-env
+      DATABASE_URL: ${DATABASE_URL:?defina DATABASE_URL (postgresql://...?sslmode=require)}
       TZ: America/Sao_Paulo
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
     networks:
-      - backend
+      - public
     logging:
       driver: json-file
       options:
@@ -81,12 +72,14 @@ services:
           memory: 512m
 
   app:
-    image: woohub/app:${WOHUB_TAG:-1.6.4}
+    image: ${DOCKER_IMAGE:-ghcr.io/woohub/app}:${WOHUB_TAG:-1.6.4}
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: ${DATABASE_URL:-mysql://woohub:CHANGE_ME@db:3306/woohub?connection_limit=20}
+      <<: *license-env
+      DATABASE_URL: ${DATABASE_URL:?defina DATABASE_URL (postgresql://...?sslmode=require)}
       NODE_ENV: production
+      DEPLOYMENT_MODE: ${DEPLOYMENT_MODE:-CENTRAL}
       TZ: America/Sao_Paulo
       AUTH_SECRET: ${AUTH_SECRET:?defina AUTH_SECRET}
       CREDENTIALS_ENCRYPTION_KEY: ${CREDENTIALS_ENCRYPTION_KEY:-}
@@ -102,7 +95,6 @@ services:
     volumes:
       - app_data:/app/data
     networks:
-      - backend
       - public
     logging:
       driver: json-file
@@ -127,6 +119,8 @@ services:
         order: stop-first
         delay: 10s
       restart_policy:
+        # Licença inválida => exit 1 => 3 tentativas => tarefa `Failed` no
+        # Portainer (0 de 1, nunca Running). O limite também cobre crash real.
         condition: on-failure
         delay: 5s
         max_attempts: 3
@@ -136,14 +130,9 @@ services:
           memory: 1g
 
 volumes:
-  mysql_data:
   app_data:
 
 networks:
-  # Só interna: banco e migração sem egress e sem porta publicada.
-  backend:
-    driver: overlay
-    internal: true
-  # Entrada/saída da app (tráfego público e acesso ao WhatsApp/gateway).
+  # Entrada/saída da app: banco externo (Supabase), WhatsApp e gateway.
   public:
     driver: overlay
