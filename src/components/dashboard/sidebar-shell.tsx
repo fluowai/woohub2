@@ -56,43 +56,62 @@ export function SidebarShell({ appName, userName, userEmail, version, userRole }
             `}
         >
             {/* Logo / Brand matching mockup */}
-            <div className={`relative border-b border-slate-100 transition-all duration-300 ${isCollapsed ? "px-3 py-4" : "px-6 py-5"}`}>
+            <div className={`relative border-b border-slate-100 transition-all duration-300 ${isCollapsed ? "px-2 py-4" : "px-5 py-4"}`}>
                 {isCollapsed ? (
-                    <div className="flex justify-center">
-                        {isResellerRole ? (
-                            <div className="h-8 w-8 rounded-lg flex items-center justify-center text-[#ff5a00] font-black text-lg">
-                                ▲
-                            </div>
-                        ) : (
-                            <svg className="w-7 h-7 text-[#ff5a00]" viewBox="0 0 24 24" fill="currentColor">
-                                <circle cx="7" cy="12" r="5" fill="#ff5a00" />
-                                <circle cx="16" cy="12" r="6" stroke="#ff5a00" strokeWidth="3" fill="none" />
-                            </svg>
-                        )}
+                    <div className="flex justify-center" title="WooHub">
+                        <svg className="w-8 h-8" viewBox="0 0 48 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <linearGradient id="woohub-blue-grad" x1="0" y1="0" x2="1" y2="1">
+                                    <stop offset="0%" stopColor="#1d4ed8" />
+                                    <stop offset="100%" stopColor="#0284c7" />
+                                </linearGradient>
+                                <linearGradient id="woohub-cyan-grad" x1="0" y1="0" x2="1" y2="1">
+                                    <stop offset="0%" stopColor="#38bdf8" />
+                                    <stop offset="100%" stopColor="#0284c7" />
+                                </linearGradient>
+                            </defs>
+                            <path d="M4 10 L16 34 L23 18 L16 10 Z" fill="url(#woohub-blue-grad)" />
+                            <path d="M21 18 L28 34 L44 8 L35 8 L27 24 Z" fill="url(#woohub-cyan-grad)" />
+                        </svg>
                     </div>
                 ) : (
                     <div>
-                        {isResellerRole ? (
-                            <div className="flex items-center gap-2">
-                                <span className="text-[#ff5a00] text-xl font-black leading-none">▲</span>
-                                <h1 className="text-lg font-bold tracking-tight text-slate-900 truncate">
-                                    {effectiveAppName || "Woohub"}
-                                </h1>
-                                <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-slate-50 text-slate-500 border border-slate-200 whitespace-nowrap ml-1">
-                                    White label
-                                </span>
+                        <div className="flex items-center gap-3">
+                            <svg className="w-9 h-9 flex-shrink-0" viewBox="0 0 48 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <linearGradient id="woohub-blue-grad-full" x1="0" y1="0" x2="1" y2="1">
+                                        <stop offset="0%" stopColor="#1d4ed8" />
+                                        <stop offset="100%" stopColor="#0284c7" />
+                                    </linearGradient>
+                                    <linearGradient id="woohub-cyan-grad-full" x1="0" y1="0" x2="1" y2="1">
+                                        <stop offset="0%" stopColor="#38bdf8" />
+                                        <stop offset="100%" stopColor="#0284c7" />
+                                    </linearGradient>
+                                </defs>
+                                <path d="M4 10 L16 34 L23 18 L16 10 Z" fill="url(#woohub-blue-grad-full)" />
+                                <path d="M21 18 L28 34 L44 8 L35 8 L27 24 Z" fill="url(#woohub-cyan-grad-full)" />
+                            </svg>
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-1">
+                                    <span className="text-xl font-black tracking-tight text-slate-900 leading-none">
+                                        WooHub
+                                    </span>
+                                    <span className="text-[9px] font-semibold text-slate-400">®</span>
+                                </div>
+                                <p className="text-[7.5px] font-bold tracking-wider text-slate-500 uppercase mt-0.5 leading-tight truncate">
+                                    API DE COMUNICAÇÃO PARA NEGÓCIOS
+                                </p>
                             </div>
-                        ) : (
-                            <div className="flex items-center gap-2">
-                                <svg className="w-6 h-6 text-[#ff5a00] flex-shrink-0" viewBox="0 0 24 24" fill="none">
-                                    <circle cx="8" cy="12" r="4.5" fill="#ff5a00" />
-                                    <circle cx="15.5" cy="12" r="5" stroke="#ff5a00" strokeWidth="3" />
-                                </svg>
-                                <span className="text-2xl font-bold tracking-tight text-slate-900">
-                                    woohub
-                                </span>
-                            </div>
-                        )}
+                        </div>
+                        <p className="text-[6.5px] font-medium tracking-wide text-slate-400 uppercase mt-1 leading-tight text-center">
+                            WHATSAPP · INTEGRAÇÕES · AUTOMAÇÃO · ATENDIMENTO
+                        </p>
+                        <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
+                            <span className="text-[9px] font-bold tracking-wider text-slate-400 uppercase">
+                                CENTRAL DE OPERAÇÕES
+                            </span>
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" title="Operação online" />
+                        </div>
                     </div>
                 )}
             </div>
@@ -107,7 +126,7 @@ export function SidebarShell({ appName, userName, userEmail, version, userRole }
             >
                 {isCollapsed ? (
                     <div suppressHydrationWarning={true} className="flex flex-col items-center gap-2">
-                        <div suppressHydrationWarning={true} className="h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold bg-orange-100 text-orange-800 border border-orange-200">
+                        <div suppressHydrationWarning={true} className="h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold bg-sky-50 text-sky-700 border border-sky-100">
                             {userName?.charAt(0)?.toUpperCase() || "U"}
                         </div>
                         <button
@@ -123,13 +142,13 @@ export function SidebarShell({ appName, userName, userEmail, version, userRole }
                         <div suppressHydrationWarning={true} className="flex items-center gap-2.5 mb-2.5">
                             <div 
                                 suppressHydrationWarning={true}
-                                className="h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold bg-orange-100 text-orange-800 border border-orange-200 flex-shrink-0"
+                                className="h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold bg-sky-50 text-sky-700 border border-sky-100 flex-shrink-0"
                             >
-                                {userName?.charAt(0)?.toUpperCase() || "U"}
+                                {userName?.charAt(0)?.toUpperCase() || "PA"}
                             </div>
                             <div suppressHydrationWarning={true} className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold truncate text-slate-900">{userName || "Usuário"}</p>
-                                <p className="text-[11px] text-slate-500 truncate">{userEmail}</p>
+                                <p className="text-sm font-semibold truncate text-slate-900">{userName || "Paulo Adriano"}</p>
+                                <p className="text-[11px] text-slate-500 truncate">{userEmail || "Comercial"}</p>
                             </div>
                         </div>
                         <Button
@@ -140,7 +159,10 @@ export function SidebarShell({ appName, userName, userEmail, version, userRole }
                         >
                             <LogOut size={14} /> Sair
                         </Button>
-                        <p className="text-[10px] text-slate-400 text-center mt-2 font-mono">v{version}</p>
+                        <div className="mt-2 text-center">
+                            <p className="text-[9px] text-slate-400 font-medium leading-tight">WooHub · Comunicação e automação</p>
+                            <p className="text-[9px] text-slate-400 font-medium leading-tight">Protótipo navegável · PT-BR</p>
+                        </div>
                     </>
                 )}
             </div>

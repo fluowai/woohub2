@@ -29,6 +29,12 @@ import {
     PanelLeftClose,
     PanelLeft,
     ChevronDown,
+    Send,
+    Sparkles,
+    Tag,
+    MessageSquareReply,
+    UserCircle,
+    Sliders,
 } from "lucide-react";
 import { useSidebar } from "./sidebar-context";
 import {
@@ -67,7 +73,6 @@ export function SidebarNav({ userRole: propUserRole }: SidebarNavProps = {}) {
     const sessionRole = session?.user?.role;
     let userRole = propUserRole || sessionRole || "USER";
 
-    // Pathname fallback: on mega-admin or super-admin routes, always show respective navigation
     if (pathname.startsWith("/dashboard/mega-admin")) {
         userRole = "MEGA_ADMIN";
     } else if (pathname.startsWith("/dashboard/super-admin")) {
@@ -82,89 +87,87 @@ export function SidebarNav({ userRole: propUserRole }: SidebarNavProps = {}) {
 
     const isActive = (href: string) => {
         if (href === "/dashboard") return pathname === "/dashboard";
-        if (href === "/dashboard/mega-admin") return pathname === "/dashboard/mega-admin" || pathname === "/dashboard";
-        if (href === "/dashboard/super-admin") return pathname === "/dashboard/super-admin" || pathname === "/dashboard";
+        if (href === "/dashboard/mega-admin") return pathname === "/dashboard/mega-admin";
+        if (href === "/dashboard/super-admin") return pathname === "/dashboard/super-admin";
         return pathname.startsWith(href);
     };
 
-    // 1. MEGA ADMIN — núcleo operacional da central
-    const megaAdminGroups: NavGroup[] = [
+    // Standard Workspace Groups matching Mockup 100%
+    const operationalGroups: NavGroup[] = [
         {
-            id: "mega-main",
-            items: [
-                { href: "/dashboard/mega-admin", label: "Visão geral", icon: Home },
-                { href: "/dashboard/mega-admin/stacks", label: "Stacks e instalações", icon: Database },
-                { href: "/dashboard/mega-admin/support", label: "Suporte", icon: Users },
-                { href: "/dashboard/plans", label: "Planos e cobrança", icon: CreditCard },
-                { href: "/dashboard/mega-admin/licenses", label: "Licenças", icon: Shield },
-                { href: "/dashboard/mega-admin/library", label: "Biblioteca e documentação", icon: FileText },
-            ],
-        },
-    ];
-
-    // 2. SUPER ADMIN NAVIGATION - Exactly 8 items matching mockup
-    const superAdminGroups: NavGroup[] = [
-        {
-            id: "super-main",
-            items: [
-                { href: `/dashboard/super-admin${supportQuery}`, label: "Visão geral", icon: Home },
-                { href: `/dashboard/super-admin/clients${supportQuery}`, label: "Meus clientes", icon: Users },
-                { href: `/dashboard/super-admin/instances${supportQuery}`, label: "Instâncias", icon: Database },
-                { href: `/dashboard/super-admin/plans${supportQuery}`, label: "Planos de revenda", icon: Package },
-                { href: `/dashboard/super-admin/billing${supportQuery}`, label: "Cobrança", icon: CreditCard },
-                { href: `/dashboard/super-admin/branding${supportQuery}`, label: "Minha marca", icon: Palette },
-                { href: `/dashboard/super-admin/domain${supportQuery}`, label: "Meu domínio", icon: Globe },
-                { href: `/dashboard/super-admin/my-subscription${supportQuery}`, label: "Minha assinatura", icon: Crown },
-            ],
-        },
-    ];
-
-    // 3. ADMIN NAVIGATION (CLIENT ADMIN / OWNER)
-    const adminGroups: NavGroup[] = [
-        {
-            id: "admin-main",
-            label: "Empresa",
+            id: "operacao",
+            label: "OPERAÇÃO",
             items: [
                 { href: "/dashboard", label: "Visão geral", icon: LayoutDashboard },
-                { href: "/dashboard/sessions", label: "Minhas instâncias", icon: QrCode },
-                { href: "/dashboard/chat", label: "Atendimento", icon: MessageSquare },
-                { href: "/dashboard/contacts", label: "Contatos e grupos", icon: Contact },
-                { href: "/dashboard/autoreply", label: "Automações e respostas", icon: Bot },
-                { href: "/dashboard/scheduler", label: "Agendamentos", icon: CalendarClock },
-                { href: "/dashboard/api-keys", label: "Chaves de API", icon: KeyRound },
-                { href: "/dashboard/webhooks", label: "Webhooks", icon: Webhook },
-                { href: "/dashboard/team", label: "Equipe", icon: Users },
-                { href: "/dashboard/billing", label: "Consumo e assinatura", icon: CreditCard },
-                { href: "/docs", label: "Documentação", icon: FileText, external: true },
+                { href: "/dashboard/sessions", label: "Sessões / QR", icon: QrCode },
+                { href: "/dashboard/sessions", label: "Detalhes da sessão", icon: Sliders },
             ],
         },
-    ];
-
-    // 4. USER NAVIGATION (OPERATIONAL USER - NO CREATION / NO ADMIN)
-    const userGroups: NavGroup[] = [
         {
-            id: "user-main",
-            label: "Operação",
+            id: "mensagens",
+            label: "MENSAGENS",
             items: [
-                { href: "/dashboard/chat", label: "Atendimento", icon: MessageSquare },
-                { href: "/dashboard/sessions", label: "Instâncias (Consulta)", icon: QrCode },
-                { href: "/dashboard/contacts", label: "Contatos e histórico", icon: Contact },
+                { href: "/dashboard/chat", label: "Conversas", icon: MessageSquare },
+                { href: "/dashboard/broadcast", label: "Disparos", icon: Send },
+                { href: "/dashboard/sticker", label: "Criador de stickers", icon: Sparkles },
+            ],
+        },
+        {
+            id: "contatos",
+            label: "CONTATOS",
+            items: [
+                { href: "/dashboard/contacts", label: "Contatos", icon: Contact },
+                { href: "/dashboard/groups", label: "Grupos", icon: Users },
+                { href: "/dashboard/labels", label: "Etiquetas", icon: Tag },
+            ],
+        },
+        {
+            id: "automacao",
+            label: "AUTOMAÇÃO",
+            items: [
+                { href: "/dashboard/bot-settings", label: "Configurar bot", icon: Bot },
+                { href: "/dashboard/autoreply", label: "Respostas automáticas", icon: MessageSquareReply },
+                { href: "/dashboard/profile", label: "Perfil do WhatsApp", icon: UserCircle },
+                { href: "/dashboard/scheduler", label: "Agendamentos", icon: CalendarClock },
+                { href: "/dashboard/webhooks", label: "Webhooks & API", icon: Webhook },
             ],
         },
     ];
 
-    let activeGroups = adminGroups;
+    // MEGA ADMIN administrative section
+    const megaAdminGroup: NavGroup = {
+        id: "mega-admin",
+        label: "ADMINISTRAÇÃO MEGA",
+        items: [
+            { href: "/dashboard/mega-admin", label: "Painel Mega Admin", icon: Shield },
+            { href: "/dashboard/mega-admin/stacks", label: "Stacks e instalações", icon: Database },
+            { href: "/dashboard/plans", label: "Planos e cobrança", icon: CreditCard },
+            { href: "/dashboard/mega-admin/licenses", label: "Licenças", icon: KeyRound },
+        ],
+    };
+
+    // SUPER ADMIN administrative section
+    const superAdminGroup: NavGroup = {
+        id: "super-admin",
+        label: "REVENDA WHITE LABEL",
+        items: [
+            { href: `/dashboard/super-admin${supportQuery}`, label: "Painel Super Admin", icon: Crown },
+            { href: `/dashboard/super-admin/clients${supportQuery}`, label: "Meus clientes", icon: Users },
+            { href: `/dashboard/super-admin/plans${supportQuery}`, label: "Planos de revenda", icon: Package },
+            { href: `/dashboard/super-admin/branding${supportQuery}`, label: "Minha marca", icon: Palette },
+        ],
+    };
+
+    let activeGroups = [...operationalGroups];
     if (userRole === "MEGA_ADMIN") {
-        activeGroups = megaAdminGroups;
+        activeGroups.push(megaAdminGroup);
     } else if (userRole === "SUPER_ADMIN" || userRole === "SUPERADMIN") {
-        activeGroups = superAdminGroups;
-    } else if (userRole === "USER") {
-        activeGroups = userGroups;
+        activeGroups.push(superAdminGroup);
     }
 
     return (
         <TooltipProvider delayDuration={0}>
-            <nav className="flex-1 px-3 py-4 overflow-y-auto overflow-x-hidden space-y-1 styled-scrollbar">
+            <nav className="flex-1 px-3 py-3 overflow-y-auto overflow-x-hidden space-y-1 styled-scrollbar">
                 {activeGroups.map((group) => {
                     const isGroupCollapsed = collapsedGroups[group.id] ?? false;
 
@@ -173,7 +176,7 @@ export function SidebarNav({ userRole: propUserRole }: SidebarNavProps = {}) {
                             {!isCollapsed && group.label && (
                                 <button
                                     onClick={() => toggleGroup(group.id)}
-                                    className="flex items-center justify-between w-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-600 transition-colors"
+                                    className="flex items-center justify-between w-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-600 transition-colors"
                                 >
                                     <span>{group.label}</span>
                                     <ChevronDown
@@ -184,12 +187,12 @@ export function SidebarNav({ userRole: propUserRole }: SidebarNavProps = {}) {
                             )}
 
                             {(!isGroupCollapsed || isCollapsed) && (
-                                <div className="space-y-1">
+                                <div className="space-y-0.5">
                                     {group.items.map((item) => (
                                         <NavLink
-                                            key={item.href}
+                                            key={`${group.id}-${item.label}-${item.href}`}
                                             item={item}
-                                            active={isActive(item.href)}
+                                            active={isActive(item.href) && (group.id !== "operacao" || item.href === "/dashboard" ? isActive(item.href) : pathname === item.href)}
                                             isCollapsed={isCollapsed}
                                         />
                                     ))}
@@ -230,16 +233,16 @@ function NavLink({ item, active, isCollapsed }: { item: NavItem; active: boolean
             className={`
                 flex items-center rounded-xl text-[13px] font-medium
                 transition-all duration-150 group relative
-                ${isCollapsed ? "justify-center px-2 py-2.5 mx-1" : "gap-3 px-3.5 py-2.5"}
+                ${isCollapsed ? "justify-center px-2 py-2.5 mx-1" : "gap-3 px-3 py-2"}
                 ${active
-                    ? "text-[#ff5a00] bg-[#fff4ed] font-semibold"
+                    ? "text-[#0284c7] bg-[#e0f2fe] font-semibold"
                     : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                 }
             `}
         >
             <Icon
                 size={isCollapsed ? 20 : 18}
-                className={`flex-shrink-0 transition-colors duration-150 ${active ? "text-[#ff5a00]" : "text-slate-500 group-hover:text-slate-800"}`}
+                className={`flex-shrink-0 transition-colors duration-150 ${active ? "text-[#0284c7]" : "text-slate-400 group-hover:text-slate-700"}`}
             />
             {!isCollapsed && <span className="truncate">{item.label}</span>}
         </Link>

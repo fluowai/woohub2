@@ -159,35 +159,54 @@ export function Navbar({ appName, userRole }: NavbarProps) {
     const displayRole = isMega ? "Mega Admin" : isSuper ? "Super Admin" : theme.label;
     const displayInitials = isMega && displayName === "Administrador" ? "AD" : isSuper && displayName === "João Silva" ? "JS" : userInitials;
 
+    const breadcrumbLabel = 
+        pathname === "/dashboard" ? "Visão geral" :
+        pathname.startsWith("/dashboard/sessions") ? "Sessões / QR" :
+        pathname.startsWith("/dashboard/chat") ? "Conversas" :
+        pathname.startsWith("/dashboard/broadcast") ? "Disparos" :
+        pathname.startsWith("/dashboard/sticker") ? "Criador de stickers" :
+        pathname.startsWith("/dashboard/contacts") ? "Contatos" :
+        pathname.startsWith("/dashboard/groups") ? "Grupos" :
+        pathname.startsWith("/dashboard/labels") ? "Etiquetas" :
+        pathname.startsWith("/dashboard/bot-settings") ? "Configurar bot" :
+        pathname.startsWith("/dashboard/autoreply") ? "Respostas automáticas" :
+        pathname.startsWith("/dashboard/profile") ? "Perfil do WhatsApp" :
+        pathname.startsWith("/dashboard/scheduler") ? "Agendamentos" :
+        pathname.startsWith("/dashboard/webhooks") ? "Webhooks & API" :
+        pathname.startsWith("/dashboard/mega-admin") ? "Mega Admin" :
+        pathname.startsWith("/dashboard/super-admin") ? "Super Admin" : "Painel";
+
     return (
         <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 sm:px-6 sticky top-0 z-20 w-full shadow-xs">
-            <div className="flex items-center gap-4 flex-1 max-w-xl">
+            <div className="flex items-center gap-4 flex-1">
                 <MobileNav appName={appName} theme={theme} userRole={effectiveRole} />
 
-                {/* Search Bar matching mockup */}
-                <div className="relative w-full max-w-md hidden sm:block">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                    <input
-                        type="text"
-                        placeholder={searchPlaceholder}
-                        className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-xs placeholder:text-slate-400 text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#ff5a00] focus:border-[#ff5a00] transition-colors"
-                    />
+                {/* Breadcrumbs matching mockup */}
+                <div className="flex items-center gap-1.5 text-xs font-medium">
+                    <span className="text-slate-400">Workspace</span>
+                    <span className="text-slate-300">/</span>
+                    <span className="text-slate-700 font-semibold">{breadcrumbLabel}</span>
                 </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+                {/* Modo demonstração pill matching mockup */}
+                <span className="hidden sm:inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-[#e0f2fe] text-[#0284c7] border border-sky-100">
+                    Modo demonstração
+                </span>
+
                 {/* Instance selector for client/admin */}
-                {!isMega && !isSuper && <SessionSelector theme={theme} />}
+                <SessionSelector theme={theme} />
 
                 {/* Notifications Popover */}
                 <Popover open={isOpen} onOpenChange={setIsOpen}>
                     <PopoverTrigger asChild>
                         <button
-                            className="relative p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-full transition-colors"
+                            className="relative p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-full transition-colors"
                             aria-label="Notificações"
                         >
                             <Bell className="h-5 w-5" />
-                            <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-[#ff5a00] rounded-full ring-2 ring-white" />
+                            <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-[#0284c7] rounded-full ring-2 ring-white" />
                         </button>
                     </PopoverTrigger>
                     <PopoverContent
@@ -206,7 +225,7 @@ export function Navbar({ appName, userRole }: NavbarProps) {
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => markAsRead()}
-                                    className="h-auto py-1 px-2 text-xs text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                                    className="h-auto py-1 px-2 text-xs text-sky-600 hover:text-sky-700 hover:bg-sky-50"
                                 >
                                     Ler todas
                                 </Button>
@@ -225,14 +244,14 @@ export function Navbar({ appName, userRole }: NavbarProps) {
                                     {notifications.map((n) => (
                                         <div
                                             key={n.id}
-                                            className={`p-3 hover:bg-slate-50 transition-colors ${!n.read ? "bg-orange-50/30" : ""}`}
+                                            className={`p-3 hover:bg-slate-50 transition-colors ${!n.read ? "bg-sky-50/40" : ""}`}
                                         >
                                             <div className="flex justify-between items-start gap-2">
                                                 <div
                                                     className="flex-1 cursor-pointer"
                                                     onClick={() => handleNotificationClick(n)}
                                                 >
-                                                    <p className={`text-xs font-semibold ${!n.read ? "text-orange-600" : "text-slate-800"}`}>
+                                                    <p className={`text-xs font-semibold ${!n.read ? "text-[#0284c7]" : "text-slate-800"}`}>
                                                         {n.title}
                                                     </p>
                                                     <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5">
@@ -262,20 +281,11 @@ export function Navbar({ appName, userRole }: NavbarProps) {
                     </PopoverContent>
                 </Popover>
 
-                {/* User Profile Pill matching mockup */}
-                <div className="flex items-center gap-2.5 cursor-pointer hover:opacity-90 transition-opacity">
-                    <div className="h-9 w-9 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-700 select-none">
-                        {displayInitials}
+                {/* User Profile Avatar matching mockup ("PA" in blue) */}
+                <div className="flex items-center gap-2 cursor-pointer hover:opacity-90 transition-opacity">
+                    <div className="h-8 w-8 rounded-full bg-[#e0f2fe] border border-sky-200 flex items-center justify-center text-xs font-bold text-[#0284c7] select-none shadow-xs">
+                        {displayInitials || "PA"}
                     </div>
-                    <div className="hidden sm:block text-left">
-                        <p className="text-xs font-bold text-slate-900 leading-tight">
-                            {displayName}
-                        </p>
-                        <p className="text-[11px] text-slate-500 leading-tight">
-                            {displayRole}
-                        </p>
-                    </div>
-                    <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
                 </div>
             </div>
         </header>

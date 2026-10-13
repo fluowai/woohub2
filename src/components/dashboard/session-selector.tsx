@@ -12,23 +12,19 @@ export function SessionSelector({ theme }: { theme?: any }) {
     const currentTheme = theme || useRoleTheme().theme;
 
     return (
-        <div className="flex items-center gap-1 sm:gap-2">
-            <span className={`text-xs font-semibold uppercase tracking-wider hidden lg:inline ${currentTheme.accentColor}`}>Instância:</span>
-            <div className="w-[140px] sm:w-[200px]">
-                <Select value={sessionId} onValueChange={setSessionId} disabled={loading || sessions.length === 0}>
-                    <SelectTrigger className={`h-9 border ${currentTheme.sidebarBorder} ${currentTheme.sidebarBg}/50 hover:bg-muted/30 transition-colors rounded-xl shadow-sm focus:ring-1 focus:ring-primary/20`}>
-                        <SelectValue placeholder={loading ? "Carregando..." : "Selecionar instância"}>
+        <div className="flex items-center gap-1">
+            <div className="w-[160px] sm:w-[190px]">
+                <Select value={sessionId} onValueChange={setSessionId} disabled={loading && sessions.length === 0}>
+                    <SelectTrigger className="h-8 px-2.5 bg-white border border-slate-200 hover:bg-slate-50 transition-colors rounded-lg text-xs font-medium text-slate-700 shadow-xs focus:ring-1 focus:ring-[#0284c7]">
+                        <SelectValue placeholder="Comercial · sessão demo">
                             {selectedSession ? (
-                                <div className="flex items-center gap-2 text-left">
-                                    <span className="relative flex h-2 w-2">
-                                        {selectedSession.status === "CONNECTED" && (
-                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                        )}
-                                        <span className={`relative inline-flex rounded-full h-2 w-2 ${selectedSession.status === "CONNECTED" ? "bg-emerald-500" : "bg-destructive"}`}></span>
-                                    </span>
-                                    <span className={`truncate font-medium text-xs sm:text-sm ${currentTheme.isDark ? "text-white" : "text-gray-900"}`}>{selectedSession.name}</span>
+                                <div className="flex items-center gap-1.5 text-left truncate">
+                                    <span className={`h-2 w-2 rounded-full flex-shrink-0 ${selectedSession.status === "CONNECTED" ? "bg-emerald-500" : "bg-slate-300"}`} />
+                                    <span className="truncate font-medium text-xs text-slate-800">{selectedSession.name}</span>
                                 </div>
-                            ) : null}
+                            ) : (
+                                <span className="text-xs text-slate-700 font-medium">Comercial · sessão demo</span>
+                            )}
                         </SelectValue>
                     </SelectTrigger>
                     <SelectContent className={`rounded-xl border ${currentTheme.sidebarBorder} shadow-lg p-1 ${currentTheme.sidebarBg} ${currentTheme.glowColor}`}>
