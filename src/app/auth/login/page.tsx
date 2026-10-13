@@ -66,11 +66,11 @@ function LoginForm() {
     <div className="flex items-center justify-center min-h-screen relative overflow-hidden bg-background">
       {/* Background Orbs */}
       <div className="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2 w-[40rem] h-[40rem] bg-primary/20 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-0 right-0 translate-x-1/3 translate-y-1/3 w-[30rem] h-[30rem] bg-amber-500/20 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-0 right-0 translate-x-1/3 translate-y-1/3 w-[30rem] h-[30rem] bg-sky-400/20 rounded-full blur-[100px] pointer-events-none" />
 
       <div className="relative z-10 w-full max-w-md p-4 animate-in fade-in zoom-in-95 duration-500">
         <div className="flex flex-col items-center mb-8">
-          <div className="relative flex h-16 w-16 mb-4 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-primary text-white shadow-lg shadow-primary/30">
+          <div className="relative flex h-16 w-16 mb-4 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-400 to-primary text-white shadow-lg shadow-primary/30">
             <Bot className="h-8 w-8" />
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Bem-vindo de volta</h1>
