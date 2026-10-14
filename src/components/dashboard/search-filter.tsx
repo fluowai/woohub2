@@ -11,7 +11,7 @@ interface SearchFilterProps {
     placeholder?: string;
 }
 
-export function SearchFilter({ onSearch, onSort, sortOptions, placeholder = "Search..." }: SearchFilterProps) {
+export function SearchFilter({ onSearch, onSort, sortOptions, placeholder = "Buscar..." }: SearchFilterProps) {
     return (
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
             <div className="relative flex-1">
@@ -26,7 +26,7 @@ export function SearchFilter({ onSearch, onSort, sortOptions, placeholder = "Sea
                 <div className="w-full sm:w-[200px]">
                     <Select onValueChange={onSort}>
                         <SelectTrigger>
-                            <SelectValue placeholder="Sort by" />
+                            <SelectValue placeholder="Ordenar por" />
                         </SelectTrigger>
                         <SelectContent>
                             {sortOptions.map((opt) => (

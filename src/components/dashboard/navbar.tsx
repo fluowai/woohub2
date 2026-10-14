@@ -53,7 +53,7 @@ export function Navbar({ appName, userRole }: NavbarProps) {
                 setUnreadCount(items.filter((n: Notification) => !n.read).length);
             }
         } catch (e) {
-            console.error("Failed to fetch notifications");
+            console.error("Falha ao carregar as notificações");
         }
     };
 
@@ -110,7 +110,7 @@ export function Navbar({ appName, userRole }: NavbarProps) {
                 }
             }
         } catch (e) {
-            console.error("Failed to mark read");
+            console.error("Falha ao marcar como lida");
         }
     };
 
@@ -128,7 +128,7 @@ export function Navbar({ appName, userRole }: NavbarProps) {
                 toast.success("Notificação excluída");
             }
         } catch (e) {
-            console.error("Failed to delete notification");
+            console.error("Falha ao excluir a notificação");
             toast.error("Falha ao excluir");
         }
     };
@@ -183,7 +183,7 @@ export function Navbar({ appName, userRole }: NavbarProps) {
 
                 {/* Breadcrumbs matching mockup */}
                 <div className="flex items-center gap-1.5 text-xs font-medium">
-                    <span className="text-slate-400">Workspace</span>
+                    <span className="text-slate-400">Área de trabalho</span>
                     <span className="text-slate-300">/</span>
                     <span className="text-slate-700 font-semibold">{breadcrumbLabel}</span>
                 </div>

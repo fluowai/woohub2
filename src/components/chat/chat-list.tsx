@@ -46,10 +46,11 @@ function getDisplayName(chat: ChatContact): string {
 }
 
 function getMessagePreview(chat: ChatContact): string {
-    if (!chat.lastMessage?.content) return "No messages yet";
+    if (!chat.lastMessage?.content) return "Nenhuma mensagem ainda";
     const content = chat.lastMessage.content;
     if (chat.lastMessage.type !== "TEXT") {
-        return `📎 ${chat.lastMessage.type.charAt(0) + chat.lastMessage.type.slice(1).toLowerCase()}`;
+        const typeLabels: Record<string, string> = { IMAGE: "Imagem", VIDEO: "Vídeo", AUDIO: "Áudio", DOCUMENT: "Documento", STICKER: "Figura", PTT: "Áudio" };
+        return `📎 ${typeLabels[chat.lastMessage.type] || chat.lastMessage.type.charAt(0) + chat.lastMessage.type.slice(1).toLowerCase()}`;
     }
     return content.length > 40 ? content.slice(0, 40) + "…" : content;
 }
@@ -59,7 +60,7 @@ function getTimeLabel(timestamp: string): string {
     const now = new Date();
     const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
     if (diffDays === 0) return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    if (diffDays === 1) return "Yesterday";
+    if (diffDays === 1) return "Ontem";
     if (diffDays < 7) return date.toLocaleDateString([], { weekday: 'short' });
     return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
@@ -86,7 +87,7 @@ function LabelAssignPopover({ sessionId, jid, children }: { sessionId: string; j
                 setAssigned(new Set((assignedData.data || []).map((cl: any) => cl.labelId)));
             }
         } catch (e) {
-            console.error("Failed to fetch labels", e);
+            console.error("Falha ao carregar as etiquetas", e);
         } finally {
             setLoading(false);
         }
@@ -110,10 +111,10 @@ function LabelAssignPopover({ sessionId, jid, children }: { sessionId: string; j
                     isAssigned ? next.delete(labelId) : next.add(labelId);
                     return next;
                 });
-                toast.success(isAssigned ? "Label removed" : "Label assigned");
+                toast.success(isAssigned ? "Etiqueta removida" : "Etiqueta atribuída");
             }
         } catch (e) {
-            toast.error("Failed to update label");
+            toast.error("Falha ao atualizar a etiqueta");
         }
     };
 
@@ -121,11 +122,11 @@ function LabelAssignPopover({ sessionId, jid, children }: { sessionId: string; j
         <Popover onOpenChange={(open) => { openRef.current = open; if (open) fetchLabels(); }}>
             <PopoverTrigger asChild>{children}</PopoverTrigger>
             <PopoverContent className="w-56 p-1.5" side="right" align="start">
-                <div className="text-xs font-semibold text-muted-foreground px-2 py-1.5">Assign labels</div>
+                <div className="text-xs font-semibold text-muted-foreground px-2 py-1.5">Atribuir etiquetas</div>
                 {loading ? (
                     <div className="flex items-center justify-center py-4"><Skeleton className="h-4 w-24" /></div>
                 ) : labels.length === 0 ? (
-                    <p className="text-xs text-muted-foreground px-2 py-2">No labels. Create one in Labels page.</p>
+                    <p className="text-xs text-muted-foreground px-2 py-2">Nenhuma etiqueta. Crie uma na página de Etiquetas.</p>
                 ) : (
                     <div className="flex flex-col gap-0.5 max-h-48 overflow-y-auto">
                         {labels.map(label => (
@@ -159,8 +160,8 @@ function ChatContextMenu({ state, onClose, sessionId, onSelect }: { state: CtxMe
     }, [onClose]);
 
     const items = [
-        { label: "Open chat", icon: MessageCircle, action: () => { onSelect(state.jid, state.name); onClose(); } },
-        { label: "Copy JID", icon: Info, action: () => { navigator.clipboard.writeText(state.jid).then(() => toast.success("JID copied!")); onClose(); } },
+        { label: "Abrir conversa", icon: MessageCircle, action: () => { onSelect(state.jid, state.name); onClose(); } },
+        { label: "Copiar JID", icon: Info, action: () => { navigator.clipboard.writeText(state.jid).then(() => toast.success("JID copiado!")); onClose(); } },
     ];
 
     const style: React.CSSProperties = { position: "fixed", top: state.y, left: state.x, zIndex: 9999 };
@@ -300,7 +301,7 @@ export function ChatList({ sessionId, onSelectChat, selectedJid }: ChatListProps
             }
             setHasMore((rawChats || []).length >= PAGE_SIZE);
         } catch (error) {
-            console.error("Failed to load chats", error);
+            console.error("Falha ao carregar as conversas", error);
         } finally {
             setLoading(false);
             fetchingRef.current = false;
@@ -356,7 +357,7 @@ export function ChatList({ sessionId, onSelectChat, selectedJid }: ChatListProps
                 }
                 setChatLabelMap(map);
             } catch (e) {
-                console.error("Failed to load label assignments", e);
+                console.error("Falha ao carregar as atribuições de etiquetas", e);
             }
         })();
     }, [sessionId]);
@@ -418,7 +419,7 @@ export function ChatList({ sessionId, onSelectChat, selectedJid }: ChatListProps
             <div className="shrink-0 px-3 pt-3 pb-2 space-y-2 border-b border-border/10">
                 <div className="flex justify-between items-center">
                     <h3 className="font-semibold text-base text-foreground">
-                        Chats
+                        Conversas
                         {chats.length > 0 && <span className="ml-1.5 text-xs font-normal text-muted-foreground">({chats.length})</span>}
                     </h3>
                     <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg"
@@ -429,20 +430,20 @@ export function ChatList({ sessionId, onSelectChat, selectedJid }: ChatListProps
 
                 <div className="relative">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                    <Input placeholder="Search chats..." value={searchInput}
+                    <Input placeholder="Buscar conversas..." value={searchInput}
                         onChange={(e) => handleSearchChange(e.target.value)}
                         className="h-8 pl-8 text-sm bg-muted/50 border-0 rounded-lg focus-visible:ring-1" />
                 </div>
 
                 {isNewChatOpen && (
                     <div className="p-2.5 bg-muted/30 rounded-lg space-y-2 border border-border/40">
-                        <Label className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Phone Number</Label>
+                        <Label className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Número de telefone</Label>
                         <div className="flex gap-1.5">
                             <Input placeholder="628123456789" value={newChatNumber}
                                 onChange={(e) => setNewChatNumber(e.target.value)}
                                 onKeyDown={(e) => e.key === "Enter" && handleStartNewChat()}
                                 className="h-8 text-sm" />
-                            <Button size="sm" className="h-8 px-3" onClick={handleStartNewChat}>Go</Button>
+                            <Button size="sm" className="h-8 px-3" onClick={handleStartNewChat}>Ir</Button>
                         </div>
                     </div>
                 )}
@@ -455,7 +456,7 @@ export function ChatList({ sessionId, onSelectChat, selectedJid }: ChatListProps
                         <div className="h-12 w-12 rounded-full bg-muted/50 flex items-center justify-center mb-3">
                             <MessageCircle className="h-6 w-6 text-muted-foreground/50" />
                         </div>
-                        <p className="text-sm text-muted-foreground">{searchQuery ? "No chats match your search" : "No chats yet"}</p>
+                        <p className="text-sm text-muted-foreground">{searchQuery ? "Nenhuma conversa corresponde à sua busca" : "Nenhuma conversa ainda"}</p>
                     </div>
                 ) : (
                     <Virtuoso style={{ height: "100%" }} data={filteredChats}
@@ -463,7 +464,7 @@ export function ChatList({ sessionId, onSelectChat, selectedJid }: ChatListProps
                         endReached={handleEndReached} increaseViewportBy={200}
                         components={{ Footer: () => hasMore && !loading ? (
                             <div className="py-4 text-center">
-                                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Scroll for more</span>
+                                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Role para ver mais</span>
                             </div>
                         ) : null }} />
                 )}

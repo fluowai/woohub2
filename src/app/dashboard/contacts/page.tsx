@@ -100,9 +100,9 @@ export default function ContactListPage() {
             <div className="space-y-6">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
-                        <h2 className="text-3xl font-bold tracking-tight">Contacts</h2>
+                        <h2 className="text-3xl font-bold tracking-tight">Contatos</h2>
                         <p className="text-muted-foreground">
-                            Manage and view your saved contacts.
+                            Gerencie e visualize seus contatos salvos.
                         </p>
                     </div>
                 </div>
@@ -111,29 +111,29 @@ export default function ContactListPage() {
                     <CardHeader>
                         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                             <div className="space-y-1">
-                                <CardTitle>Contact List</CardTitle>
+                                <CardTitle>Lista de contatos</CardTitle>
                                 <CardDescription>
-                                    Total: {meta.total} contacts found
+                                    Total: {meta.total} contatos encontrados
                                 </CardDescription>
                             </div>
                             <div className="flex items-center gap-2 w-full md:w-auto">
                                 <Select value={limit} onValueChange={(val) => { setLimit(val); setPage(1); }}>
                                     <SelectTrigger className="w-[120px]">
-                                        <SelectValue placeholder="Per page" />
+                                        <SelectValue placeholder="Por página" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {[10, 25, 50, 100].map((l) => (
                                             <SelectItem key={l} value={l.toString()}>
-                                                {l} / page
+                                                {l} / página
                                             </SelectItem>
                                         ))}
-                                        <SelectItem value="all">Show All</SelectItem>
+                                        <SelectItem value="all">Mostrar tudo</SelectItem>
                                     </SelectContent>
                                 </Select>
                                 <div className="relative w-full md:w-64">
                                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                                     <Input
-                                        placeholder="Search contacts..."
+                                        placeholder="Buscar contatos..."
                                         className="pl-8"
                                         value={search}
                                         onChange={(e) => setSearch(e.target.value)}
@@ -147,10 +147,10 @@ export default function ContactListPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="w-[80px]">Image</TableHead>
-                                        <TableHead>Name / Pushname</TableHead>
+                                        <TableHead className="w-[80px]">Imagem</TableHead>
+                                        <TableHead>Nome / Pushname</TableHead>
                                         <TableHead className="hidden md:table-cell">JID (ID)</TableHead>
-                                        <TableHead className="hidden md:table-cell">Phone / Alt</TableHead>
+                                        <TableHead className="hidden md:table-cell">Telefone / Alt</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -159,14 +159,14 @@ export default function ContactListPage() {
                                             <TableCell colSpan={4} className="h-24 text-center">
                                                 <div className="flex justify-center items-center gap-2">
                                                     <Loader2 className="h-4 w-4 animate-spin" />
-                                                    Loading...
+                                                    Carregando...
                                                 </div>
                                             </TableCell>
                                         </TableRow>
                                     ) : contacts.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={4} className="h-24 text-center">
-                                                No contacts found.
+                                                Nenhum contato encontrado.
                                             </TableCell>
                                         </TableRow>
                                     ) : (
@@ -180,7 +180,7 @@ export default function ContactListPage() {
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex flex-col">
-                                                        <span className="font-medium">{contact.name || contact.notify || "Unknown"}</span>
+                                                        <span className="font-medium">{contact.name || contact.notify || "Desconhecido"}</span>
                                                         {contact.verifiedName && (
                                                             <span className="text-xs text-green-600 flex items-center gap-1">
                                                                 ✓ {contact.verifiedName}
@@ -212,13 +212,13 @@ export default function ContactListPage() {
                                                 disabled={page <= 1}
                                                 onClick={() => setPage(p => Math.max(1, p - 1))}
                                             >
-                                                Previous
+                                                Anterior
                                             </Button>
                                         </PaginationItem>
 
                                         <PaginationItem>
                                             <span className="text-sm text-muted-foreground mx-4">
-                                                Page {page} of {meta.totalPages}
+                                                Página {page} de {meta.totalPages}
                                             </span>
                                         </PaginationItem>
 
@@ -228,7 +228,7 @@ export default function ContactListPage() {
                                                 disabled={page >= meta.totalPages}
                                                 onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
                                             >
-                                                Next
+                                                Próxima
                                             </Button>
                                         </PaginationItem>
                                     </PaginationContent>

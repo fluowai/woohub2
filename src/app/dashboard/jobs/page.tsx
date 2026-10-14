@@ -50,6 +50,15 @@ const STATUS_VARIANTS: Record<string, "default" | "secondary" | "destructive" | 
     DEAD: "destructive",
 };
 
+const STATUS_LABELS: Record<string, string> = {
+    PENDING: "Pendente",
+    RUNNING: "Executando",
+    SUCCEEDED: "Concluído",
+    FAILED: "Falhou",
+    CANCELED: "Cancelado",
+    DEAD: "Morto (DLQ)",
+};
+
 function formatDate(value: string): string {
     return new Date(value).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
@@ -150,7 +159,7 @@ export default function JobsPage() {
                                             <td className="py-2 pr-4">{job.type}</td>
                                             <td className="py-2 pr-4 font-mono text-xs text-slate-600">{job.instanceId}</td>
                                             <td className="py-2 pr-4">
-                                                <Badge variant={STATUS_VARIANTS[job.status] ?? "secondary"}>{job.status}</Badge>
+                                                <Badge variant={STATUS_VARIANTS[job.status] ?? "secondary"}>{STATUS_LABELS[job.status] || job.status}</Badge>
                                             </td>
                                             <td className="py-2 pr-4">{job.attempts} / {job.maxAttempts}</td>
                                             <td className="py-2 pr-4 max-w-[240px] truncate">

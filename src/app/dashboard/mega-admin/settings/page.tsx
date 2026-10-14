@@ -162,7 +162,7 @@ export default function SettingsPage() {
                     <div className="flex items-center justify-between">
                         <div className="grid gap-1">
                             <Label>Telemetria Ativada</Label>
-                            <p className="text-sm text-muted-foreground">Envia heartbeat anônimo para URL configurada</p>
+                            <p className="text-sm text-muted-foreground">Envia um sinal (heartbeat) anônimo para a URL configurada</p>
                         </div>
                         <Switch
                             checked={formData.telemetryEnabled}

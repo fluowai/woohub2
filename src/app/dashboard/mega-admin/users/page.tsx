@@ -97,7 +97,7 @@ export default function UsersPage() {
                                 <Input placeholder="Buscar usuários..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="pl-10" />
                             </div>
                             <select value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }} className="border rounded-md px-3 py-2 text-sm">
-                                <option value="">Todos os roles</option>
+                                <option value="">Todas as funções</option>
                                 <option value="MEGA_ADMIN">Mega Admin</option>
                                 <option value="SUPERADMIN">Super Admin</option>
                                 <option value="OWNER">Owner</option>
@@ -112,8 +112,8 @@ export default function UsersPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Nome</TableHead>
-                                    <TableHead>Email</TableHead>
-                                    <TableHead>Role</TableHead>
+                                    <TableHead>E-mail</TableHead>
+                                    <TableHead>Função</TableHead>
                                     <TableHead>Instâncias</TableHead>
                                     <TableHead>Empresas</TableHead>
                                     <TableHead>Criado em</TableHead>

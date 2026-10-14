@@ -106,7 +106,7 @@ export default function MegaAdminDashboard() {
                 toast.error(data.message || "Erro ao carregar dados");
             }
         } catch (error) {
-            console.error("Failed to fetch stats:", error);
+            console.error("Falha ao carregar as estatísticas:", error);
             toast.error("Falha ao comunicar com o servidor");
         } finally {
             setLoading(false);

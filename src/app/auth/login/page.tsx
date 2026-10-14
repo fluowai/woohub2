@@ -94,7 +94,7 @@ function LoginForm() {
                     <FormLabel className="text-foreground/80">E-mail</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="name@example.com"
+                        placeholder="nome@exemplo.com"
                         className="h-12 px-4 rounded-xl bg-background/50 border-white/20 dark:border-white/10 focus-visible:ring-primary/50 transition-all font-medium"
                         {...field}
                       />

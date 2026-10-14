@@ -35,6 +35,22 @@ const emptyForm = {
     storageLimitMb: "100", retentionDays: "30", sort: "0",
 };
 
+const STATUS_LABELS: Record<string, string> = {
+    ACTIVE: "Ativo",
+    ARCHIVED: "Arquivado",
+    INACTIVE: "Inativo",
+};
+
+const NUM_LABELS: Record<string, string> = {
+    maxInstances: "Instâncias máximas",
+    maxUsers: "Usuários máximos",
+    requestLimit: "Requisições no período",
+    sendLimit: "Envios no período",
+    storageLimitMb: "Armazenamento (MB)",
+    retentionDays: "Retenção (dias)",
+    sort: "Ordem",
+};
+
 const brl = (cents: number) =>
     (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -146,7 +162,7 @@ export default function PlansPage() {
 
     const num = (k: keyof typeof form) => (
         <div className="space-y-1">
-            <Label htmlFor={`p-${k}`}>{String(k)}</Label>
+            <Label htmlFor={`p-${k}`}>{NUM_LABELS[k] || String(k)}</Label>
             <Input id={`p-${k}`} type="number" min={0} value={form[k]}
                 onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
         </div>
@@ -239,7 +255,7 @@ export default function PlansPage() {
                                 <TableHead>Código</TableHead>
                                 <TableHead>Preço</TableHead>
                                 <TableHead>Instâncias</TableHead>
-                                <TableHead>Envios/periodo</TableHead>
+                                <TableHead>Envios/período</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead className="text-right">Ações</TableHead>
                             </TableRow>
@@ -268,7 +284,7 @@ export default function PlansPage() {
                                     <TableCell>{p.maxInstances}</TableCell>
                                     <TableCell>{p.sendLimit.toLocaleString("pt-BR")}</TableCell>
                                     <TableCell>
-                                        <Badge variant={p.status === "ACTIVE" ? "default" : "secondary"}>{p.status}</Badge>
+                                        <Badge variant={p.status === "ACTIVE" ? "default" : "secondary"}>{STATUS_LABELS[p.status] || p.status}</Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">

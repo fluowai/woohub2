@@ -20,6 +20,12 @@ interface Tenant {
     _count: { members: number; sessions: number; subscriptions: number };
 }
 
+const STATUS_LABELS: Record<string, string> = {
+    ACTIVE: "Ativo",
+    SUSPENDED: "Suspenso",
+    CLOSED: "Encerrado",
+};
+
 export default function TenantsPage() {
     const { data: session, status } = useSession();
     const router = useRouter();
@@ -115,7 +121,7 @@ export default function TenantsPage() {
                                             <TableCell>{t.slug}</TableCell>
                                             <TableCell>
                                                 <Badge variant={t.status === "ACTIVE" ? "default" : "secondary"}>
-                                                    {t.status}
+                                                    {STATUS_LABELS[t.status] || t.status}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>{t._count.members}</TableCell>

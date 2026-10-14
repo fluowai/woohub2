@@ -103,7 +103,7 @@ export default function LicensesPage() {
       const data = await res.json();
       if (data.status) setStats(data.data);
     } catch (error) {
-      console.error("Failed to fetch stats", error);
+      console.error("Falha ao carregar as estatísticas", error);
     }
   };
 
@@ -406,7 +406,7 @@ export default function LicensesPage() {
                 <Input id="issuedTo" value={formData.issuedTo} onChange={(e) => setFormData({ ...formData, issuedTo: e.target.value })} required />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="issuedToEmail">Email de Contato</Label>
+                <Label htmlFor="issuedToEmail">E-mail de Contato</Label>
                 <Input id="issuedToEmail" type="email" value={formData.issuedToEmail} onChange={(e) => setFormData({ ...formData, issuedToEmail: e.target.value })} required />
               </div>
               {editing && (
@@ -416,7 +416,7 @@ export default function LicensesPage() {
                     <Input id="maxInstances" type="number" value={formData.maxInstances} onChange={(e) => setFormData({ ...formData, maxInstances: parseInt(e.target.value) || 0 })} />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="maxTenants">Máximo de Tenants</Label>
+                    <Label htmlFor="maxTenants">Máximo de Clientes</Label>
                     <Input id="maxTenants" type="number" value={formData.maxTenants} onChange={(e) => setFormData({ ...formData, maxTenants: parseInt(e.target.value) || 0 })} />
                   </div>
                   <div className="grid gap-2">
@@ -432,7 +432,7 @@ export default function LicensesPage() {
                     <Input id="expiresAt" type="date" value={formData.expiresAt} onChange={(e) => setFormData({ ...formData, expiresAt: e.target.value })} />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="features">Features (separadas por vírgula)</Label>
+                    <Label htmlFor="features">Recursos (separados por vírgula)</Label>
                     <Input id="features" value={formData.features} onChange={(e) => setFormData({ ...formData, features: e.target.value })} placeholder="feature1, feature2" />
                   </div>
                 </>
@@ -497,7 +497,7 @@ export default function LicensesPage() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm font-semibold">2. Link de Verificação Pública (Status Check)</Label>
+                <Label className="text-sm font-semibold">2. Link de Verificação Pública (verificação de status)</Label>
                 <div className="flex gap-2">
                   <Input
                     readOnly

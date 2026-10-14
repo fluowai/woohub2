@@ -131,7 +131,6 @@ const navGroups: NavGroup[] = [
         ],
     },
 ];
-];
 
 export function MobileNav({ appName = "Woohub", theme, userRole: propUserRole }: { appName?: string; theme?: any; userRole?: string }) {
     const [open, setOpen] = useState(false);
@@ -201,21 +200,18 @@ export function MobileNav({ appName = "Woohub", theme, userRole: propUserRole }:
                                             target={external ? "_blank" : undefined}
                                             onClick={() => setOpen(false)}
                                             className={`
-                                                flex items-center rounded-lg text-sm font-medium
+                                                flex items-center rounded-xl text-sm font-medium
                                                 transition-all duration-200 group relative
-                                                gap-3 px-3 py-2
+                                                gap-3 px-3.5 py-2.5
                                                 ${isActive(href)
-                                                    ? `text-transparent bg-clip-text bg-gradient-to-r ${currentTheme.brandGradient} shadow-sm ${currentTheme.glowColor}`
-                                                    : `text-muted-foreground hover:bg-muted/50 hover:text-foreground ${currentTheme.accentHover}`
+                                                    ? "text-[#0284c7] bg-[#e0f2fe] font-semibold"
+                                                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                                                 }
                                             `}
                                         >
-                                            {isActive(href) && (
-                                                <div className={`absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full bg-gradient-to-b ${currentTheme.brandGradient}`} />
-                                            )}
                                             <Icon
-                                                size={17}
-                                                className={`flex-shrink-0 transition-colors duration-200 ${isActive(href) ? `text-transparent bg-clip-text bg-gradient-to-r ${currentTheme.brandGradient}` : `text-muted-foreground/70 group-hover:text-foreground ${currentTheme.accentHover}`}`}
+                                                size={18}
+                                                className={`flex-shrink-0 transition-colors duration-200 ${isActive(href) ? "text-[#0284c7]" : "text-slate-400 group-hover:text-slate-700"}`}
                                             />
                                             <span className="truncate">{label}</span>
                                         </Link>

@@ -42,6 +42,13 @@ interface DomainRecord {
     createdAt: string;
 }
 
+const SSL_STATUS_LABELS: Record<string, string> = {
+    PENDING: "Pendente",
+    ISSUED: "Emitido",
+    FAILED: "Falhou",
+    EXTERNAL: "Externo",
+};
+
 export default function DomainsAdminPage() {
     const [domains, setDomains] = useState<DomainRecord[]>([]);
     const [loading, setLoading] = useState(true);
@@ -257,7 +264,7 @@ export default function DomainsAdminPage() {
                                             </span>
                                         </td>
                                         <td className="py-3.5 px-4 font-mono text-[11px] text-slate-600">
-                                            {d.sslStatus}
+                                            {SSL_STATUS_LABELS[d.sslStatus] || d.sslStatus}
                                         </td>
                                         <td className="py-3.5 px-4 text-right space-x-2">
                                             <button

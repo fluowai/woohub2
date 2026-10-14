@@ -33,6 +33,13 @@ interface ResellerDomain {
     } | null;
 }
 
+const SSL_STATUS_LABELS: Record<string, string> = {
+    PENDING: "Pendente",
+    ISSUED: "Emitido",
+    FAILED: "Falhou",
+    EXTERNAL: "Externo",
+};
+
 export default function ResellerDomainPage() {
     const [domain, setDomain] = useState<ResellerDomain | null>(null);
     const [loading, setLoading] = useState(true);
@@ -182,7 +189,7 @@ export default function ResellerDomainPage() {
                                 <div className="text-right">
                                     <p className="text-slate-500 text-[11px]">Certificado SSL</p>
                                     <p className="font-semibold text-slate-800 text-xs mt-0.5">
-                                        {domain.sslStatus}
+                                        {SSL_STATUS_LABELS[domain.sslStatus] || domain.sslStatus}
                                     </p>
                                 </div>
                             </div>

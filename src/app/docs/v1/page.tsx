@@ -52,7 +52,7 @@ export default async function V1DocsPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
                     <div>
                         <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">API pública Woohub</h1>
-                        <p className="mt-1 text-sm text-slate-500">Base path: <code className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">/api/v1</code> · Versão do spec: {spec.info.version}</p>
+                        <p className="mt-1 text-sm text-slate-500">Caminho base: <code className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">/api/v1</code> · Versão do spec: {spec.info.version}</p>
                     </div>
                     <div className="flex gap-2">
                         <Button variant="outline" size="sm" className="gap-2" asChild>
@@ -113,7 +113,7 @@ export default async function V1DocsPage() {
                         <p>Use <code className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">Authorization: Bearer &lt;chave&gt;</code> ou <code className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">X-Api-Key: &lt;chave&gt;</code>. A chave é exibida uma única vez na criação.</p>
                         <div className="flex flex-wrap gap-2">
                             {Boolean((spec.components?.securitySchemes as { apiKey?: unknown; sessionCookie?: unknown })?.apiKey) && (
-                                <Badge variant="secondary">API Key</Badge>
+                                <Badge variant="secondary">Chave de API</Badge>
                             )}
                             {Boolean((spec.components?.securitySchemes as { apiKey?: unknown; sessionCookie?: unknown })?.sessionCookie) && (
                                 <Badge variant="secondary">Sessão do painel</Badge>

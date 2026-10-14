@@ -33,7 +33,7 @@ export default function SettingsPage() {
                 setTimezones(list);
             }
         } catch (e) {
-            console.error("Failed to load timezones dynamically", e);
+            console.error("Falha ao carregar os fusos horários dinamicamente", e);
         }
     }, []);
 

@@ -47,7 +47,7 @@ export default function SuperAdminsPage() {
             const data = await res.json();
             if (data.status) setSuperAdmins(data.data);
         } catch (error) {
-            console.error("Failed to fetch:", error);
+            console.error("Falha ao carregar:", error);
             toast.error("Erro ao carregar super admins");
         } finally {
             setLoading(false);
@@ -157,8 +157,8 @@ export default function SuperAdminsPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Nome</TableHead>
-                                    <TableHead>Email</TableHead>
-                                    <TableHead>Role</TableHead>
+                                    <TableHead>E-mail</TableHead>
+                                    <TableHead>Função</TableHead>
                                     <TableHead>Instâncias</TableHead>
                                     <TableHead>Empresas</TableHead>
                                     <TableHead>Criado em</TableHead>
@@ -208,7 +208,7 @@ export default function SuperAdminsPage() {
                                 <Input id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="email">Email</Label>
+                                <Label htmlFor="email">E-mail</Label>
                                 <Input id="email" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required />
                             </div>
                             {!editing && (

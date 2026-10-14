@@ -205,3 +205,15 @@
     }
   }
 }
+
+/* Oculta completamente indicadores de desenvolvimento e compilação do Next.js */
+nextjs-portal,
+[data-nextjs-toast],
+[data-nextjs-indicator],
+[data-nextjs-dev-tools-indicator],
+div[data-nextjs-dialog-overlay] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}

@@ -26,6 +26,11 @@ interface TenantRow {
 const statusVariant = (s: string): "default" | "secondary" | "destructive" =>
     s === "ACTIVE" ? "default" : s === "SUSPENDED" ? "destructive" : "secondary";
 
+const STATUS_LABELS: Record<string, string> = {
+    ACTIVE: "Ativa",
+    SUSPENDED: "Suspensa",
+};
+
 export default function TenantsPage() {
     const [tenants, setTenants] = useState<TenantRow[]>([]);
     const [loading, setLoading] = useState(true);
@@ -180,7 +185,7 @@ export default function TenantsPage() {
                                     <TableCell className="font-medium">{t.name}</TableCell>
                                     <TableCell className="font-mono text-xs">{t.slug}</TableCell>
                                     <TableCell>
-                                        <Badge variant={statusVariant(t.status)}>{t.status}</Badge>
+                                        <Badge variant={statusVariant(t.status)}>{STATUS_LABELS[t.status] || t.status}</Badge>
                                     </TableCell>
                                     <TableCell>{t._count?.members ?? 0}</TableCell>
                                     <TableCell>{t._count?.sessions ?? 0}</TableCell>

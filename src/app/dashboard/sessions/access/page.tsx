@@ -43,6 +43,15 @@ interface AccessEntry {
     };
 }
 
+const ROLE_LABELS: Record<string, string> = {
+    SUPERADMIN: "Super Administrador",
+    OWNER: "Proprietário",
+    ADMIN: "Administrador",
+    STAFF: "Equipe",
+    BILLING: "Cobrança",
+    USER: "Usuário",
+};
+
 export default function SessionAccessPage() {
     const { data: authSession } = useSession();
     const searchParams = useSearchParams();
@@ -87,7 +96,7 @@ export default function SessionAccessPage() {
                 }
             }
         } catch (error) {
-            console.error("Failed to fetch sessions", error);
+            console.error("Falha ao carregar as sessões", error);
             toast.error("Falha ao carregar as instâncias");
         } finally {
             setLoading(false);
@@ -109,7 +118,7 @@ export default function SessionAccessPage() {
                 setAccessList([]);
             }
         } catch (error) {
-            console.error("Failed to fetch access list", error);
+            console.error("Falha ao carregar a lista de acesso", error);
             toast.error("Falha ao carregar a lista de acesso");
         } finally {
             setAccessLoading(false);
@@ -261,7 +270,7 @@ export default function SessionAccessPage() {
                     <CardContent>
                         <form onSubmit={handleGrantAccess} className="flex flex-col sm:flex-row gap-3">
                             <div className="flex-1 space-y-1.5">
-                                <Label htmlFor="email" className="sr-only">Email</Label>
+                                <Label htmlFor="email" className="sr-only">E-mail</Label>
                                 <Input
                                     id="email"
                                     type="email"
@@ -329,7 +338,7 @@ export default function SessionAccessPage() {
                                         <div className="flex items-center gap-2 flex-shrink-0 ml-3">
                                             <Badge variant={getRoleBadgeVariant(entry.user.role)} className="hidden sm:flex items-center gap-1 text-xs">
                                                 {getRoleIcon(entry.user.role)}
-                                                {entry.user.role}
+                                                {ROLE_LABELS[entry.user.role] || entry.user.role}
                                             </Badge>
                                             <span className="text-xs text-muted-foreground hidden md:inline">
                                                 {new Date(entry.createdAt).toLocaleDateString()}

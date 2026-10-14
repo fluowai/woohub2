@@ -31,12 +31,12 @@ function CopyButton({ code }: { code: string }) {
         navigator.clipboard.writeText(code).then(() => {
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
-        }).catch(() => toast.error("Copy failed"));
+        }).catch(() => toast.error("Falha ao copiar"));
     }, [code]);
     return (
         <button onClick={handleCopy} className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors cursor-pointer">
             {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-            {copied ? "Copied!" : "Copy"}
+            {copied ? "Copiado!" : "Copiar"}
         </button>
     );
 }
@@ -149,7 +149,7 @@ export function DocsClient({ content, toc }: DocsClientProps) {
                         </button>
                     ))}
                     {section.items.length === 0 && (
-                        <p className="text-xs text-gray-300 italic px-2 py-1">No subsections</p>
+                        <p className="text-xs text-gray-300 italic px-2 py-1">Sem subseções</p>
                     )}
                 </div>
             )}
@@ -264,7 +264,7 @@ export function DocsClient({ content, toc }: DocsClientProps) {
                                                     const btn = document.activeElement;
                                                     if (btn) {
                                                         const orig = btn.innerHTML;
-                                                        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5"><polyline points="20 6 9 17 4 12"/></svg> <span class="font-medium">Copied!</span>';
+                                                        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5"><polyline points="20 6 9 17 4 12"/></svg> <span class="font-medium">Copiado!</span>';
                                                         setTimeout(() => btn.innerHTML = orig, 2000);
                                                     }
                                                 }).catch(() => {});
@@ -273,7 +273,7 @@ export function DocsClient({ content, toc }: DocsClientProps) {
                                                     <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
                                                     <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
                                                 </svg>
-                                                <span className="font-medium">Copy</span>
+                                                <span className="font-medium">Copiar</span>
                                             </button>
                                         </div>
                                         <pre className="text-gray-100 text-sm leading-loose overflow-x-auto p-5 m-0 selection:bg-gray-700">

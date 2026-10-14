@@ -7,8 +7,8 @@ import { getAuthenticatedUser } from "@/lib/api-auth";
 // We'll store the last check time or version in memory or rely on Notification existence
 // For simplicity, we just check if a notification with this version title exists for the user.
 
-const REPO_OWNER = "";
-const REPO_NAME = "woohub";
+const REPO_OWNER = process.env.GITHUB_OWNER || "woohub";
+const REPO_NAME = process.env.GITHUB_REPO || "woohub";
 
 import { NextRequest } from "next/server";
 

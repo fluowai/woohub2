@@ -21,6 +21,12 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+const ROLE_LABELS: Record<string, string> = {
+    SUPERADMIN: "Super Administrador",
+    OWNER: "Proprietário",
+    STAFF: "Equipe",
+};
+
 interface UserProfile {
     id: string;
     name: string | null;
@@ -61,7 +67,7 @@ export default function UsersPage() {
                 toast.error("Acesso negado. Apenas o Super Administrador visualiza os usuários.");
             }
         } catch (error) {
-            console.error("Failed to fetch users", error);
+            console.error("Falha ao carregar os usuários", error);
         } finally {
             setLoading(false);
         }
@@ -91,7 +97,7 @@ export default function UsersPage() {
                 toast.error(error.error || "Falha na operação.");
             }
         } catch (error) {
-            toast.error("Operation failed");
+            toast.error("Operação falhou");
         }
     };
 
@@ -232,7 +238,7 @@ export default function UsersPage() {
                                     </div>
                                     <Badge variant="outline" className="flex items-center gap-1">
                                         {getRoleIcon(user.role)}
-                                        {user.role}
+                                        {ROLE_LABELS[user.role] || user.role}
                                     </Badge>
                                 </div>
 
@@ -272,7 +278,7 @@ export default function UsersPage() {
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
                         <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">Excluir</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

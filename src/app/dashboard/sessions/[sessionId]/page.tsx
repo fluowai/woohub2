@@ -42,6 +42,15 @@ type SessionDetail = {
 
 const SUPPORT_EMAIL = "suporte@woohub.app";
 
+const STATUS_LABELS: Record<string, string> = {
+    CONNECTED: "Conectada",
+    SCAN_QR: "Aguardando leitura do QR Code",
+    STOPPED: "Parada",
+    DISCONNECTED: "Desconectada",
+    STARTING: "Iniciando",
+    NUMBER_MISMATCH: "Número divergente",
+};
+
 export default function SessionDetailPage() {
     const params = useParams();
     const router = useRouter();
@@ -68,11 +77,11 @@ export default function SessionDetailPage() {
                     router.push("/dashboard/sessions");
                     return;
                 }
-                throw new Error("Failed to fetch");
+                throw new Error("Falha ao carregar");
             }
             const responseData = await res.json();
             const data = responseData?.data;
-            if (!data) throw new Error("No data returned");
+            if (!data) throw new Error("Nenhum dado retornado");
             setSession(data);
             setQrCode(data.qr || null);
             setPairingCode(data.pairingCode || null);
@@ -216,7 +225,7 @@ export default function SessionDetailPage() {
                 if (data?.code === "NUMBER_MISMATCH") {
                     setMismatchLocal(data?.data?.requestedPhone || null);
                 }
-                throw new Error(data.message || data.error || "Action failed");
+                throw new Error(data.message || data.error || "Ação falhou");
             }
 
             setMismatchLocal(null);
@@ -370,7 +379,7 @@ export default function SessionDetailPage() {
                                 session.status === 'STOPPED' || session.status === 'NUMBER_MISMATCH' ? 'bg-red-100 text-red-700' :
                                     'bg-yellow-100 text-yellow-700'
                                 }`}>
-                                {session.status}
+                                {STATUS_LABELS[session.status] || session.status}
                             </div>
                         </CardTitle>
                         <CardDescription>Status de conexão em tempo real e tempo ativo.</CardDescription>

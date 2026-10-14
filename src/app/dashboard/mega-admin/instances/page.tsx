@@ -63,6 +63,16 @@ const STATUS_STYLES: Record<string, string> = {
     ERROR: "bg-red-100 text-red-700",
 };
 
+const STATUS_LABELS: Record<string, string> = {
+    CONNECTED: "Conectado",
+    SCAN_QR: "Aguardando QR",
+    QR_REQUIRED: "QR necessário",
+    DISCONNECTED: "Desconectado",
+    STOPPED: "Parado",
+    LOGGED_OUT: "Deslogado",
+    ERROR: "Erro",
+};
+
 export default function MegaAdminInstancesPage() {
     const { data: session, status } = useSession();
     const router = useRouter();
@@ -288,7 +298,7 @@ export default function MegaAdminInstancesPage() {
                                                     variant="secondary"
                                                     className={STATUS_STYLES[inst.status] || "bg-gray-100 text-gray-700"}
                                                 >
-                                                    {inst.status}
+                                                    {STATUS_LABELS[inst.status] || inst.status}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>{inst.tenantName}</TableCell>

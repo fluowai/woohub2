@@ -16,6 +16,15 @@ import { redirect } from "next/navigation";
 
 export const dynamic = 'force-dynamic';
 
+const STATUS_LABELS: Record<string, string> = {
+    CONNECTED: "Conectada",
+    SCAN_QR: "Aguardando leitura do QR Code",
+    STOPPED: "Parada",
+    DISCONNECTED: "Desconectada",
+    STARTING: "Iniciando",
+    NUMBER_MISMATCH: "Número divergente",
+};
+
 export default async function DashboardPage() {
     const session = await auth();
     if (!session?.user) {
@@ -310,7 +319,7 @@ export default async function DashboardPage() {
                                 </div>
                                 <div>
                                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#e0f2fe] text-[#0284c7] border border-sky-100">
-                                        {isConnected ? "Conectada" : s.status || "Pendente"}
+                                        {isConnected ? "Conectada" : STATUS_LABELS[s.status] || s.status || "Pendente"}
                                     </span>
                                 </div>
                                 <div className="text-right">

@@ -110,7 +110,7 @@ export default function SuperAdminDashboard() {
                 toast.error(data.message || "Erro ao carregar dados da revenda");
             }
         } catch (error) {
-            console.error("Failed to fetch super admin stats:", error);
+            console.error("Falha ao carregar as estatísticas do super administrador:", error);
             toast.error("Falha ao comunicar com o servidor");
         } finally {
             setLoading(false);
