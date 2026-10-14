@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import nodeCrypto from "node:crypto";
 import { authenticateRequest } from "@/lib/access";
-import { consumeRateLimit } from "@/lib/security/rate-limit";
+import { consumeRateLimit, type RateLimitResult } from "@/lib/security/rate-limit";
 import { checkRequestQuotaForTenant, isQuotaError, quotaErrorResponse, trackRequest } from "@/lib/quota";
 import { logger } from "@/lib/logger";
 
@@ -22,6 +22,8 @@ import { logger } from "@/lib/logger";
 // Gateway webhooks cannot present credentials: authenticity is verified by the
 // HMAC signature inside the handler (`src/lib/payments.ts`), never by the client.
 // License routes (/api/license/*) are verified via the license key itself.
+// Public routes are still rate-limited per IP (see below) — they are public,
+// not unlimited.
 const PUBLIC_API_PREFIXES = ["/api/auth", "/api/docs", "/api/payments/webhook", "/api/license"];
 // The OpenAPI document is a static contract (no tenant data) and must be fetchable
 // without credentials so external tooling can read it. The health endpoint only
@@ -30,12 +32,23 @@ const PUBLIC_API_EXACT = ["/api/v1/openapi.json", "/api/system/health"];
 const CENTRAL_ONLY_PREFIXES = ["/api/mega-admin", "/api/super-admin", "/api/license/portainer-stack", "/api/license/portainer-template"];
 
 const RATE_LIMIT_PER_MINUTE = Math.max(1, parseInt(process.env.RATE_LIMIT_PER_MINUTE || "120", 10));
+const ENABLE_RATE_LIMITING = process.env.ENABLE_RATE_LIMITING !== "false";
 const AUTH_RATE_LIMIT_PER_15MIN = Math.max(1, parseInt(process.env.AUTH_RATE_LIMIT_PER_15MIN || "10", 10));
 const REGISTER_RATE_LIMIT_PER_HOUR = Math.max(1, parseInt(process.env.REGISTER_RATE_LIMIT_PER_HOUR || "5", 10));
+// Set to "true" ONLY when a reverse proxy (Traefik/nginx) sits in front and
+// overwrites X-Forwarded-For. When false (default), client-supplied XFF is
+// ignored so the rate-limit key cannot be spoofed.
+const TRUST_PROXY = process.env.TRUST_PROXY === "true";
 
 function clientIp(request: NextRequest): string {
-    const fwd = request.headers.get("x-forwarded-for");
-    if (fwd) return fwd.split(",")[0].trim();
+    if (TRUST_PROXY) {
+        // Rightmost entry is the one appended by our trusted proxy.
+        const fwd = request.headers.get("x-forwarded-for");
+        if (fwd) {
+            const parts = fwd.split(",").map((s) => s.trim()).filter(Boolean);
+            if (parts.length > 0) return parts[parts.length - 1];
+        }
+    }
     return request.headers.get("x-real-ip") || "unknown";
 }
 
@@ -93,7 +106,7 @@ function limitResponse(
 
 /** IP-only throttling for credential endpoints (login/register). */
 function protectCredentialEndpoint(request: NextRequest, pathname: string): NextResponse | null {
-    if (request.method !== "POST") return null;
+    if (!ENABLE_RATE_LIMITING || request.method !== "POST") return null;
 
     const ip = clientIp(request);
     let result = null;
@@ -133,6 +146,15 @@ export async function proxy(request: NextRequest) {
             PUBLIC_API_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`)) ||
             PUBLIC_API_EXACT.includes(pathname);
         if (isPublic) {
+            // Public routes skip authentication but are still rate-limited per IP
+            // (protects /api/license/* brute-force and auth endpoints).
+            if (ENABLE_RATE_LIMITING) {
+                const pubIp = clientIp(request);
+                const pub = consumeRateLimit(`public:${pubIp}`, RATE_LIMIT_PER_MINUTE, 60 * 1000);
+                if (!pub.allowed) {
+                    return limitResponse(pathname, pub.limit, pub.remaining, pub.resetAt, pub.retryAfterSec);
+                }
+            }
             return NextResponse.next();
         }
 
@@ -141,24 +163,30 @@ export async function proxy(request: NextRequest) {
         const credentialId = rawKey ? `key:${hashCredential(rawKey)}` : `ip:${ip}`;
 
         // Per-credential rate limit (applies before any DB work so invalid keys cannot hammer the DB).
-        const keyed = consumeRateLimit(credentialId, RATE_LIMIT_PER_MINUTE, 60 * 1000);
-        if (!keyed.allowed) {
-            return limitResponse(pathname, keyed.limit, keyed.remaining, keyed.resetAt, keyed.retryAfterSec);
+        let keyed: RateLimitResult | null = null;
+        if (ENABLE_RATE_LIMITING) {
+            keyed = consumeRateLimit(credentialId, RATE_LIMIT_PER_MINUTE, 60 * 1000);
+            if (!keyed.allowed) {
+                return limitResponse(pathname, keyed.limit, keyed.remaining, keyed.resetAt, keyed.retryAfterSec);
+            }
         }
 
         try {
             const result = await authenticateRequest(request);
 
             if (!result.ok) {
+                const rateHeaders: Record<string, string> = {
+                    "X-RateLimit-Limit": String(RATE_LIMIT_PER_MINUTE),
+                };
+                if (keyed) {
+                    rateHeaders["X-RateLimit-Remaining"] = String(keyed.remaining);
+                    rateHeaders["X-RateLimit-Reset"] = String(Math.ceil(keyed.resetAt / 1000));
+                }
                 return NextResponse.json(
                     errorBody(pathname, result.code, result.message),
                     {
                         status: result.status,
-                        headers: {
-                            "X-RateLimit-Limit": String(RATE_LIMIT_PER_MINUTE),
-                            "X-RateLimit-Remaining": String(keyed.remaining),
-                            "X-RateLimit-Reset": String(Math.ceil(keyed.resetAt / 1000)),
-                        },
+                        headers: rateHeaders,
                     }
                 );
             }
@@ -190,9 +218,13 @@ export async function proxy(request: NextRequest) {
                 trackRequest(result.context.tenantId);
             }
 
-            headers.set("X-RateLimit-Limit", String(RATE_LIMIT_PER_MINUTE));
-            headers.set("X-RateLimit-Remaining", String(keyed.remaining));
-            headers.set("X-RateLimit-Reset", String(Math.ceil(keyed.resetAt / 1000)));
+            if (keyed) {
+                headers.set("X-RateLimit-Limit", String(RATE_LIMIT_PER_MINUTE));
+                headers.set("X-RateLimit-Remaining", String(keyed.remaining));
+                headers.set("X-RateLimit-Reset", String(Math.ceil(keyed.resetAt / 1000)));
+            } else {
+                headers.set("X-RateLimit-Limit", String(RATE_LIMIT_PER_MINUTE));
+            }
 
             return NextResponse.next({ request: { headers } });
         } catch (error) {

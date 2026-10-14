@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { getAuthenticatedUser, isAdmin } from "@/lib/api-auth";
+import { getAuthenticatedUser, isAdmin, canAccessTenant } from "@/lib/api-auth";
 import { audit } from "@/lib/audit";
 import { invalidateQuotaCache } from "@/lib/quota";
 
@@ -23,6 +23,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     try {
         const { tenantId } = await params;
+        if (!(await canAccessTenant(user, tenantId))) {
+            return NextResponse.json({ status: false, message: "Forbidden", error: "Forbidden" }, { status: 403 });
+        }
         const body = await request.json().catch(() => ({}));
         const parsed = patchSchema.safeParse(body);
         if (!parsed.success) {

@@ -199,9 +199,20 @@ function extractApiKey(request: NextRequest): string | null {
     return null;
 }
 
+// Set to "true" ONLY when a reverse proxy sits in front and overwrites
+// X-Forwarded-For. When false (default), client-supplied XFF is ignored so
+// identity/IP cannot be spoofed.
+const TRUST_PROXY = process.env.TRUST_PROXY === "true";
+
 function clientIp(request: NextRequest): string | null {
-    const fwd = request.headers.get("x-forwarded-for");
-    if (fwd) return fwd.split(",")[0].trim();
+    if (TRUST_PROXY) {
+        const fwd = request.headers.get("x-forwarded-for");
+        if (fwd) {
+            const parts = fwd.split(",").map((s) => s.trim()).filter(Boolean);
+            // Rightmost entry is the one appended by our trusted proxy.
+            if (parts.length > 0) return parts[parts.length - 1];
+        }
+    }
     return request.headers.get("x-real-ip");
 }
 

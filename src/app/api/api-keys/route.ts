@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser, can } from "@/lib/api-auth";
-import { generateApiKey, hashApiKey, redactApiKey } from "@/lib/security/api-keys";
+import { generateApiKey, redactApiKey } from "@/lib/security/api-keys";
 import { API_KEY_SCOPES, parseScopes } from "@/lib/permissions";
 import { audit } from "@/lib/audit";
 import { logger } from "@/lib/logger";
@@ -183,38 +183,4 @@ export async function DELETE(request: NextRequest) {
         logger.error("ApiKeys", "Falha ao revogar chave de API:", error);
         return NextResponse.json({ status: false, message: "Failed to revoke API key", error: "Failed to revoke API key" }, { status: 500 });
     }
-}
-
-/** Rotation helper used by PATCH /api/api-keys/{id} semantics (create + revoke). */
-export async function rotateKey(tenantId: string, keyId: string, actor: { userId: string | null; label: string }) {
-    const existing = await prisma.apiKey.findFirst({ where: { id: keyId, tenantId } });
-    if (!existing) return null;
-
-    const generated = generateApiKey();
-    const record = await prisma.apiKey.create({
-        data: {
-            tenantId,
-            publicId: generated.publicId,
-            name: existing.name,
-            hash: hashApiKey(generated.key),
-            scopes: existing.scopes,
-            instanceId: existing.instanceId,
-            expiresAt: existing.expiresAt,
-            createdById: actor.userId,
-        },
-    });
-
-    await prisma.apiKey.update({ where: { id: existing.id }, data: { revokedAt: new Date() } });
-
-    await audit({
-        tenantId,
-        actorUserId: actor.userId,
-        actorLabel: actor.label,
-        action: "apikey.rotate",
-        resource: "apikey",
-        resourceId: record.id,
-        metadata: { rotatedFrom: existing.id, publicId: record.publicId },
-    });
-
-    return { record, key: generated.key, display: generated.display };
 }

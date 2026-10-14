@@ -109,6 +109,36 @@ export function can(user: AuthenticatedUser | null, permission: Permission): boo
     return user.context.isSuperAdmin && permission !== "platform:admin";
 }
 
+/**
+ * Check if an admin may access a tenant (and its resources: subscription, members, audit).
+ * - MEGA_ADMIN: global access.
+ * - SUPERADMIN: only tenants under their own reseller.
+ * - Otherwise: only their own tenant.
+ */
+export async function canAccessTenant(user: AuthenticatedUser, tenantId: string): Promise<boolean> {
+    if (user.isMegaAdmin) return true;
+    if (user.role !== "SUPERADMIN") return user.tenantId === tenantId;
+    const resellerId = user.context.resellerId;
+    if (!resellerId) return false;
+    const tenant = await prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { resellerId: true },
+    });
+    return Boolean(tenant && tenant.resellerId === resellerId);
+}
+
+/**
+ * Check if the caller may manage (create/update/delete) a user with the given role.
+ * - MEGA_ADMIN manages everyone.
+ * - SUPERADMIN manages only OWNER/STAFF; SUPERADMIN/MEGA_ADMIN management goes
+ *   through /api/mega-admin/* which enforces isMegaAdmin.
+ */
+export function canManageUser(caller: AuthenticatedUser, targetRole: string): boolean {
+    if (caller.isMegaAdmin) return true;
+    if (caller.role === "SUPERADMIN") return targetRole === "OWNER" || targetRole === "STAFF";
+    return false;
+}
+
 interface SessionWhere {
     id: string;
     userId: string;

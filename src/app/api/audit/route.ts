@@ -42,6 +42,26 @@ export async function GET(request: NextRequest) {
     if (from && !Number.isNaN(from.getTime())) where.createdAt = { ...(where.createdAt as object), gte: from };
     if (to && !Number.isNaN(to.getTime())) where.createdAt = { ...(where.createdAt as object), lte: to };
 
+    // Reseller scope: SUPERADMIN only sees audit entries of their own reseller
+    // (or of a tenant under it). MEGA_ADMIN sees the global trail.
+    if (!user.isMegaAdmin) {
+        const resellerId = user.context.resellerId;
+        if (!resellerId) {
+            return NextResponse.json({ status: false, message: "Forbidden", error: "Forbidden" }, { status: 403 });
+        }
+        if (tenantId) {
+            const tenant = await prisma.tenant.findUnique({
+                where: { id: tenantId },
+                select: { resellerId: true },
+            });
+            if (!tenant || tenant.resellerId !== resellerId) {
+                return NextResponse.json({ status: false, message: "Forbidden", error: "Forbidden" }, { status: 403 });
+            }
+        } else {
+            where.resellerId = resellerId;
+        }
+    }
+
     try {
         const [total, items] = await Promise.all([
             prisma.auditLog.count({ where }),

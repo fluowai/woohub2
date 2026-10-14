@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { getAuthenticatedUser, isAdmin } from "@/lib/api-auth";
+import { getAuthenticatedUser, isAdmin, canAccessTenant } from "@/lib/api-auth";
 import { audit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +17,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 401 });
     }
     const { tenantId } = await params;
-    if (!isAdmin(user.role) && user.tenantId !== tenantId) {
+    if (!isAdmin(user.role)) {
+        if (user.tenantId !== tenantId) {
+            return NextResponse.json({ status: false, message: "Forbidden", error: "Forbidden" }, { status: 403 });
+        }
+    } else if (!(await canAccessTenant(user, tenantId))) {
         return NextResponse.json({ status: false, message: "Forbidden", error: "Forbidden" }, { status: 403 });
     }
 
@@ -45,6 +49,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         return NextResponse.json({ status: false, message: "Forbidden", error: "Forbidden" }, { status: 403 });
     }
     const { tenantId } = await params;
+    if (!(await canAccessTenant(user, tenantId))) {
+        return NextResponse.json({ status: false, message: "Forbidden", error: "Forbidden" }, { status: 403 });
+    }
 
     try {
         const body = await request.json().catch(() => ({}));
@@ -82,6 +89,9 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
         return NextResponse.json({ status: false, message: "Forbidden", error: "Forbidden" }, { status: 403 });
     }
     const { tenantId } = await params;
+    if (!(await canAccessTenant(user, tenantId))) {
+        return NextResponse.json({ status: false, message: "Forbidden", error: "Forbidden" }, { status: 403 });
+    }
 
     try {
         await prisma.tenant.delete({ where: { id: tenantId } });
