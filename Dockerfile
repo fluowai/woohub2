@@ -25,7 +25,7 @@ RUN npm prune --omit=dev && npm install --no-save tsx@4.21.0 prisma@5.22.0
 
 # Production image
 FROM node:22.17.1-alpine AS runner
-RUN apk add --no-cache openssl ca-certificates
+RUN apk add --no-cache openssl ca-certificates wget
 WORKDIR /app
 
 COPY --from=builder /app/package*.json ./
@@ -37,11 +37,27 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/tsconfig.json ./
 COPY --from=builder /app/scripts ./scripts
 
+# Key-issuance tooling must NOT ship in the production image (an operator with
+# container access could mint their own license). The runtime gate only needs
+# scripts/license-entrypoint.ts.
+RUN rm -f scripts/license-sign.ts scripts/setup-test-user.ts scripts/test_endpoints.sh
+
+# Non-root runtime user. Named volumes (app_data, uploads_data) inherit the
+# ownership of these directories on first mount.
+RUN addgroup -S app && adduser -S app -G app \
+    && mkdir -p /app/data /app/uploads \
+    && chown -R app:app /app
+
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 ENV TZ=America/Sao_Paulo
 EXPOSE 3000
+
+USER app
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/system/health || exit 1
 
 # Sem `prisma db push`, sem migracao e sem criacao de admin no boot:
 # migracao e admin sao responsabilidade do job unico (scripts/migrate.sh).
