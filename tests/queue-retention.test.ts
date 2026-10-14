@@ -16,12 +16,12 @@ describe("Queue — backoff", () => {
         expect(backoffMs(10)).toBe(5 * 60_000); // capped
     });
 
-    it("backoff de webhook segue escada 1s/5s/25s e depois 60s", () => {
+    it("backoff de webhook segue escada 1s/5s/25s e satura em 25s", () => {
         expect(webhookBackoffMs(1)).toBe(1_000);
         expect(webhookBackoffMs(2)).toBe(5_000);
         expect(webhookBackoffMs(3)).toBe(25_000);
-        expect(webhookBackoffMs(4)).toBe(60_000);
-        expect(webhookBackoffMs(99)).toBe(60_000);
+        expect(webhookBackoffMs(4)).toBe(25_000);
+        expect(webhookBackoffMs(99)).toBe(25_000);
     });
 
     it("instância indisponível usa backoff fixo de 30s", () => {

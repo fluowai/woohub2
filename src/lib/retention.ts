@@ -78,7 +78,7 @@ export async function purgeOldMessages(days: number, batchSize = BATCH_SIZE): Pr
 
     for (;;) {
         const batch = await prisma.message.findMany({
-            where: { createdAt: { lt: before } },
+            where: { timestamp: { lt: before } },
             select: { id: true },
             take: batchSize,
         });
