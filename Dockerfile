@@ -4,7 +4,7 @@
 # Build fora do deploy: `docker build -t woohub/app:1.6.4 .` e depois
 # `docker push` — o deploy usa somente a imagem já construída.
 # -----------------------------------------------------------------------------
-FROM node:22.17.1-alpine AS builder
+FROM node:26.11.1-alpine AS builder
 RUN apk add --no-cache openssl ca-certificates
 WORKDIR /app
 
@@ -24,7 +24,7 @@ RUN npx prisma generate && npm run build
 RUN npm prune --omit=dev && npm install --no-save tsx@4.21.0 prisma@5.22.0
 
 # Production image
-FROM node:22.17.1-alpine AS runner
+FROM node:26.11.1-alpine AS runner
 RUN apk add --no-cache openssl ca-certificates wget
 WORKDIR /app
 
