@@ -113,7 +113,7 @@ if [ $CHECK_STATUS -eq 2 ]; then
     
     if [ -n "$ENV_ADMIN_EMAIL" ] && [ -n "$ENV_ADMIN_PASSWORD" ]; then
         echo -e "${GREEN}✓ Found ADMIN_EMAIL and ADMIN_PASSWORD in .env. Creating SuperAdmin automatically...${NC}"
-        npm run make-admin "$ENV_ADMIN_EMAIL" "$ENV_ADMIN_PASSWORD"
+        npm run make-admin SUPERADMIN "$ENV_ADMIN_EMAIL" "$ENV_ADMIN_PASSWORD"
     else
         # Check if stdin is connected to a terminal (interactive TTY)
         if [ -t 0 ]; then
@@ -123,7 +123,7 @@ if [ $CHECK_STATUS -eq 2 ]; then
             echo "" # New line after hidden password
             
             if [ -n "$INPUT_EMAIL" ] && [ -n "$INPUT_PASSWORD" ]; then
-                npm run make-admin "$INPUT_EMAIL" "$INPUT_PASSWORD"
+                npm run make-admin SUPERADMIN "$INPUT_EMAIL" "$INPUT_PASSWORD"
             else
                 echo -e "${RED}❌ Error: Email and password cannot be empty. Skipping admin creation.${NC}"
             fi
@@ -183,7 +183,7 @@ echo -e "  - Reiniciar serviço:      ${YELLOW}pm2 restart woohub${NC}"
 
 echo -e "\n${BLUE}Useful Project Script Commands:${NC}"
 echo -e "  - Run Dev Mode:          ${YELLOW}npm run dev${NC}"
-echo -e "  - Create/Promote Admin:  ${YELLOW}npm run make-admin <email> <password>${NC}"
+echo -e "  - Create/Promote Admin:  ${YELLOW}npm run make-admin <role> <email> <password>${NC}"
 echo -e "  - Open Database Studio:  ${YELLOW}npm run db:studio${NC}"
 
 echo -e "\n${YELLOW}To enable auto-start on server reboot, run:${NC}"

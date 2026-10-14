@@ -870,3 +870,75 @@ subiu sozinha com o banco dizendo `CONNECTED` — religada via `POST .../start`.
 - O contexto da revenda agora é propagado também para instâncias, planos, cobrança, marca, domínio e assinatura; o shell carrega o nome real da operação pelo cadastro white label.
 - A apresentação visual deixa de mencionar “suporte”: o acesso aparece integralmente como painel normal de Super Admin da revenda, mantendo a auditoria restrita internamente.
 
+# 2026-10-13 — Redesign da Visão Geral e Nova Identidade Visual WooHub Azul
+
+- Redesign completo da tela principal `/dashboard` (Visão geral) baseado no layout e paleta de cores solicitados (tons de azul elétrico `#0284c7`, ciano `#38bdf8`, fundo limpo `#f8fafc`, cards brancos com bordas suaves `#e2e8f0` e sem elementos em laranja/âmbar).
+- Substituição do tema primário em `src/app/globals.css`: variável `--primary` atualizada para o azul elétrico da marca WooHub (`oklch(0.58 0.19 240)`), gradientes de destaque em ciano e azul elétrico, cartões brancos e foco em azul.
+- Atualização do `SidebarShell`: novo logotipo vetorizado WooHub em degradê azul/ciano com símbolo 'W' estilizado, subtítulo "API DE COMUNICAÇÃO PARA NEGÓCIOS", "WHATSAPP · INTEGRAÇÕES · AUTOMAÇÃO · ATENDIMENTO", divisor "CENTRAL DE OPERAÇÕES", e rodapé com identificação da versão.
+- Atualização do `SidebarNav`: grupos organizados em `OPERAÇÃO`, `MENSAGENS`, `CONTATOS` e `AUTOMAÇÃO` com links ativos em pílula azul suave (`#e0f2fe`), ícones azuis destacados e preservação dos atalhos administrativos de Mega Admin / Super Admin.
+- Atualização do `Navbar`: navegação com breadcrumb "Workspace / Visão geral", badge "Modo demonstração", seletor de instâncias padronizado com bordas sutis e avatar do usuário "PA" em círculo azul com iniciais.
+- Reestruturação de `src/app/dashboard/page.tsx`:
+  - 3 cartões de métricas no topo: "Sessões conectadas" (com contagem e subtítulo), "Mensagens hoje" e "Automações ativas".
+  - Seção central em duas colunas: "Fluxo de mensagens" com gráfico de barras verticais em degradê azul/ciano e seletor "Enviadas / recebidas", e "Atividade recente" com ícones circulares em azul suave.
+  - Seção inferior de "Suas sessões" com tabela limpa, badge "Conectada" em pílula azul e botões "Ver sessão →".
+  - Remoção de redirecionamento forçado de Mega Admin/Super Admin em `/dashboard` para permitir a visualização direta do painel de operações.
+- Atualização de `role-theme.tsx`, `role-banner.tsx`, `mobile-nav.tsx`, `session-manager.tsx`, telas de autenticação e favicon para manter total coerência cromática com a nova paleta.
+- Verificação: `npx tsc --noEmit` executado com sucesso e zero erros.
+
+# 2026-10-13 — Correção de Entrega de Disparos e Normalização de Telefones (DDI 55)
+
+- Diagnóstico da falha no disparo de mensagens ("bolinha vermelha" / mensagens não entregues):
+  - Na tela de disparos em massa (`/dashboard/broadcast`) e agendamentos (`/dashboard/scheduler`), números brasileiros inseridos sem o código do país (DDI 55, ex: `48991138937` ou `(48) 99113-8937`) eram concatenados com `@s.whatsapp.net` sem inclusão do prefixo `55`.
+  - O JID gerado `48991138937@s.whatsapp.net` possui 11 dígitos com prefixo `48`, que nos servidores do WhatsApp é o código internacional da Polônia. O motor Baileys enviava o stanza, mas o WhatsApp descartava ou não entregava no dispositivo brasileiro de destino (DDD 48).
+- Implementação de utilitários em `src/lib/phone.ts`:
+  - `formatPhoneForJid`: normaliza telefones de 10 ou 11 dígitos nacionais para incluir o prefixo `55` automaticamente, preservando JIDs de grupos (`@g.us`), canais (`@newsletter`) e menções.
+  - `toPhoneJid`: sanitiza o valor e monta o JID completo `@s.whatsapp.net` normalizado com DDI 55.
+- Normalização ponta a ponta:
+  - Frontend: `src/app/dashboard/broadcast/page.tsx` normaliza os contatos informados com `toPhoneJid` e atualiza os placeholders com formatos brasileiros.
+  - Frontend: `src/app/dashboard/scheduler/page.tsx` normaliza destinatários pessoais no cadastro e edição com `toPhoneJid`.
+  - Backend: `src/app/api/messages/[sessionId]/broadcast/route.ts` normaliza a lista de destinatários com `toPhoneJid`.
+  - Backend: `src/app/api/scheduler/[sessionId]/route.ts` e `[scheduleId]/route.ts` normalizam os JIDs salvos no banco.
+  - Worker de filas: `src/lib/queue.ts` normaliza `targetJid` com `toPhoneJid` no momento exato do disparo via socket Baileys.
+  - Chat Service: `src/modules/whatsapp/chat.service.ts` normaliza destinos antes de `sendMessage` e `sendMediaMessage`.
+- Correção de tipagem no heartbeat do servidor:
+  - Adicionado método `getAllSessions()` na classe `WhatsAppManager` (`src/modules/whatsapp/manager.ts`).
+  - Corrigida a função `getOrCreateInstallation` e `startLicenseHeartbeat` em `src/server/index.ts` com validação de status de licença (`ACTIVE`), evitando tentativas de criação com campos obrigatórios ausentes.
+- Verificação:
+  - `npx tsc --noEmit` executado com 0 erros.
+  - `npx vitest run`: **117/117 testes passando em todos os 11 arquivos de teste**.
+
+# 2026-10-13 — Resolução Definitiva do Nono Dígito Brasileiro no WhatsApp (Baileys)
+
+- Diagnóstico profundo da não-entrega em telefones brasileiros (ex: `48988003260` e `48991138937`):
+  - Em números brasileiros (especialmente com DDD >= 31, como 48 em SC), contas do WhatsApp registradas antes de 2016 utilizam nos servidores do WhatsApp a chave JID **sem o nono dígito** (ex: `554888003260@s.whatsapp.net` e `554891138937@s.whatsapp.net`, 12 dígitos ao total).
+  - Consulta ao banco confirmou que os contatos sincronizados no aparelho (`Contact`) e mensagens recebidas já estavam registrados sem o 9 (`554888003260@s.whatsapp.net` / `554891138937@s.whatsapp.net`).
+  - Quando um disparo era feito para `5548988003260@s.whatsapp.net` (com o 9), o servidor do WhatsApp aceitava o pacote Baileys e devolvia chave `3EB0...`, mas não conseguia rotear para o aparelho de destino porque a conta do usuário no WhatsApp estava no JID de 8 dígitos.
+- Implementação de `resolveWhatsAppJid` em `src/lib/phone.ts`:
+  - `getBrazilianPhoneVariants`: gera as variantes canônicas com 9 (`jidWith9`) e sem 9 (`jidWithout9`).
+  - Resolução em camadas:
+    1. Consulta à tabela `Contact` da sessão local para reaproveitar JID já sincronizado;
+    2. Consulta à tabela `Message` para conversas recentes;
+    3. Consulta em tempo real aos servidores do WhatsApp via `socket.onWhatsApp(jidWithout9, jidWith9)` (protocolo USync do Baileys);
+    4. Fallback: para DDDs >= 31, prioriza o formato sem 9 (`jidWithout9`).
+  - `samePhone` atualizado para reconhecer números com e sem o 9 como o mesmo telefone (`48988003260` == `4888003260`).
+- Integração:
+  - `src/lib/queue.ts`: resolve o JID exato antes de invocar `instance.socket.sendMessage`.
+  - `src/app/api/messages/[sessionId]/broadcast/route.ts`: resolve os JIDs na criação do lote, salvando os destinatários no banco já com os JIDs corretos.
+  - `src/modules/whatsapp/chat.service.ts`: resolve JIDs no envio de texto e mídia.
+- Validação:
+  - `tests/phone.test.ts`: testes adicionados e passando com sucesso.
+# 2026-10-14 — Remoção do Indicador Flutuante de Compilação do Next.js ("Compiling...")
+
+- Solicitação do cliente: remover o toast / indicador visual flutuante `🟠 Compiling...` que aparecia durante a navegação e compilação do Next.js.
+- Causa:
+  - O Next.js exibe por padrão em ambiente de desenvolvimento (dev mode) um indicador com animação e badge informando compilação de rotas (`devIndicators`).
+- Solução aplicada:
+  - `next.config.ts`: adicionada a diretiva oficial `devIndicators: false` no objeto de configuração do Next.js.
+  - `src/app/globals.css`: adicionadas regras CSS com `!important` para suprimir totalmente quaisquer elementos de overlay do Next.js (`nextjs-portal`, `[data-nextjs-toast]`, `[data-nextjs-indicator]`, `[data-nextjs-dev-tools-indicator]`, `div[data-nextjs-dialog-overlay]`).
+  - Reiniciado o servidor local com `NODE_OPTIONS='--max-old-space-size=4096' npm run dev:all`.
+- Validação:
+  - Servidor em `http://localhost:1609` respondendo HTTP 200 em `/api/system/health`.
+  - Sessão WhatsApp `tA2VB4bxzAkY` conectada e sincronizada.
+  - Testes: `npx vitest run` 118/118 passando; `npx tsc --noEmit` com 0 erros.
+
+

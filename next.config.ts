@@ -4,6 +4,7 @@ import path from "path";
 const isDev = process.env.NODE_ENV === "development";
 
 const nextConfig: NextConfig = {
+  devIndicators: false,
   serverExternalPackages: ["sharp", "bcryptjs"],
   turbopack: {
     root: path.resolve(__dirname),
