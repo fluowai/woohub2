@@ -7,6 +7,7 @@ import { isQuotaError } from "./quota";
 import { ensureTenantForUser } from "./access";
 import { executeWebhookJob, type WebhookJobPayload } from "./webhook";
 import { waManager } from "@/modules/whatsapp/manager";
+import { toPhoneJid, resolveWhatsAppJid } from "./phone";
 
 /**
  * Durable outbound queue (MessageJob).
@@ -261,7 +262,12 @@ async function runJob(job: {
             }
 
             const content = await buildContent(job.payload);
-            const result = await instance.socket.sendMessage(job.payload.jid, content as any);
+            const targetJid = await resolveWhatsAppJid(job.payload.jid, {
+                sessionId: job.instanceId,
+                sessionPk: sessionRecord?.id,
+                socket: instance.socket,
+            });
+            const result = await instance.socket.sendMessage(targetJid, content as any);
             resultKey = messageKey(result);
         }
 

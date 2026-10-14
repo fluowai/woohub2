@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { toPhoneJid } from "@/lib/phone";
 import moment from "moment-timezone";
 
 // GET: List Scheduled Messages
@@ -103,10 +104,12 @@ export async function POST(
         const utcDate = moment.tz(sendAt, timezone).toDate();
         console.log(`[Scheduler:POST] Resolved UTC Date: ${utcDate.toISOString()}`);
 
+        const normalizedJid = toPhoneJid(jid) || jid;
+
         const scheduled = await prisma.scheduledMessage.create({
             data: {
                 sessionId: session.id,
-                jid,
+                jid: normalizedJid,
                 content,
                 mediaUrl,
                 mediaType,

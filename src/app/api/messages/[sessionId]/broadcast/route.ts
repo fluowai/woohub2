@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { waManager } from "@/modules/whatsapp/manager";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
 import { enqueueSendJob } from "@/lib/queue";
+import { toPhoneJid, resolveWhatsAppJid } from "@/lib/phone";
 import { z } from "zod";
 
 const MAX_BROADCAST_RECIPIENTS = Math.max(
@@ -48,7 +49,10 @@ export async function POST(
             return NextResponse.json({ error: parseResult.error.flatten() }, { status: 400 });
         }
 
-        const { recipients, message, delay } = parseResult.data;
+        const { recipients: rawRecipients, message, delay } = parseResult.data;
+        const recipients = rawRecipients
+            .map(r => toPhoneJid(r) || r)
+            .filter(Boolean);
 
         const canAccess = await canAccessSession(user.id, user.role, sessionId);
         if (!canAccess) {
@@ -71,16 +75,25 @@ export async function POST(
         const stepDelay = delay ?? 2000;
         const startAt = Date.now();
 
+        // Resolve true WhatsApp JIDs (handling Brazilian 9th digit legacy variations)
+        const resolvedRecipients = await Promise.all(
+            recipients.map(jid => resolveWhatsAppJid(jid, {
+                sessionId: session.sessionId,
+                sessionPk: session.id,
+                socket: instance.socket,
+            }))
+        );
+
         // --- Save BroadcastLog & recipients to DB ---
         const log = await prisma.broadcastLog.create({
             data: {
                 sessionId: session.sessionId,
                 message,
-                total: recipients.length,
+                total: resolvedRecipients.length,
                 delay: stepDelay,
                 status: "running",
                 recipients: {
-                    create: recipients.map(jid => ({
+                    create: resolvedRecipients.map(jid => ({
                         jid,
                         status: "pending"
                     }))
@@ -89,13 +102,13 @@ export async function POST(
             include: { recipients: true }
         });
 
-        for (let i = 0; i < recipients.length; i++) {
+        for (let i = 0; i < resolvedRecipients.length; i++) {
             const jitter = Math.floor(Math.random() * (stepDelay * 0.5));
             await enqueueSendJob({
                 tenantId: session.tenantId ?? "",
                 sessionPk: session.id,
                 instanceId: session.sessionId,
-                payload: { jid: recipients[i], text: message },
+                payload: { jid: resolvedRecipients[i], text: message },
                 correlationId: `broadcast:${log.id}`,
                 availableAt: new Date(startAt + i * stepDelay + jitter),
                 maxAttempts: 10,

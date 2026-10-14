@@ -45,4 +45,10 @@ describe("phone helpers", () => {
         expect(samePhone(null, null)).toBe(false);
         expect(samePhone(undefined, "4792701014")).toBe(false);
     });
+
+    it("compares Brazilian numbers with and without the 9th digit as equivalent", () => {
+        expect(samePhone("48988003260", "4888003260")).toBe(true);
+        expect(samePhone("5548988003260", "554888003260")).toBe(true);
+        expect(samePhone("+55 (48) 99113-8937", "4891138937")).toBe(true);
+    });
 });

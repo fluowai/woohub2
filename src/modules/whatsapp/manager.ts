@@ -111,6 +111,10 @@ export class WhatsAppManager {
         return this.sessions.get(sessionId);
     }
 
+    public getAllSessions(): WhatsAppInstance[] {
+        return Array.from(this.sessions.values());
+    }
+
     /** Remove instance from memory manager (cleanup after stop/logout) */
     public removeInstance(sessionId: string, expected?: WhatsAppInstance) {
         const inst = this.sessions.get(sessionId);

@@ -128,7 +128,9 @@ export class WhatsAppInstance {
             // WooHub em vez de expor o ambiente técnico de execução.
             browser: ["WooHub", "Desktop", "1.0.0"],
             markOnlineOnConnect: botConfig?.alwaysOnline ?? true,
-            syncFullHistory: true,
+            // Full history sync consumes large amounts of RAM (can OOM the process
+            // with busy sessions). Messages are persisted via the store on receive.
+            syncFullHistory: false,
         });
 
         // Plan send quota, then anti-spam, then the engine.

@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { toPhoneJid } from "@/lib/phone";
 import moment from "moment-timezone";
 
 export async function PUT(
@@ -49,10 +50,12 @@ export async function PUT(
             return NextResponse.json({ status: false, message: "Schedule not found in this session", error: "Schedule not found in this session" }, { status: 404 });
         }
 
+        const normalizedJid = toPhoneJid(jid) || jid;
+
         const updated = await prisma.scheduledMessage.update({
             where: { id: scheduleId },
             data: {
-                jid,
+                jid: normalizedJid,
                 content,
                 sendAt: utcDate,
                 mediaUrl: mediaUrl || null,

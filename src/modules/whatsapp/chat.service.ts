@@ -1,12 +1,19 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { normalizeJid } from "@/lib/jid-utils";
+import { toPhoneJid, resolveWhatsAppJid } from "@/lib/phone";
 import { waManager } from "@/modules/whatsapp/manager";
 import { onMessageSent } from "@/lib/webhook";
 import Sticker from "wa-sticker-formatter";
 import { safeFetch } from "@/lib/security/ssrf";
 
-const MAX_MEDIA_BYTES = 16 * 1024 * 1024;
+/**
+ * Tamanho máximo de mídia (bytes). Configurável via MAX_UPLOAD_SIZE_MB (padrão: 16MB).
+ * WhatsApp impõe limites por tipo de mensagem (imagem ~16MB, vídeo ~16MB, documento ~100MB);
+ * valores acima do limite do WhatsApp serão rejeitados pelo Baileys.
+ */
+const MAX_UPLOAD_SIZE_MB = Math.max(1, parseInt(process.env.MAX_UPLOAD_SIZE_MB || "16", 10));
+const MAX_MEDIA_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024;
 
 /**
  * Downloads a media URL with SSRF validation (private/internal destinations rejected),
@@ -330,7 +337,11 @@ export class ChatService {
             options.quoted = quotedOption;
         }
 
-        const sendResult = await instance.socket.sendMessage(jid, msgPayload, options);
+        const targetJid = await resolveWhatsAppJid(jid, {
+            sessionId,
+            socket: instance.socket,
+        });
+        const sendResult = await instance.socket.sendMessage(targetJid, msgPayload, options);
 
         // Fire webhook for sent message (non-blocking)
         try {
@@ -418,7 +429,11 @@ export class ChatService {
             content = { document: buffer, mimetype, fileName, ...messageOptions };
         }
 
-        const sendResult = await instance.socket.sendMessage(jid, content);
+        const targetJid = await resolveWhatsAppJid(jid, {
+            sessionId,
+            socket: instance.socket,
+        });
+        const sendResult = await instance.socket.sendMessage(targetJid, content);
 
         // Fire webhook for sent media message (non-blocking)
         try {

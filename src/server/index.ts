@@ -11,6 +11,8 @@ import { setupSocket } from "./socket";
 import { waManager } from "../modules/whatsapp/manager";
 import { logger } from "../lib/logger";
 import pkg from "../../package.json";
+import { PrismaClient } from "@prisma/client";
+import { issueInstallationKey, hashInstallationKey } from "../lib/installation";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME || "localhost";
@@ -65,6 +67,7 @@ app.prepare().then(() => {
   // Background subsystem stops, invoked on SIGINT/SIGTERM (see shutdown()).
   const backgroundStops: Array<() => void> = [];
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  let licenseHeartbeatTimer: ReturnType<typeof setInterval> | null = null;
   let schedulerStop: (() => void) | null = null;
 
   // Start Scheduler
@@ -88,6 +91,16 @@ app.prepare().then(() => {
       backgroundStops.push(m.startJobWorker());
     })
     .catch(err => logger.error("Server", "Queue worker failed to start:", err));
+
+  // Start license installation heartbeat (client-side)
+  try {
+    licenseHeartbeatTimer = startLicenseHeartbeat();
+    if (licenseHeartbeatTimer) {
+      backgroundStops.push(() => { if (licenseHeartbeatTimer) clearInterval(licenseHeartbeatTimer); });
+    }
+  } catch (err) {
+    logger.error("Server", "License heartbeat failed to start:", err);
+  }
 
   // Cloudflare 520 Fix: increase keep-alive timeout so Node doesn't kill idle connections that Cloudflare expects to reuse
   // See: https://github.com/vercel/next.js/issues/48962
@@ -125,6 +138,7 @@ app.prepare().then(() => {
       }
     }
     if (heartbeatTimer) clearInterval(heartbeatTimer);
+    if (licenseHeartbeatTimer) clearInterval(licenseHeartbeatTimer);
 
     // 2. Close WhatsApp sessions without triggering reconnect or DB rewrites.
     try {
@@ -272,4 +286,107 @@ function startHeartbeat(hostname: string, port: number): ReturnType<typeof setIn
 
   sendHeartbeat();
   return setInterval(sendHeartbeat, 30000);
+}
+
+/**
+ * License installation heartbeat (client-side).
+ *
+ * Registers this deployment with the license server (local /api/license/heartbeat)
+ * and sends periodic heartbeats with instance/connection stats. This enables
+ * the central license server to track active installations and enforce limits.
+ *
+ * Requires INSTALLATION_KEY env var (set after first boot) or generates one on
+ * first run and logs it for the operator to configure.
+ */
+async function getOrCreateInstallation(): Promise<{ id: string; key: string } | null> {
+  const prisma = new PrismaClient();
+  try {
+    const envKey = process.env.INSTALLATION_KEY?.trim();
+    if (envKey) {
+      const envKeyHash = hashInstallationKey(envKey);
+      const matched = await prisma.installation.findFirst({
+        where: { installationKeyHash: envKeyHash },
+        include: { license: true },
+      });
+      if (matched) {
+        return { id: matched.id, key: envKey };
+      }
+    }
+
+    const installation = await prisma.installation.findFirst({
+      where: {
+        license: { status: "ACTIVE" },
+        installationKeyHash: { not: null }
+      },
+      include: { license: true },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (installation && envKey) {
+      return { id: installation.id, key: envKey };
+    }
+
+    return null;
+  } catch (e) {
+    logger.error("LicenseHeartbeat", `Failed to resolve installation: ${(e as Error).message}`);
+    return null;
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+function startLicenseHeartbeat(): ReturnType<typeof setInterval> | null {
+  let installation: { id: string; key: string } | null = null;
+  let initialized = false;
+
+  const sendHeartbeat = async () => {
+    if (!initialized) {
+      initialized = true;
+      installation = await getOrCreateInstallation();
+      if (!installation) {
+        logger.info("LicenseHeartbeat", "Heartbeat disabled (no installation/key)");
+        return;
+      }
+      logger.info("LicenseHeartbeat", `Heartbeat enabled for installation ${installation.id}`);
+    }
+
+    if (!installation) return;
+
+    try {
+      const { waManager } = await import("../modules/whatsapp/manager");
+      const sessions = waManager.getAllSessions();
+      const instances = sessions.length;
+      const connected = sessions.filter((s) => s.status?.toUpperCase() === "CONNECTED").length;
+
+      const res = await fetch(`${process.env.BASE_URL || "http://localhost:3000"}/api/license/heartbeat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-woohub-installation-key": installation.key,
+          "x-woohub-installation-id": installation.id,
+        },
+        body: JSON.stringify({
+          protocolVersion: 1,
+          licenseRevision: 1,
+          version: pkg.version,
+          instances,
+          connected,
+          state: connected > 0 ? "connected" : "disconnected",
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.text().catch(() => "");
+        logger.warn("LicenseHeartbeat", `Heartbeat failed: ${res.status} ${err}`);
+      } else {
+        logger.info("LicenseHeartbeat", `Heartbeat OK (instances: ${instances}, connected: ${connected})`);
+      }
+    } catch (e) {
+      logger.warn("LicenseHeartbeat", `Heartbeat error: ${(e as Error).message}`);
+    }
+  };
+
+  // Initial heartbeat after 10s, then every 5 minutes
+  setTimeout(sendHeartbeat, 10000);
+  return setInterval(sendHeartbeat, 5 * 60 * 1000);
 }
