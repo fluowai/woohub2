@@ -12,7 +12,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { RefreshCw, AlertTriangle, Trash2 } from "lucide-react";
+import { RefreshCw, AlertTriangle, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 interface JobRow {
@@ -68,6 +68,7 @@ export default function JobsPage() {
     const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState("");
     const [limit, setLimit] = useState(50);
+    const [requeuing, setRequeuing] = useState(false);
 
     const load = useCallback(async () => {
         try {
@@ -88,6 +89,29 @@ export default function JobsPage() {
     useEffect(() => {
         load();
     }, [load]);
+
+    const requeue = async (status: "DEAD" | "FAILED") => {
+        setRequeuing(true);
+        try {
+            const res = await fetch("/api/jobs/requeue", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status, limit: 200 }),
+            });
+            const data = await res.json();
+            if (res.ok && data.status) {
+                toast.success(data.message || "Jobs reenfileirados");
+                setLoading(true);
+                load();
+            } else {
+                toast.error(data.message || "Não foi possível reenfileirar");
+            }
+        } catch {
+            toast.error("Erro de conexão ao reenfileirar");
+        } finally {
+            setRequeuing(false);
+        }
+    };
 
     const deadJobs = jobs.filter((j) => j.status === "DEAD" || j.status === "FAILED");
 
@@ -122,6 +146,28 @@ export default function JobsPage() {
                     <Button variant="outline" size="sm" className="gap-2" onClick={() => { setLoading(true); load(); }}>
                         <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Atualizar
                     </Button>
+                    {deadJobs.length > 0 && (
+                        <>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-2 text-red-600 border-red-200 hover:bg-red-50"
+                                disabled={requeuing}
+                                onClick={() => requeue("DEAD")}
+                            >
+                                <RotateCcw className={`h-4 w-4 ${requeuing ? "animate-spin" : ""}`} /> Reenfileirar DLQ
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-2"
+                                disabled={requeuing}
+                                onClick={() => requeue("FAILED")}
+                            >
+                                <RotateCcw className={`h-4 w-4 ${requeuing ? "animate-spin" : ""}`} /> Reenfileirar falhas
+                            </Button>
+                        </>
+                    )}
                 </div>
             </div>
 

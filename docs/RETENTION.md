@@ -12,13 +12,13 @@ promete expurgo automático que não exista.
 |---|---|---|---|
 | Logs de entrega de webhook | 30 dias | **automática (código)** | `WEBHOOK_LOG_RETENTION_DAYS` (padrão 30) em `src/lib/webhook.ts` |
 | Logs de contêiner (stdout) | 10 MB × 5 arquivos | **automática (Docker)** | `logging` em `docker-compose.yml` / `docker-stack.yml` |
-| Mensagens e contatos | igual ao `Plan.retentionDays` do plano | **contratual, expurgo manual** | ver §3 |
+| Jobs da fila terminais (`MessageJob`) | 30 dias (histórico) | **automática (código)** | `JOB_RETENTION_DAYS` (padrão 30) em `src/lib/retention.ts` |
+| Mensagens e contatos | igual ao `Plan.retentionDays` do plano | **cap global automático** (opcional) + contratual | `MESSAGE_RETENTION_DAYS` (padrão 0 = off); ver §3 |
 | Mídia em `data/media` | mesmo período das mensagens | **manual** | ver §3 |
 | Auditoria (`AuditLog`) | 24 meses (mín. legal recomendado) | **sem expurgo** (append-only) | manual, se necessário |
 | Eventos de pagamento (`PaymentEvent`) | 24 meses (contestado/reembolso) | **sem expurgo** | manual |
 | Faturas (`Invoice`) | 5 anos (obrigação fiscal) | **sem expurgo** | manual |
-| Jobs da fila (`MessageJob`) | 30 dias (histórico) | **manual** | ver §3 |
-| Backup `.sql` local | 14 dias | rotina do operador | `docs/BACKUP_RECOVERY.md` |
+| Backup `.dump` local | 14 dias | rotina do operador (`scripts/backup.sh`) | `docs/BACKUP_RECOVERY.md` |
 | Sessão Baileys em disco | enquanto a instância estiver em uso | automática (estado da sessão) | volume do app |
 
 ---
@@ -32,26 +32,30 @@ promete expurgo automático que não exista.
 3. **Retenção por plano**: `Plan.retentionDays` entra na quota exibida e
    contratada (`src/lib/quota.ts`), ou seja, é o valor que o cliente vê como
    limite do plano.
+4. **Expurgo diário de jobs terminais**: `runRetentionPurge()` (`src/lib/retention.ts`)
+   apaga `MessageJob` com status `SUCCEEDED`/`FAILED`/`CANCELED`/`DEAD` com mais
+   de `JOB_RETENTION_DAYS` dias (padrão 30), em lotes de 5000, auditado como
+   `retention.purge`. Agendado no boot do servidor (primeira execução em 5 min).
+5. **Cap global de mensagens** (opcional): `MESSAGE_RETENTION_DAYS > 0` ativa
+   expurgo de `Message` mais antiga que N dias. **Padrão 0 = desabilitado** —
+   só ligue se aceitar a perda do histórico.
 
-## 3. O que ainda é manual (declarado como pendência)
+## 3. O que ainda é manual
 
-Não existe nesta entrega job automático de expurgo de mensagens, mídia,
-auditoria ou jobs da fila. Enquanto isso, a operação deve agendar:
+- **Mídia órfã** em `data/media` (arquivos sem referência em `Message`):
+  não há rotina pronta; execute com verificação prévia em janela de manutenção.
+- **Expurgo por tenant/contrato** (`Plan.retentionDays` individual): o cap
+  global acima é o teto de segurança; o expurgo fino por plano continua manual.
+- **Auditoria / pagamento / faturas**: sem expurgo automático (por design —
+  obrigação fiscal e trilha de conformidade).
 
 ```sql
--- Exemplo: mensagens e mídia de empresas fora do plano (executar com cuidado em janela de manutenção)
+-- Expurgo fino por plano (executar com cuidado em janela de manutenção)
 -- 1) identificar o corte por empresa usando o retentionDays vigente da assinatura
 -- 2) exportar antes de apagar (backup lógico) e registrar o lote na auditoria
 -- 3) apagar em lotes pequenos para não gerar lock longo
 DELETE FROM Message    WHERE createdAt < DATE_SUB(NOW(), INTERVAL 90 DAY) LIMIT 5000;
-DELETE FROM MessageJob WHERE createdAt < DATE_SUB(NOW(), INTERVAL 30 DAY) LIMIT 5000;
 ```
-
-Mídia órfã (arquivos em `data/media` sem referência em `Message`) deve ser
-removida com verificação prévia de existência de registro — não há rotina
-pronta nesta entrega.
-
----
 
 ## 4. Diretrizes de minimização
 
@@ -61,13 +65,14 @@ pronta nesta entrega.
 - Ao encerrar um tenant (`Tenant.status = CLOSED`), agende o expurgo completo
   dos dados do tenant (mensagens, mídia, membros) após a retenção fiscal
   aplicável a faturas.
-- Qualquer expurgo manual deve ser auditado (`AuditLog`, ação `retention.purge`
-  com metadata do lote) para rastreabilidade.
+- Qualquer expurgo (automático ou manual) é auditado (`AuditLog`, ação
+  `retention.purge`) para rastreabilidade.
 
 ---
 
 ## 5. Limitação desta entrega
 
-Os itens da §3 são **procedimentos manuais**; automatizá-los (cron + SQL com
-lotes + auditoria) está fora do escopo desta entrega e deve entrar no backlog
-antes do piloto com dados reais de clientes.
+O expurgo de jobs terminais e o cap global de mensagens são **automáticos**
+(§2.4–2.5). Mídia órfã e expurgo fino por contrato permanecem **procedimentos
+manuais** (§3) e devem estar no runbook do operador antes do piloto com dados
+reais de clientes.

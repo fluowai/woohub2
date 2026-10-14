@@ -29,6 +29,27 @@ process.on("unhandledRejection", (reason) => {
   logger.error("Server", "Unhandled promise rejection:", reason);
 });
 
+// An uncaught exception leaves the process in an unknown state (WhatsApp sockets,
+// queue locks, Prisma pool). Fail loudly, alert the operator, then exit so the
+// orchestrator (Docker/PM2) restarts a clean process. RUNNING jobs recover via
+// requeueStuckJobs within 10 minutes.
+process.on("uncaughtException", (error) => {
+  logger.error("Server", "Uncaught exception — shutting down:", error);
+  void (async () => {
+    try {
+      const { sendAlert } = await import("../lib/alerts");
+      sendAlert({
+        event: "server.uncaught_exception",
+        severity: "critical",
+        message: `Uncaught exception: ${error.message}`,
+        details: { stack: error.stack?.slice(0, 2000) },
+      });
+    } catch { /* alerting must not block exit */ }
+    // Give the alert a moment to flush, then exit hard.
+    setTimeout(() => process.exit(1), 1_000).unref();
+  })();
+});
+
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
@@ -92,6 +113,38 @@ app.prepare().then(() => {
     })
     .catch(err => logger.error("Server", "Queue worker failed to start:", err));
 
+  // Start daily retention purge (terminal jobs + optional message cap)
+  import("../lib/retention")
+    .then((m) => {
+      backgroundStops.push(m.startRetentionScheduler());
+    })
+    .catch(err => logger.error("Server", "Retention scheduler failed to start:", err));
+
+  // Periodic health monitor: alerts when the database becomes unreachable.
+  import("../lib/alerts")
+    .then(({ sendAlert, alertsEnabled }) => {
+      if (!alertsEnabled()) return;
+      let dbDown = false;
+      const timer = setInterval(async () => {
+        try {
+          const { prisma } = await import("../lib/prisma");
+          await prisma.$queryRaw`SELECT 1`;
+          if (dbDown) {
+            dbDown = false;
+            sendAlert({ event: "health.database_recovered", severity: "info", message: "Database connection recovered" });
+          }
+        } catch {
+          if (!dbDown) {
+            dbDown = true;
+            sendAlert({ event: "health.database_down", severity: "critical", message: "Database unreachable — readiness will fail" });
+          }
+        }
+      }, 60_000);
+      timer.unref?.();
+      backgroundStops.push(() => clearInterval(timer));
+    })
+    .catch(() => { /* monitor is optional */ });
+
   // Start license installation heartbeat (client-side)
   try {
     licenseHeartbeatTimer = startLicenseHeartbeat();
@@ -110,6 +163,14 @@ app.prepare().then(() => {
   server.listen(port, () => {
     logger.banner(pkg.name.toUpperCase(), pkg.version, port);
     heartbeatTimer = startHeartbeat(hostname, port);
+    void import("../lib/alerts").then(({ sendAlert }) => {
+      sendAlert({
+        event: "server.boot",
+        severity: "info",
+        message: `${pkg.name} v${pkg.version} started on port ${port}`,
+        hostname,
+      });
+    }).catch(() => { /* boot must not fail on alerting */ });
   });
 
   /**
@@ -181,6 +242,13 @@ app.prepare().then(() => {
 
     clearTimeout(forceExit);
     logger.info("Server", "Graceful shutdown complete");
+    void import("../lib/alerts").then(({ sendAlert }) => {
+      sendAlert({
+        event: "server.shutdown",
+        severity: "info",
+        message: `${pkg.name} graceful shutdown (${signal}) complete`,
+      });
+    }).catch(() => { /* exiting anyway */ });
     process.exit(0);
   }
 

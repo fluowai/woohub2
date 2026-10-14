@@ -59,6 +59,44 @@ function webhookBackoffMs(attempts: number): number {
     return ladder[Math.min(attempts - 1, ladder.length - 1)] ?? 60_000;
 }
 
+// Exported for unit tests.
+export const __testing = { backoffMs, webhookBackoffMs, DEFAULT_MAX_ATTEMPTS, NOT_AVAILABLE_BACKOFF_MS };
+
+/**
+ * Reprocess jobs from the DLQ (DEAD) or permanent-failure list (FAILED).
+ * Resets attempts and puts them back to PENDING so the worker picks them up.
+ * Caps at `limit` per call to avoid flooding the queue.
+ */
+export async function requeueDeadJobs(options?: {
+    status?: "DEAD" | "FAILED";
+    ids?: string[];
+    limit?: number;
+}): Promise<number> {
+    const status = options?.status ?? "DEAD";
+    const limit = Math.min(Math.max(options?.limit ?? 100, 1), 500);
+
+    const where = options?.ids?.length
+        ? { status, id: { in: options.ids } }
+        : { status };
+
+    const result = await prisma.messageJob.updateMany({
+        where,
+        data: {
+            status: "PENDING",
+            attempts: 0,
+            availableAt: new Date(),
+            lockedAt: null,
+            lockedBy: null,
+            lastError: null,
+        },
+    });
+
+    if (result.count > 0) {
+        logger.info("Queue", `Requeued ${result.count} ${status} job(s) for reprocessing`);
+    }
+    return result.count;
+}
+
 /**
  * `MessageJob.tenantId` is a required FK, but a legacy session may still have no company.
  * Resolve it from the session, and provision the owner's company on demand so the row can
@@ -322,6 +360,18 @@ async function runJob(job: {
         if (final && !isWebhook) {
             await onScheduledFailure({ correlationId: job.correlationId, final: true, error: message });
             await onBroadcastSettled(job, "failed", message);
+        }
+
+        // Alert operators when jobs start dying (DLQ growth).
+        if (final) {
+            void import("./alerts").then(({ sendAlert }) => {
+                sendAlert({
+                    event: "queue.job_dead",
+                    severity: "warning",
+                    message: `Job ${job.id} moved to ${quotaDenied ? "FAILED" : "DEAD"}: ${message.slice(0, 200)}`,
+                    details: { jobId: job.id, type: job.type, instanceId: job.instanceId },
+                });
+            }).catch(() => { /* never break the worker on alerting */ });
         }
     }
 }

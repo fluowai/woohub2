@@ -1,48 +1,34 @@
 #!/bin/bash
 
 # ==============================================================================
-# 🗄️ WooHub — Backup Script (PostgreSQL)
+# WooHub — Backup Script (PostgreSQL)
 # ==============================================================================
 # Uso: ./scripts/backup.sh [--upload-s3] [--retention-days N]
-# Requer: pg_dump, aws cli (opcional para S3), jq
+# Requer: pg_dump, aws cli (opcional para S3)
+#
+# Formato: custom (-Fc), compatível com o drill de restauração em
+# docs/BACKUP_RECOVERY.md (pg_restore). Alerta via ALERT_WEBHOOK_URL em falha.
 # ==============================================================================
 
 set -euo pipefail
 
-# Cores
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-# Configurações padrão
 RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-7}
 BACKUP_DIR=${BACKUP_DIR:-"/backups"}
 UPLOAD_S3=false
 S3_BUCKET=${BACKUP_S3_BUCKET:-""}
 S3_PREFIX=${BACKUP_S3_PREFIX:-"woohub/"}
-COMPRESS=true
 
-# Parse args
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --upload-s3)
-            UPLOAD_S3=true
-            shift
-            ;;
-        --retention-days)
-            RETENTION_DAYS="$2"
-            shift 2
-            ;;
-        --backup-dir)
-            BACKUP_DIR="$2"
-            shift 2
-            ;;
-        --no-compress)
-            COMPRESS=false
-            shift
-            ;;
+        --upload-s3) UPLOAD_S3=true; shift ;;
+        --retention-days) RETENTION_DAYS="$2"; shift 2 ;;
+        --backup-dir) BACKUP_DIR="$2"; shift 2 ;;
         *)
             echo -e "${RED}Opção desconhecida: $1${NC}"
             exit 1
@@ -50,71 +36,72 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Carregar .env se existir
+# Carregar .env se existir (sem exportar comentários)
 if [[ -f .env ]]; then
-    export $(grep -v '^#' .env | xargs)
+    set -a
+    # shellcheck disable=SC1091
+    source <(grep -E '^[A-Za-z_][A-Za-z0-9_]*=' .env || true)
+    set +a
 fi
 
-# Validar DATABASE_URL
 if [[ -z "${DATABASE_URL:-}" ]]; then
     echo -e "${RED}❌ DATABASE_URL não definido no .env${NC}"
     exit 1
 fi
 
-# Extrair parâmetros de conexão do DATABASE_URL
-# formato: postgresql://user:pass@host:port/dbname?schema=public
-DB_URL="${DATABASE_URL}"
-DB_USER=$(echo "$DB_URL" | sed -n 's/.*:\/\/\([^:]*\):.*/\1/p')
-DB_PASS=$(echo "$DB_URL" | sed -n 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/p')
-DB_HOST=$(echo "$DB_URL" | sed -n 's/.*@\([^:]*\):.*/\1/p')
-DB_PORT=$(echo "$DB_URL" | sed -n 's/.*:\([0-9]*\)\/.*/\1/p')
-DB_NAME=$(echo "$DB_URL" | sed -n 's/.*\/\([^?]*\).*/\1/p')
+# Alerta de falha para o operador (se configurado)
+alert_failure() {
+    local msg="$1"
+    if [[ -n "${ALERT_WEBHOOK_URL:-}" ]]; then
+        curl -sS -m 5 -X POST "$ALERT_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "{\"event\":\"backup.failed\",\"severity\":\"critical\",\"message\":\"$msg\"}" \
+            >/dev/null 2>&1 || true
+    fi
+}
 
-# Fallback para variáveis individuais
-DB_USER=${DB_USER:-${POSTGRES_USER:-postgres}}
-DB_PASS=${DB_PASS:-${POSTGRES_PASSWORD:-}}
-DB_HOST=${DB_HOST:-${POSTGRES_HOST:-localhost}}
-DB_PORT=${DB_PORT:-${POSTGRES_PORT:-5432}}
-DB_NAME=${DB_NAME:-${POSTGRES_DB:-woohub}}
-
-export PGPASSWORD="$DB_PASS"
-
+# pg_dump usa a URL diretamente (encoding correto de senha, sem parsing manual)
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-BACKUP_FILE="${BACKUP_DIR}/woohub_${DB_NAME}_${TIMESTAMP}.sql"
+DB_NAME=$(echo "$DATABASE_URL" | sed -n 's|.*/\([^?]*\).*|\1|p')
+DB_NAME=${DB_NAME:-postgres}
+BACKUP_FILE="${BACKUP_DIR}/woohub_${DB_NAME}_${TIMESTAMP}.dump"
 mkdir -p "$BACKUP_DIR"
 
 echo -e "${BLUE}====================================================${NC}"
-echo -e "${BLUE}       🗄️  WOOHUB DATABASE BACKUP  ${NC}"
+echo -e "${BLUE}       WOOHUB DATABASE BACKUP (custom -Fc)  ${NC}"
 echo -e "${BLUE}====================================================${NC}"
-echo -e "${BLUE}Database:${NC} $DB_NAME @ $DB_HOST:$DB_PORT"
+echo -e "${BLUE}Database:${NC} $DB_NAME"
 echo -e "${BLUE}Backup file:${NC} $BACKUP_FILE"
 echo -e "${BLUE}Retention:${NC} $RETENTION_DAYS days"
 echo -e "${BLUE}====================================================${NC}"
 
-# Executar pg_dump
-echo -e "\n${BLUE}[1/4] Creating backup...${NC}"
-if pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
-    --no-owner --no-privileges --no-tablespaces \
-    --format=plain --no-sync > "$BACKUP_FILE"; then
+echo -e "\n${BLUE}[1/4] Creating backup (custom format)...${NC}"
+if pg_dump --dbname="$DATABASE_URL" \
+    --format=custom --no-owner --no-privileges --no-tablespaces \
+    --no-sync --file="$BACKUP_FILE"; then
     echo -e "${GREEN}✓ Backup created successfully${NC}"
 else
     echo -e "${RED}❌ pg_dump failed${NC}"
+    alert_failure "pg_dump failed for database ${DB_NAME}"
     exit 1
 fi
 
-# Comprimir
-if [[ "$COMPRESS" == "true" ]]; then
-    echo -e "\n${BLUE}[2/4] Compressing backup...${NC}"
-    if gzip "$BACKUP_FILE"; then
-        BACKUP_FILE="${BACKUP_FILE}.gz"
-        echo -e "${GREEN}✓ Backup compressed: $(du -h "$BACKUP_FILE" | cut -f1)${NC}"
-    else
-        echo -e "${RED}❌ Compression failed${NC}"
+# Verificação de integridade básica: arquivo não vazio e pg_restore --list ok
+BACKUP_SIZE=$(stat -c%s "$BACKUP_FILE" 2>/dev/null || stat -f%z "$BACKUP_FILE" 2>/dev/null || echo 0)
+if [[ "$BACKUP_SIZE" -lt 100 ]]; then
+    echo -e "${RED}❌ Backup file suspiciously small (${BACKUP_SIZE} bytes)${NC}"
+    alert_failure "Backup file suspiciously small (${BACKUP_SIZE} bytes)"
+    exit 1
+fi
+if command -v pg_restore &> /dev/null; then
+    if ! pg_restore --list "$BACKUP_FILE" > /dev/null 2>&1; then
+        echo -e "${RED}❌ Backup failed integrity check (pg_restore --list)${NC}"
+        alert_failure "Backup failed integrity check"
         exit 1
     fi
+    echo -e "${GREEN}✓ Integrity check passed (pg_restore --list)${NC}"
 fi
 
-# Upload para S3 (opcional)
 if [[ "$UPLOAD_S3" == "true" ]]; then
     if [[ -z "$S3_BUCKET" ]]; then
         echo -e "${YELLOW}⚠️ BACKUP_S3_BUCKET não definido, pulando upload${NC}"
@@ -127,6 +114,7 @@ if [[ "$UPLOAD_S3" == "true" ]]; then
             echo -e "${GREEN}✓ Uploaded to s3://${S3_BUCKET}/${S3_KEY}${NC}"
         else
             echo -e "${RED}❌ S3 upload failed${NC}"
+            alert_failure "S3 upload failed for ${S3_KEY}"
             exit 1
         fi
     fi
@@ -134,14 +122,14 @@ else
     echo -e "\n${BLUE}[3/4] Skipping S3 upload (use --upload-s3 to enable)${NC}"
 fi
 
-# Limpeza de backups antigos
 echo -e "\n${BLUE}[4/4] Cleaning old backups (older than $RETENTION_DAYS days)...${NC}"
-find "$BACKUP_DIR" -name "woohub_${DB_NAME}_*.sql*" -type f -mtime +$RETENTION_DAYS -delete
-REMAINING=$(find "$BACKUP_DIR" -name "woohub_${DB_NAME}_*.sql*" -type f | wc -l)
+find "$BACKUP_DIR" -name "woohub_${DB_NAME}_*.dump*" -type f -mtime +$RETENTION_DAYS -delete
+REMAINING=$(find "$BACKUP_DIR" -name "woohub_${DB_NAME}_*.dump*" -type f | wc -l)
 echo -e "${GREEN}✓ Cleanup done. $REMAINING backup(s) retained.${NC}"
 
 echo -e "\n${GREEN}====================================================${NC}"
-echo -e "${GREEN}       ✅ BACKUP CONCLUÍDO COM SUCESSO  ${NC}"
+echo -e "${GREEN}       BACKUP CONCLUIDO COM SUCESSO  ${NC}"
 echo -e "${GREEN}====================================================${NC}"
 echo -e "Arquivo: $BACKUP_FILE"
 echo -e "Tamanho: $(du -h "$BACKUP_FILE" | cut -f1)"
+echo -e "Restaurar com: pg_restore -d \"\$DATABASE_URL\" --clean --if-exists \"$BACKUP_FILE\""
