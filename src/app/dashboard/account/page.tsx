@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, User, Lock } from "lucide-react";
+import { Loader2, User, Lock, ShieldCheck, ShieldOff } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 
 interface ProfileData {
     id: string;
@@ -29,6 +30,31 @@ export default function AccountPage() {
     const [currentPw, setCurrentPw] = useState("");
     const [newPw, setNewPw] = useState("");
 
+    // MFA state
+    const [mfaEnabled, setMfaEnabled] = useState(false);
+    const [mfaPendingSecret, setMfaPendingSecret] = useState<string | null>(null);
+    const [mfaPendingUri, setMfaPendingUri] = useState<string | null>(null);
+    const [mfaCode, setMfaCode] = useState("");
+    const [mfaBusy, setMfaBusy] = useState(false);
+
+    const loadMfa = useCallback(async () => {
+        try {
+            const res = await fetch("/api/user/mfa");
+            if (!res.ok) return;
+            const data = await res.json();
+            setMfaEnabled(!!data.enabled);
+            if (!data.enabled) {
+                setMfaPendingSecret(data.pendingSecret || null);
+                setMfaPendingUri(data.otpauthUri || null);
+            } else {
+                setMfaPendingSecret(null);
+                setMfaPendingUri(null);
+            }
+        } catch {
+            // ignore — MFA card will show generic error on action
+        }
+    }, []);
+
     const load = useCallback(async () => {
         try {
             const res = await fetch("/api/user/profile");
@@ -49,7 +75,8 @@ export default function AccountPage() {
 
     useEffect(() => {
         load();
-    }, [load]);
+        loadMfa();
+    }, [load, loadMfa]);
 
     async function handleUpdateProfile() {
         if (!profile) return;
@@ -109,6 +136,60 @@ export default function AccountPage() {
             toast.error("Erro de conexão ao alterar senha");
         } finally {
             setChangingPw(false);
+        }
+    }
+
+    async function handleEnableMfa() {
+        if (!mfaPendingSecret || mfaCode.replace(/\s/g, "").length !== 6) {
+            toast.error("Informe o código de 6 dígitos do aplicativo autenticador");
+            return;
+        }
+        setMfaBusy(true);
+        try {
+            const res = await fetch("/api/user/mfa", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ code: mfaCode, secret: mfaPendingSecret }),
+            });
+            const data = await res.json();
+            if (res.ok && data.enabled) {
+                toast.success("MFA ativado com sucesso");
+                setMfaCode("");
+                await loadMfa();
+            } else {
+                toast.error(data.error || "Não foi possível ativar o MFA");
+            }
+        } catch {
+            toast.error("Erro de conexão ao ativar MFA");
+        } finally {
+            setMfaBusy(false);
+        }
+    }
+
+    async function handleDisableMfa() {
+        if (mfaCode.replace(/\s/g, "").length !== 6) {
+            toast.error("Informe o código atual para desativar o MFA");
+            return;
+        }
+        setMfaBusy(true);
+        try {
+            const res = await fetch("/api/user/mfa", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ code: mfaCode }),
+            });
+            const data = await res.json();
+            if (res.ok && data.enabled === false) {
+                toast.success("MFA desativado");
+                setMfaCode("");
+                await loadMfa();
+            } else {
+                toast.error(data.error || "Não foi possível desativar o MFA");
+            }
+        } catch {
+            toast.error("Erro de conexão ao desativar MFA");
+        } finally {
+            setMfaBusy(false);
         }
     }
 
@@ -180,6 +261,62 @@ export default function AccountPage() {
                         {changingPw && <Loader2 className="h-4 w-4 animate-spin" />}
                         Alterar senha
                     </Button>
+                </CardContent>
+            </Card>
+
+            <Card className="glass-panel border-border/50 shadow-sm">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                        {mfaEnabled ? (
+                            <ShieldCheck className="h-4 w-4 text-primary" />
+                        ) : (
+                            <ShieldOff className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        Autenticação de dois fatores (MFA)
+                    </CardTitle>
+                    <CardDescription>
+                        {mfaEnabled
+                            ? "MFA está ativo. Informe o código do aplicativo autenticador ao entrar."
+                            : "Proteja sua conta com um código de 6 dígitos do aplicativo autenticador (Google Authenticator, Authy, etc)."}
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {!mfaEnabled && mfaPendingUri && (
+                        <div className="space-y-3">
+                            <div className="flex flex-col items-center gap-3 p-4 rounded-xl bg-background/50 border border-border/50">
+                                <QRCodeSVG value={mfaPendingUri} size={160} level="M" />
+                                <p className="text-xs text-muted-foreground text-center font-mono break-all max-w-full">
+                                    {mfaPendingSecret}
+                                </p>
+                                <p className="text-xs text-muted-foreground text-center">
+                                    Escaneie o QR code ou copie a chave no seu aplicativo autenticador.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                    <div className="space-y-2">
+                        <Label htmlFor="mfa-code">Código de verificação</Label>
+                        <Input
+                            id="mfa-code"
+                            value={mfaCode}
+                            onChange={(e) => setMfaCode(e.target.value)}
+                            placeholder="000000"
+                            maxLength={6}
+                            inputMode="numeric"
+                            autoComplete="one-time-code"
+                        />
+                    </div>
+                    {!mfaEnabled ? (
+                        <Button onClick={handleEnableMfa} disabled={mfaBusy} className="gap-2">
+                            {mfaBusy && <Loader2 className="h-4 w-4 animate-spin" />}
+                            Ativar MFA
+                        </Button>
+                    ) : (
+                        <Button onClick={handleDisableMfa} disabled={mfaBusy} variant="destructive" className="gap-2">
+                            {mfaBusy && <Loader2 className="h-4 w-4 animate-spin" />}
+                            Desativar MFA
+                        </Button>
+                    )}
                 </CardContent>
             </Card>
         </div>

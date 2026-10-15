@@ -204,14 +204,14 @@ export function MobileNav({ appName = "Woohub", theme, userRole: propUserRole }:
                                                 transition-all duration-200 group relative
                                                 gap-3 px-3.5 py-2.5
                                                 ${isActive(href)
-                                                    ? "text-[#0284c7] bg-[#e0f2fe] font-semibold"
-                                                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                                                    ? "text-white bg-[#FF6600] font-bold shadow-md shadow-orange-600/30"
+                                                    : "text-slate-300 hover:bg-slate-800/50 hover:text-white"
                                                 }
                                             `}
                                         >
                                             <Icon
                                                 size={18}
-                                                className={`flex-shrink-0 transition-colors duration-200 ${isActive(href) ? "text-[#0284c7]" : "text-slate-400 group-hover:text-slate-700"}`}
+                                                className={`flex-shrink-0 transition-colors duration-200 ${isActive(href) ? "text-white" : "text-slate-400 group-hover:text-white"}`}
                                             />
                                             <span className="truncate">{label}</span>
                                         </Link>

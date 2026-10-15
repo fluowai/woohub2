@@ -95,41 +95,28 @@ export function SidebarNav({ userRole: propUserRole }: SidebarNavProps = {}) {
     // Standard Workspace Groups matching Mockup 100%
     const operationalGroups: NavGroup[] = [
         {
-            id: "operacao",
-            label: "OPERAÇÃO",
+            id: "principal",
             items: [
-                { href: "/dashboard", label: "Visão geral", icon: LayoutDashboard },
-                { href: "/dashboard/sessions", label: "Sessões / QR", icon: QrCode },
-                { href: "/dashboard/sessions", label: "Detalhes da sessão", icon: Sliders },
-            ],
-        },
-        {
-            id: "mensagens",
-            label: "MENSAGENS",
-            items: [
+                { href: "/dashboard", label: "Início", icon: Home },
+                { href: "/dashboard/sessions", label: "Instâncias", icon: QrCode },
                 { href: "/dashboard/chat", label: "Conversas", icon: MessageSquare },
-                { href: "/dashboard/broadcast", label: "Disparos", icon: Send },
-                { href: "/dashboard/sticker", label: "Criador de stickers", icon: Sparkles },
-            ],
-        },
-        {
-            id: "contatos",
-            label: "CONTATOS",
-            items: [
+                { href: "/dashboard/broadcast", label: "Campanhas", icon: Send },
                 { href: "/dashboard/contacts", label: "Contatos", icon: Contact },
-                { href: "/dashboard/groups", label: "Grupos", icon: Users },
                 { href: "/dashboard/labels", label: "Etiquetas", icon: Tag },
+                { href: "/dashboard/autoreply", label: "Automações", icon: Bot },
+                { href: "/dashboard/system-monitor", label: "Relatórios", icon: Activity },
+                { href: "/dashboard/settings", label: "Configurações", icon: Sliders },
             ],
         },
         {
-            id: "automacao",
-            label: "AUTOMAÇÃO",
+            id: "recursos",
+            label: "RECURSOS EXTRAS",
             items: [
-                { href: "/dashboard/bot-settings", label: "Configurar bot", icon: Bot },
-                { href: "/dashboard/autoreply", label: "Respostas automáticas", icon: MessageSquareReply },
-                { href: "/dashboard/profile", label: "Perfil do WhatsApp", icon: UserCircle },
+                { href: "/dashboard/groups", label: "Grupos WhatsApp", icon: Users },
                 { href: "/dashboard/scheduler", label: "Agendamentos", icon: CalendarClock },
                 { href: "/dashboard/webhooks", label: "Webhooks & API", icon: Webhook },
+                { href: "/dashboard/sticker", label: "Criador de stickers", icon: Sparkles },
+                { href: "/dashboard/profile", label: "Perfil comercial", icon: UserCircle },
             ],
         },
     ];
@@ -137,7 +124,7 @@ export function SidebarNav({ userRole: propUserRole }: SidebarNavProps = {}) {
     // MEGA ADMIN administrative section
     const megaAdminGroup: NavGroup = {
         id: "mega-admin",
-        label: "ADMINISTRAÇÃO MEGA",
+        label: "ADMINISTRAÇÃO",
         items: [
             { href: "/dashboard/mega-admin", label: "Painel Mega Admin", icon: Shield },
             { href: "/dashboard/mega-admin/stacks", label: "Stacks e instalações", icon: Database },
@@ -167,7 +154,7 @@ export function SidebarNav({ userRole: propUserRole }: SidebarNavProps = {}) {
 
     return (
         <TooltipProvider delayDuration={0}>
-            <nav className="flex-1 px-3 py-3 overflow-y-auto overflow-x-hidden space-y-1 styled-scrollbar">
+            <nav className="flex-1 px-3 py-3 overflow-y-auto overflow-x-hidden space-y-2 styled-scrollbar">
                 {activeGroups.map((group) => {
                     const isGroupCollapsed = collapsedGroups[group.id] ?? false;
 
@@ -176,7 +163,7 @@ export function SidebarNav({ userRole: propUserRole }: SidebarNavProps = {}) {
                             {!isCollapsed && group.label && (
                                 <button
                                     onClick={() => toggleGroup(group.id)}
-                                    className="flex items-center justify-between w-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-600 transition-colors"
+                                    className="flex items-center justify-between w-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-300 transition-colors"
                                 >
                                     <span>{group.label}</span>
                                     <ChevronDown
@@ -187,12 +174,12 @@ export function SidebarNav({ userRole: propUserRole }: SidebarNavProps = {}) {
                             )}
 
                             {(!isGroupCollapsed || isCollapsed) && (
-                                <div className="space-y-0.5">
+                                <div className="space-y-1">
                                     {group.items.map((item) => (
                                         <NavLink
                                             key={`${group.id}-${item.label}-${item.href}`}
                                             item={item}
-                                            active={isActive(item.href) && (group.id !== "operacao" || item.href === "/dashboard" ? isActive(item.href) : pathname === item.href)}
+                                            active={isActive(item.href) && (item.href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(item.href))}
                                             isCollapsed={isCollapsed}
                                         />
                                     ))}
@@ -204,10 +191,10 @@ export function SidebarNav({ userRole: propUserRole }: SidebarNavProps = {}) {
             </nav>
 
             {/* Collapse Toggle */}
-            <div className="px-3 py-2 border-t border-slate-100">
+            <div className="px-3 py-2 border-t border-slate-800/60">
                 <button
                     onClick={toggleCollapse}
-                    className="flex items-center justify-center w-full gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-all duration-200"
+                    className="flex items-center justify-center w-full gap-2 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800/60 transition-all duration-200"
                 >
                     {isCollapsed ? (
                         <PanelLeft size={18} />
@@ -233,16 +220,16 @@ function NavLink({ item, active, isCollapsed }: { item: NavItem; active: boolean
             className={`
                 flex items-center rounded-xl text-[13px] font-medium
                 transition-all duration-150 group relative
-                ${isCollapsed ? "justify-center px-2 py-2.5 mx-1" : "gap-3 px-3 py-2"}
+                ${isCollapsed ? "justify-center px-2 py-2.5 mx-1" : "gap-3 px-3.5 py-2.5"}
                 ${active
-                    ? "text-[#0284c7] bg-[#e0f2fe] font-semibold"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    ? "text-white bg-[#FF6600] font-bold shadow-md shadow-orange-600/30"
+                    : "text-slate-400 hover:bg-slate-800/50 hover:text-white"
                 }
             `}
         >
             <Icon
                 size={isCollapsed ? 20 : 18}
-                className={`flex-shrink-0 transition-colors duration-150 ${active ? "text-[#0284c7]" : "text-slate-400 group-hover:text-slate-700"}`}
+                className={`flex-shrink-0 transition-colors duration-150 ${active ? "text-white" : "text-slate-400 group-hover:text-white"}`}
             />
             {!isCollapsed && <span className="truncate">{item.label}</span>}
         </Link>

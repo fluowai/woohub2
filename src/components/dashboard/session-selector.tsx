@@ -15,7 +15,7 @@ export function SessionSelector({ theme }: { theme?: any }) {
         <div className="flex items-center gap-1">
             <div className="w-[160px] sm:w-[190px]">
                 <Select value={sessionId} onValueChange={setSessionId} disabled={loading && sessions.length === 0}>
-                    <SelectTrigger className="h-8 px-2.5 bg-white border border-slate-200 hover:bg-slate-50 transition-colors rounded-lg text-xs font-medium text-slate-700 shadow-xs focus:ring-1 focus:ring-[#0284c7]">
+                    <SelectTrigger className="h-8 px-2.5 bg-white border border-slate-200 hover:bg-slate-50 transition-colors rounded-lg text-xs font-medium text-slate-700 shadow-xs focus:ring-1 focus:ring-[#FF6600]">
                         <SelectValue placeholder="Comercial · sessão demo">
                             {selectedSession ? (
                                 <div className="flex items-center gap-1.5 text-left truncate">

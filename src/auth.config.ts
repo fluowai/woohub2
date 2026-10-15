@@ -1,5 +1,8 @@
 import type { NextAuthConfig } from "next-auth";
 
+// Session lifetime from SESSION_TIMEOUT_HOURS (default 24h — not NextAuth's 30d).
+const sessionHours = Math.max(1, parseInt(process.env.SESSION_TIMEOUT_HOURS || "24", 10) || 24);
+
 export const authConfig = {
     pages: {
         signIn: '/auth/login',
@@ -37,7 +40,8 @@ export const authConfig = {
     },
     providers: [], // Configured in auth.ts
     session: {
-        strategy: 'jwt'
+        strategy: 'jwt',
+        maxAge: sessionHours * 3600,
     },
     trustHost: true,
 } satisfies NextAuthConfig;

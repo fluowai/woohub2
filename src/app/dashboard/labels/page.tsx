@@ -105,11 +105,11 @@ export default function LabelsPage() {
             if (res.ok && data.data?.labels) {
                 setLabels(data.data.labels);
             } else {
-                toast.error(data.message || "Falha ao carregar as etiquetas");
+                toast.error(data.message || "Falha ao carregar etiquetas");
             }
         } catch (error) {
             console.error(error);
-            toast.error("Erro ao buscar as etiquetas");
+            toast.error("Erro ao buscar etiquetas");
         } finally {
             setLoading(false);
         }
@@ -137,11 +137,11 @@ export default function LabelsPage() {
                 resetForm();
                 fetchLabels();
             } else {
-                toast.error(data.message || "Falha ao criar a etiqueta");
+                toast.error(data.message || "Falha ao criar etiqueta");
             }
         } catch (error) {
             console.error(error);
-            toast.error("Erro ao criar a etiqueta");
+            toast.error("Erro ao criar etiqueta");
         } finally {
             setSubmitting(false);
         }
@@ -169,11 +169,11 @@ export default function LabelsPage() {
                 resetForm();
                 fetchLabels();
             } else {
-                toast.error(data.message || "Falha ao atualizar a etiqueta");
+                toast.error(data.message || "Falha ao atualizar etiqueta");
             }
         } catch (error) {
             console.error(error);
-            toast.error("Erro ao atualizar a etiqueta");
+            toast.error("Erro ao atualizar etiqueta");
         } finally {
             setSubmitting(false);
         }
@@ -194,11 +194,11 @@ export default function LabelsPage() {
                 }
                 fetchLabels();
             } else {
-                toast.error(data.message || "Falha ao excluir a etiqueta");
+                toast.error(data.message || "Falha ao excluir etiqueta");
             }
         } catch (error) {
             console.error(error);
-            toast.error("Erro ao excluir a etiqueta");
+            toast.error("Erro ao excluir etiqueta");
         }
     };
 
@@ -280,17 +280,17 @@ export default function LabelsPage() {
             });
 
             if (res.ok) {
-                toast.success("Conversa atribuída à etiqueta");
+                toast.success("Conversa atribuída à etiqueta com sucesso");
                 fetchLabels();
                 if (expandedLabelId === assignLabelId) {
                     fetchChatLabels(assignLabelId);
                 }
             } else {
                 const data = await res.json();
-                toast.error(data.message || "Falha ao atribuir a etiqueta");
+                toast.error(data.message || "Falha ao atribuir etiqueta");
             }
         } catch (error) {
-            toast.error("Erro ao atribuir a etiqueta");
+            toast.error("Erro ao atribuir etiqueta");
         }
     };
 
@@ -310,17 +310,17 @@ export default function LabelsPage() {
                     fetchChatLabels(labelId);
                 }
             } else {
-                toast.error("Falha ao remover a etiqueta");
+                toast.error("Falha ao remover etiqueta");
             }
         } catch (error) {
-            toast.error("Erro ao remover a etiqueta");
+            toast.error("Erro ao remover etiqueta");
         }
     };
 
     // --- Color Picker Component ---
     const ColorPicker = () => (
         <div className="space-y-2">
-            <Label>Cor</Label>
+            <Label>Cor da etiqueta</Label>
             <div className="grid grid-cols-10 gap-1.5 mt-2">
                 {WAP_COLORS.map((hex, index) => (
                     <div
@@ -340,7 +340,7 @@ export default function LabelsPage() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Etiquetas de conversas</h1>
-                    <p className="text-sm text-muted-foreground">Organize conversas com etiquetas coloridas. Clique em uma etiqueta para gerenciar as conversas atribuídas.</p>
+                    <p className="text-sm text-muted-foreground">Organize conversas e contatos com etiquetas coloridas. Clique em uma etiqueta para gerenciar as conversas atribuídas.</p>
                 </div>
 
                 <Dialog open={isCreateOpen} onOpenChange={(open) => {
@@ -356,7 +356,7 @@ export default function LabelsPage() {
                     <DialogContent>
                         <DialogHeader>
                             <DialogTitle>Criar nova etiqueta</DialogTitle>
-                            <DialogDescription>Adicione uma nova etiqueta colorida para organizar conversas.</DialogDescription>
+                            <DialogDescription>Adicione uma etiqueta colorida para categorizar conversas e contatos.</DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4 py-4">
                             <div className="space-y-2">
@@ -364,7 +364,7 @@ export default function LabelsPage() {
                                 <Input
                                     value={currentName}
                                     onChange={(e) => setCurrentName(e.target.value)}
-                                    placeholder="ex.: Cliente VIP"
+                                    placeholder="Ex: Cliente VIP, Lead Quente, etc."
                                 />
                             </div>
                             <ColorPicker />
@@ -388,9 +388,9 @@ export default function LabelsPage() {
                 <Card className="border-dashed shadow-none bg-muted/30">
                     <CardContent className="flex flex-col items-center justify-center py-12 text-center">
                         <Tag className="w-12 h-12 text-muted-foreground/50 mb-4" />
-                        <h3 className="text-lg font-semibold">Nenhuma etiqueta encontrada</h3>
-                        <p className="text-muted-foreground mb-4">Você ainda não criou nenhuma etiqueta de conversas.</p>
-                        <Button variant="outline" onClick={() => setIsCreateOpen(true)}>Criar sua primeira etiqueta</Button>
+                        <h3 className="text-lg font-semibold">Nenhuma etiqueta cadastrada</h3>
+                        <p className="text-muted-foreground mb-4">Você ainda não criou nenhuma etiqueta nesta sessão.</p>
+                        <Button variant="outline" onClick={() => setIsCreateOpen(true)}>Criar primeira etiqueta</Button>
                     </CardContent>
                 </Card>
             ) : (
@@ -408,7 +408,7 @@ export default function LabelsPage() {
                                         <Tag className="w-4 h-4 shrink-0" style={{ color: label.colorHex }} />
                                         <span className="font-semibold truncate">{label.name}</span>
                                         <Badge variant="secondary" className="font-normal text-xs shrink-0">
-                                            {label._count.chatLabels} conversa{label._count.chatLabels !== 1 ? "s" : ""}
+                                            {label._count.chatLabels} {label._count.chatLabels === 1 ? "conversa" : "conversas"}
                                         </Badge>
                                         {expandedLabelId === label.id
                                             ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -443,7 +443,7 @@ export default function LabelsPage() {
                                                 <AlertDialogHeader>
                                                     <AlertDialogTitle>Excluir etiqueta?</AlertDialogTitle>
                                                     <AlertDialogDescription>
-                                                        Isso excluirá permanentemente a etiqueta <strong>{label.name}</strong> e a removerá de todas as conversas atribuídas.
+                                                        Esta ação excluirá permanentemente a etiqueta <strong>{label.name}</strong> e a desvinculará de todas as conversas atribuídas.
                                                     </AlertDialogDescription>
                                                 </AlertDialogHeader>
                                                 <AlertDialogFooter>
@@ -535,7 +535,7 @@ export default function LabelsPage() {
                             <Input
                                 value={currentName}
                                 onChange={(e) => setCurrentName(e.target.value)}
-                                placeholder="ex.: Cliente VIP"
+                                placeholder="Ex: Cliente VIP, Lead Quente, etc."
                             />
                         </div>
                         <ColorPicker />
@@ -562,13 +562,13 @@ export default function LabelsPage() {
                 <DialogContent className="max-w-md">
                     <DialogHeader>
                         <DialogTitle>Atribuir conversa à etiqueta</DialogTitle>
-                        <DialogDescription>Busque um contato ou digite um JID para atribuir a esta etiqueta.</DialogDescription>
+                        <DialogDescription>Busque por um contato ou digite o telefone/JID para vincular a esta etiqueta.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="relative">
                             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                             <Input
-                                placeholder="Busque contatos ou digite o JID..."
+                                placeholder="Buscar contatos ou digitar telefone..."
                                 className="pl-9"
                                 value={contactSearch}
                                 onChange={(e) => setContactSearch(e.target.value)}
@@ -594,7 +594,7 @@ export default function LabelsPage() {
                                             {(c.name || c.notify || c.jid).charAt(0).toUpperCase()}
                                         </div>
                                         <div className="min-w-0 flex-1">
-                                            <p className="text-sm font-medium truncate">{c.name || c.notify || "Desconhecido"}</p>
+                                            <p className="text-sm font-medium truncate">{c.name || c.notify || "Sem nome"}</p>
                                             <p className="text-[11px] text-muted-foreground font-mono truncate">{c.jid}</p>
                                         </div>
                                         <Badge variant="outline" className="text-[10px] shrink-0">Atribuir</Badge>

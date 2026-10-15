@@ -188,25 +188,31 @@ export default function AutoReplyPage() {
         }
     };
 
+    const [activeTab, setActiveTab] = useState<"flows" | "triggers" | "quick">("flows");
+
     return (
         <SessionGuard>
-            <div className="max-w-5xl space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Construtor de respostas automáticas</h1>
-                    <p className="text-muted-foreground">Crie regras para responder automaticamente às mensagens recebidas.</p>
-                </div>
+            <div className="max-w-7xl space-y-6 mx-auto">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+                            Automações
+                        </h1>
+                        <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                            Crie fluxos automatizados para seu atendimento.
+                        </p>
+                    </div>
 
-                <Dialog open={isCreateOpen} onOpenChange={(open) => {
-                    setIsCreateOpen(open);
-                    if (!open) resetForm();
-                }}>
-                    <DialogTrigger asChild>
-                        <Button>
-                            <Plus className="w-4 h-4 mr-2" />
-                            Nova regra
-                        </Button>
-                    </DialogTrigger>
+                    <Dialog open={isCreateOpen} onOpenChange={(open) => {
+                        setIsCreateOpen(open);
+                        if (!open) resetForm();
+                    }}>
+                        <DialogTrigger asChild>
+                            <Button className="bg-[#FF6600] hover:bg-[#FF5500] text-white font-bold rounded-xl text-xs sm:text-sm shadow-md shadow-orange-500/20">
+                                <Plus className="w-4 h-4 mr-2" />
+                                Nova automação
+                            </Button>
+                        </DialogTrigger>
                     <DialogContent className="sm:max-w-[500px]">
                         <DialogHeader>
                             <DialogTitle>Criar regra de resposta automática</DialogTitle>

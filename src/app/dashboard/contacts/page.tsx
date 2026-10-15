@@ -97,52 +97,52 @@ export default function ContactListPage() {
 
     return (
         <SessionGuard>
-            <div className="space-y-6">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="space-y-6 max-w-7xl mx-auto">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div>
-                        <h2 className="text-3xl font-bold tracking-tight">Contatos</h2>
-                        <p className="text-muted-foreground">
-                            Gerencie e visualize seus contatos salvos.
+                        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+                            Contatos
+                        </h1>
+                        <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                            Gerencie sua lista de contatos.
                         </p>
+                    </div>
+                    <Button
+                        className="bg-[#FF6600] hover:bg-[#FF5500] text-white font-bold rounded-xl text-xs sm:text-sm shadow-md shadow-orange-500/20"
+                    >
+                        + Novo contato
+                    </Button>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200/90 shadow-xs">
+                    <div className="relative flex-1 w-full">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Input
+                            placeholder="Buscar por nome, telefone ou etiqueta..."
+                            className="pl-9 h-10 rounded-xl bg-slate-50 border-slate-200 text-xs sm:text-sm focus-visible:ring-[#FF6600]"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                        />
+                    </div>
+                    <div className="flex items-center gap-2 self-end sm:self-auto">
+                        <Select value={limit} onValueChange={(val) => { setLimit(val); setPage(1); }}>
+                            <SelectTrigger className="w-[130px] h-10 rounded-xl border-slate-200 text-xs font-semibold">
+                                <SelectValue placeholder="Por página" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {[10, 25, 50, 100].map((l) => (
+                                    <SelectItem key={l} value={l.toString()}>
+                                        {l} por página
+                                    </SelectItem>
+                                ))}
+                                <SelectItem value="all">Mostrar tudo</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
 
-                <Card>
-                    <CardHeader>
-                        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                            <div className="space-y-1">
-                                <CardTitle>Lista de contatos</CardTitle>
-                                <CardDescription>
-                                    Total: {meta.total} contatos encontrados
-                                </CardDescription>
-                            </div>
-                            <div className="flex items-center gap-2 w-full md:w-auto">
-                                <Select value={limit} onValueChange={(val) => { setLimit(val); setPage(1); }}>
-                                    <SelectTrigger className="w-[120px]">
-                                        <SelectValue placeholder="Por página" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {[10, 25, 50, 100].map((l) => (
-                                            <SelectItem key={l} value={l.toString()}>
-                                                {l} / página
-                                            </SelectItem>
-                                        ))}
-                                        <SelectItem value="all">Mostrar tudo</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <div className="relative w-full md:w-64">
-                                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        placeholder="Buscar contatos..."
-                                        className="pl-8"
-                                        value={search}
-                                        onChange={(e) => setSearch(e.target.value)}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
+                <Card className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
+                    <CardContent className="p-0">
                         <div className="rounded-md border">
                             <Table>
                                 <TableHeader>

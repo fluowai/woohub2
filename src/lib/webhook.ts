@@ -7,6 +7,7 @@ import { resolveToPhoneJidBySessionId as resolveToPhoneJid } from "./jid-utils";
 import { logger } from "./logger";
 import { waManager } from "@/modules/whatsapp/manager";
 import { safeFetch, SsrfError } from "./security/ssrf";
+import { encryptSecret, decryptSecret, isEncrypted } from "./security/crypto";
 
 // Event types that can trigger webhooks
 export const WEBHOOK_EVENT_TYPES = [
@@ -134,6 +135,45 @@ function jsonReplacer(key: string, value: any) {
     return value;
 }
 
+// ---------------------------------------------------------------------------
+// Webhook secret at-rest encryption (AES-256-GCM via CREDENTIALS_ENCRYPTION_KEY)
+// ---------------------------------------------------------------------------
+// AAD binds the ciphertext to the webhook row so secrets cannot be swapped
+// between webhooks. Legacy plaintext secrets (pre-encryption) keep working:
+// decryptWebhookSecret falls back to the raw value when the envelope is absent.
+
+function webhookSecretAad(webhookId: string): string {
+    return `webhook:${webhookId}:secret`;
+}
+
+/** Encrypts a plaintext secret for storage. No-op for empty/null. */
+export function encryptWebhookSecret(webhookId: string, secret: string | null | undefined): string | null {
+    if (!secret) return null;
+    if (isEncrypted(secret)) return secret; // already encrypted
+    return encryptSecret(secret, webhookSecretAad(webhookId));
+}
+
+/**
+ * Decrypts a stored secret for HMAC signing. Accepts legacy plaintext
+ * (rows written before encryption was introduced).
+ */
+export function decryptWebhookSecret(webhookId: string, stored: string | null | undefined): string | null {
+    if (!stored) return null;
+    if (!isEncrypted(stored)) return stored; // legacy plaintext
+    try {
+        return decryptSecret(stored, webhookSecretAad(webhookId));
+    } catch (error) {
+        logger.error("Webhook", `Failed to decrypt secret for webhook ${webhookId}:`, error);
+        return null; // fail closed — never sign with a wrong/plaintext secret
+    }
+}
+
+/** Redacts the secret field from a webhook row before returning it to an API client. */
+export function redactWebhook<T extends { secret?: string | null }>(webhook: T): Omit<T, "secret"> & { secret_configured: boolean } {
+    const { secret, ...rest } = webhook;
+    return { ...rest, secret_configured: !!secret };
+}
+
 /**
  * Delivery policy: limited attempts with exponential backoff.
  * Every attempt (success or failure) is recorded with its own log row, so re-delivery is auditable.
@@ -187,7 +227,8 @@ export async function executeWebhookJob(payload: WebhookJobPayload, attempt: num
         return;
     }
 
-    await sendWebhookRequest(webhook.url, payload.body, webhook.secret, webhook.id, attempt);
+    const plainSecret = decryptWebhookSecret(webhook.id, webhook.secret);
+    await sendWebhookRequest(webhook.url, payload.body, plainSecret, webhook.id, attempt);
 }
 
 /**

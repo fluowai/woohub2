@@ -54,9 +54,9 @@ function formatTime(ts: string, tz: string) {
     const d = new Date(ts);
     if (isNaN(d.getTime())) return ts || "";
     try {
-        return d.toLocaleString("id-ID", { timeZone: tz });
+        return d.toLocaleString("pt-BR", { timeZone: tz });
     } catch {
-        return d.toLocaleString("id-ID");
+        return d.toLocaleString("pt-BR");
     }
 }
 
@@ -65,9 +65,9 @@ function formatTimeOnly(ts: string, tz: string) {
     const d = new Date(ts);
     if (isNaN(d.getTime())) return "";
     try {
-        return d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: tz });
+        return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: tz });
     } catch {
-        return d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     }
 }
 

@@ -25,7 +25,7 @@ export function RoleBanner({ userRole }: RoleBannerProps = {}) {
     return (
         <div className="w-full bg-[#f8fafc] border-b border-slate-200 px-6 py-2.5 flex items-center justify-between text-xs select-none z-30">
             <div className="flex items-center gap-3">
-                <span className="bg-[#0284c7] text-white font-bold px-3 py-1 rounded-md text-[11px] tracking-wide uppercase shadow-xs">
+                <span className="bg-gradient-to-r from-[#FF7A1A] to-[#FF5500] text-white font-bold px-3 py-1 rounded-md text-[11px] tracking-wide uppercase shadow-xs">
                     {isMega ? "MEGA ADMIN • Dono da API" : "SUPER ADMIN • Revenda white label"}
                 </span>
                 <span className="text-slate-600 font-normal text-xs hidden sm:inline">

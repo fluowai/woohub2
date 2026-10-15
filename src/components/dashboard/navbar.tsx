@@ -190,10 +190,11 @@ export function Navbar({ appName, userRole }: NavbarProps) {
             </div>
 
             <div className="flex items-center gap-3">
-                {/* Modo demonstração pill matching mockup */}
-                <span className="hidden sm:inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-[#e0f2fe] text-[#0284c7] border border-sky-100">
-                    Modo demonstração
-                </span>
+                {/* Role Pill matching mockup (e.g. 👑 Mega Admin) */}
+                <div className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white border border-slate-200 text-slate-700 shadow-2xs">
+                    <span className="text-amber-500 text-xs">👑</span>
+                    <span>{displayRole}</span>
+                </div>
 
                 {/* Instance selector for client/admin */}
                 <SessionSelector theme={theme} />
@@ -202,11 +203,11 @@ export function Navbar({ appName, userRole }: NavbarProps) {
                 <Popover open={isOpen} onOpenChange={setIsOpen}>
                     <PopoverTrigger asChild>
                         <button
-                            className="relative p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-full transition-colors"
+                            className="relative p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors"
                             aria-label="Notificações"
                         >
                             <Bell className="h-5 w-5" />
-                            <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-[#0284c7] rounded-full ring-2 ring-white" />
+                            <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-[#FF6600] rounded-full ring-2 ring-white" />
                         </button>
                     </PopoverTrigger>
                     <PopoverContent
@@ -225,7 +226,7 @@ export function Navbar({ appName, userRole }: NavbarProps) {
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => markAsRead()}
-                                    className="h-auto py-1 px-2 text-xs text-sky-600 hover:text-sky-700 hover:bg-sky-50"
+                                    className="h-auto py-1 px-2 text-xs text-orange-600 hover:text-orange-700 hover:bg-orange-50"
                                 >
                                     Ler todas
                                 </Button>
@@ -244,14 +245,14 @@ export function Navbar({ appName, userRole }: NavbarProps) {
                                     {notifications.map((n) => (
                                         <div
                                             key={n.id}
-                                            className={`p-3 hover:bg-slate-50 transition-colors ${!n.read ? "bg-sky-50/40" : ""}`}
+                                            className={`p-3 hover:bg-slate-50 transition-colors ${!n.read ? "bg-orange-50/40" : ""}`}
                                         >
                                             <div className="flex justify-between items-start gap-2">
                                                 <div
                                                     className="flex-1 cursor-pointer"
                                                     onClick={() => handleNotificationClick(n)}
                                                 >
-                                                    <p className={`text-xs font-semibold ${!n.read ? "text-[#0284c7]" : "text-slate-800"}`}>
+                                                    <p className={`text-xs font-semibold ${!n.read ? "text-[#FF6600]" : "text-slate-800"}`}>
                                                         {n.title}
                                                     </p>
                                                     <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5">
@@ -281,10 +282,10 @@ export function Navbar({ appName, userRole }: NavbarProps) {
                     </PopoverContent>
                 </Popover>
 
-                {/* User Profile Avatar matching mockup ("PA" in blue) */}
+                {/* User Profile Avatar matching mockup ("WA" in vibrant orange) */}
                 <div className="flex items-center gap-2 cursor-pointer hover:opacity-90 transition-opacity">
-                    <div className="h-8 w-8 rounded-full bg-[#e0f2fe] border border-sky-200 flex items-center justify-center text-xs font-bold text-[#0284c7] select-none shadow-xs">
-                        {displayInitials || "PA"}
+                    <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[#FF7A1A] to-[#FF5500] text-white flex items-center justify-center text-xs font-bold select-none shadow-xs">
+                        {displayInitials || "WA"}
                     </div>
                 </div>
             </div>

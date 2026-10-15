@@ -22,6 +22,7 @@ import Link from 'next/link';
 const formSchema = z.object({
   email: z.string().email("Informe um e-mail válido"),
   password: z.string().min(1, "Informe a senha"),
+  mfaCode: z.string().optional(),
 });
 
 function LoginForm() {
@@ -30,12 +31,14 @@ function LoginForm() {
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [mfaRequired, setMfaRequired] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       email: "",
       password: "",
+      mfaCode: undefined,
     },
   });
 
@@ -43,14 +46,35 @@ function LoginForm() {
     setLoading(true);
     setError(null);
     try {
+      // First step: check if MFA is required for this account
+      if (!mfaRequired) {
+        const statusRes = await fetch('/api/auth/mfa/status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: values.email, password: values.password }),
+        });
+        const status = await statusRes.json();
+        if (status.mfaRequired) {
+          setMfaRequired(true);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Second step: sign in with optional mfaCode
       const result = await signIn('credentials', {
         redirect: false,
         email: values.email,
         password: values.password,
+        mfaCode: values.mfaCode,
       });
 
       if (result?.error) {
-        setError("E-mail ou senha inválidos");
+        if (mfaRequired) {
+          setError("Código MFA inválido");
+        } else {
+          setError("E-mail ou senha inválidos");
+        }
       } else {
         window.location.href = callbackUrl;
         router.refresh();
@@ -95,6 +119,7 @@ function LoginForm() {
                     <FormControl>
                       <Input
                         placeholder="nome@exemplo.com"
+                        disabled={loading || mfaRequired}
                         className="h-12 px-4 rounded-xl bg-background/50 border-white/20 dark:border-white/10 focus-visible:ring-primary/50 transition-all font-medium"
                         {...field}
                       />
@@ -113,6 +138,7 @@ function LoginForm() {
                       <Input
                         type="password"
                         placeholder="••••••••"
+                        disabled={loading || mfaRequired}
                         className="h-12 px-4 rounded-xl bg-background/50 border-white/20 dark:border-white/10 focus-visible:ring-primary/50 transition-all font-medium"
                         {...field}
                       />
@@ -121,6 +147,26 @@ function LoginForm() {
                   </FormItem>
                 )}
               />
+              {mfaRequired && (
+                <FormField
+                  control={form.control}
+                  name="mfaCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-foreground/80">Código MFA</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="000000"
+                          maxLength={6}
+                          className="h-12 px-4 rounded-xl bg-background/50 border-white/20 dark:border-white/10 focus-visible:ring-primary/50 transition-all font-medium"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
               <Button
                 type="submit"
@@ -130,6 +176,8 @@ function LoginForm() {
               >
                 {loading ? (
                   <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Autenticando...</>
+                ) : mfaRequired ? (
+                  <>Verificar código <ArrowRight className="ml-2 h-5 w-5" /></>
                 ) : (
                   <>Entrar <ArrowRight className="ml-2 h-5 w-5" /></>
                 )}

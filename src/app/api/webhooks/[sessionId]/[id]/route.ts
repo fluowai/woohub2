@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { encryptWebhookSecret, redactWebhook } from "@/lib/webhook";
 
 export async function PUT(
     request: NextRequest,
@@ -51,18 +52,20 @@ export async function PUT(
             return NextResponse.json({ status: false, message: "Webhook not found", error: "Webhook not found" }, { status: 404 });
         }
 
+        const encryptedSecret = secret !== undefined ? encryptWebhookSecret(id, secret) : undefined;
+
         const webhook = await prisma.webhook.update({
             where: { id },
             data: {
                 ...(name !== undefined && { name }),
                 ...(url !== undefined && { url }),
-                ...(secret !== undefined && { secret }),
+                ...(secret !== undefined && { secret: encryptedSecret }),
                 ...(events !== undefined && { events }),
                 ...(isActive !== undefined && { isActive })
             }
         });
 
-        return NextResponse.json(webhook);
+        return NextResponse.json(redactWebhook(webhook));
     } catch (error) {
         console.error("Update webhook error:", error);
         return NextResponse.json({ status: false, message: "Failed to update webhook", error: "Failed to update webhook" }, { status: 500 });

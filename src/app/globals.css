@@ -53,8 +53,8 @@
 
 :root {
   --radius: 0.75rem;
-  /* Light Mode - Woohub: fundo limpo, sutil tom slate/azul fresco */
-  --background: oklch(0.985 0.005 240);
+  /* Light Mode - WOOTECH: canvas limpo (#F8FAFC), cartões brancos e foco em Laranja Radiante */
+  --background: oklch(0.985 0.003 240);
   --foreground: oklch(0.18 0.02 250);
   
   --card: oklch(1 0 0);
@@ -63,88 +63,88 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.18 0.02 250);
   
-  /* Primary - WooHub Electric / Ocean Blue (#0284c7 / #0ea5e9) */
-  --primary: oklch(0.58 0.19 240);
+  /* Primary - WOOTECH Radiant Orange (#FF6600) */
+  --primary: oklch(0.66 0.22 42);
   --primary-foreground: oklch(1 0 0);
   
-  /* Secondary - Soft Sky / Slate */
-  --secondary: oklch(0.96 0.015 240);
+  /* Secondary - Soft Warm Slate / Neutral */
+  --secondary: oklch(0.96 0.01 50);
   --secondary-foreground: oklch(0.25 0.02 250);
   
-  --muted: oklch(0.96 0.01 240);
+  --muted: oklch(0.96 0.005 240);
   --muted-foreground: oklch(0.52 0.02 250);
   
-  --accent: oklch(0.96 0.03 235);
-  --accent-foreground: oklch(0.35 0.15 240);
+  --accent: oklch(0.96 0.03 45);
+  --accent-foreground: oklch(0.45 0.20 40);
   
   --destructive: oklch(0.6 0.25 25);
   --destructive-foreground: oklch(0.98 0 0);
   
   --border: oklch(0.92 0.008 240);
   --input: oklch(0.92 0.008 240);
-  --ring: oklch(0.58 0.19 240);
+  --ring: oklch(0.66 0.22 42);
   
-  --chart-1: oklch(0.58 0.19 240);
-  --chart-2: oklch(0.72 0.16 220);
-  --chart-3: oklch(0.48 0.18 250);
-  --chart-4: oklch(0.82 0.12 210);
-  --chart-5: oklch(0.65 0.05 240);
+  --chart-1: oklch(0.66 0.22 42); /* WooTech Orange */
+  --chart-2: oklch(0.35 0.03 250); /* Dark Charcoal */
+  --chart-3: oklch(0.72 0.17 60);  /* Amber */
+  --chart-4: oklch(0.65 0.18 150); /* Emerald */
+  --chart-5: oklch(0.55 0.05 240); /* Slate */
 
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.25 0.02 250);
-  --sidebar-primary: oklch(0.58 0.19 240);
+  /* Sidebar - Dark Obsidian Theme (#0B111E / #0D1525) */
+  --sidebar: oklch(0.13 0.02 260);
+  --sidebar-foreground: oklch(0.85 0.01 240);
+  --sidebar-primary: oklch(0.66 0.22 42);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.96 0.03 235);
-  --sidebar-accent-foreground: oklch(0.35 0.15 240);
-  --sidebar-border: oklch(0.93 0.008 240);
-  --sidebar-ring: oklch(0.58 0.19 240);
+  --sidebar-accent: oklch(0.19 0.02 260);
+  --sidebar-accent-foreground: oklch(1 0 0);
+  --sidebar-border: oklch(0.20 0.02 260);
+  --sidebar-ring: oklch(0.66 0.22 42);
 }
 
 .dark {
-  /* Dark Mode - Deep, rich blue-black */
-  --background: oklch(0.15 0.02 240);
+  /* Dark Mode - Obsidian Sleek */
+  --background: oklch(0.12 0.02 260);
   --foreground: oklch(0.98 0.01 240);
   
-  /* Slightly elevated surfaces for cards */
-  --card: oklch(0.18 0.03 240);
+  --card: oklch(0.16 0.02 260);
   --card-foreground: oklch(0.98 0.01 240);
   
-  --popover: oklch(0.18 0.03 240);
+  --popover: oklch(0.16 0.02 260);
   --popover-foreground: oklch(0.98 0.01 240);
   
-  /* Primary - WooHub Electric Blue */
-  --primary: oklch(0.65 0.19 240);
+  /* Primary - WOOTECH Radiant Orange */
+  --primary: oklch(0.66 0.22 42);
   --primary-foreground: oklch(1 0 0);
   
-  --secondary: oklch(0.22 0.04 240);
-  --secondary-foreground: oklch(0.95 0.02 240);
+  --secondary: oklch(0.22 0.03 260);
+  --secondary-foreground: oklch(0.95 0.01 240);
   
-  --muted: oklch(0.2 0.03 240);
-  --muted-foreground: oklch(0.65 0.04 240);
+  --muted: oklch(0.20 0.02 260);
+  --muted-foreground: oklch(0.65 0.02 240);
   
-  --accent: oklch(0.25 0.05 240);
+  --accent: oklch(0.25 0.05 45);
   --accent-foreground: oklch(0.98 0.01 240);
   
   --destructive: oklch(0.5 0.25 25);
   
-  --border: oklch(0.25 0.04 240);
-  --input: oklch(0.25 0.04 240);
-  --ring: oklch(0.65 0.19 240);
+  --border: oklch(0.22 0.02 260);
+  --input: oklch(0.22 0.02 260);
+  --ring: oklch(0.66 0.22 42);
 
-  --chart-1: oklch(0.65 0.19 240);
-  --chart-2: oklch(0.75 0.16 220);
-  --chart-3: oklch(0.55 0.18 250);
+  --chart-1: oklch(0.66 0.22 42);
+  --chart-2: oklch(0.75 0.16 55);
+  --chart-3: oklch(0.55 0.18 150);
   --chart-4: oklch(0.85 0.12 210);
   --chart-5: oklch(0.7 0.08 240);
 
-  --sidebar: oklch(0.16 0.02 240);
-  --sidebar-foreground: oklch(0.95 0.01 240);
-  --sidebar-primary: oklch(0.65 0.19 240);
+  --sidebar: oklch(0.11 0.02 260);
+  --sidebar-foreground: oklch(0.90 0.01 240);
+  --sidebar-primary: oklch(0.66 0.22 42);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.22 0.04 240);
-  --sidebar-accent-foreground: oklch(0.98 0.01 240);
-  --sidebar-border: oklch(0.25 0.04 240);
-  --sidebar-ring: oklch(0.65 0.19 240);
+  --sidebar-accent: oklch(0.18 0.02 260);
+  --sidebar-accent-foreground: oklch(1 0 0);
+  --sidebar-border: oklch(0.20 0.02 260);
+  --sidebar-ring: oklch(0.66 0.22 42);
 }
 
 @layer base {
@@ -167,7 +167,7 @@
   }
   
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-sky-500 to-blue-600;
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-[#FF7A1A] to-[#FF4500];
   }
   
   .hover-lift {

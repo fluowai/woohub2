@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { encryptWebhookSecret, redactWebhook } from "@/lib/webhook";
 
 export async function GET(
     request: NextRequest,
@@ -44,7 +45,7 @@ export async function GET(
             orderBy: { createdAt: 'desc' }
         });
 
-        return NextResponse.json({ status: true, message: "Webhooks retrieved successfully", data: webhooks });
+        return NextResponse.json({ status: true, message: "Webhooks retrieved successfully", data: webhooks.map(redactWebhook) });
     } catch (error) {
         console.error("Fetch webhooks error:", error);
         return NextResponse.json({ status: false, message: "Failed to fetch webhooks", error: "Failed to fetch webhooks" }, { status: 500 });
@@ -93,14 +94,25 @@ export async function POST(
                 userId: user.id,
                 name,
                 url,
-                secret: secret || null,
+                // Placeholder — real encrypted secret is written after the row has an id
+                // (AAD binds the ciphertext to the webhook id).
+                secret: null,
                 sessionId: session.id, // Strictly link to this session
                 events,
                 isActive: true
             }
         });
 
-        return NextResponse.json({ status: true, message: "Webhook created successfully", data: webhook });
+        if (secret) {
+            const encrypted = encryptWebhookSecret(webhook.id, secret);
+            await prisma.webhook.update({
+                where: { id: webhook.id },
+                data: { secret: encrypted },
+            });
+            webhook.secret = encrypted;
+        }
+
+        return NextResponse.json({ status: true, message: "Webhook created successfully", data: redactWebhook(webhook) });
     } catch (error: any) {
         console.error("Create webhook error detailed:", error);
         return NextResponse.json({ status: false, message: "Failed to create webhook", error: "Failed to create webhook", details: error.message }, { status: 500 });

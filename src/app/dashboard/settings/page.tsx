@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { RefreshCw, Save, AlertCircle } from "lucide-react";
+import { RefreshCw, Save, AlertCircle, Bell, Clock, Layers, Shield, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import { WooTechLogo } from "@/components/ui/wootech-logo";
 
 export default function SettingsPage() {
     const { data: authSession } = useSession();
@@ -80,11 +81,102 @@ export default function SettingsPage() {
 
     const inputClass = "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 
+    const userName = authSession?.user?.name || "Mega Admin";
+    const userEmail = authSession?.user?.email || "admin@wootech.com.br";
+
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 max-w-7xl mx-auto">
+            {/* Header matching Screen 8 */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                    <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+                        Configurações
+                    </h1>
+                    <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                        Personalize sua conta e preferências.
+                    </p>
+                </div>
+            </div>
+
+            {/* Dados da conta Card matching Screen 8 */}
             <div>
-                <h2 className="text-xl sm:text-3xl font-bold tracking-tight">Configurações</h2>
-                <p className="text-muted-foreground text-sm mt-1">Configuração global do sistema. Apenas Superadministradores podem alterar.</p>
+                <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5">
+                    Dados da conta
+                </h2>
+                <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3.5">
+                        <div className="h-12 w-12 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center flex-shrink-0">
+                            <WooTechLogo variant="icon" iconSize={28} />
+                        </div>
+                        <div>
+                            <p className="text-sm font-bold text-slate-900">{userName}</p>
+                            <p className="text-xs text-slate-400 mt-0.5">{userEmail}</p>
+                        </div>
+                    </div>
+                    <Button className="bg-[#FF6600] hover:bg-[#FF5500] text-white font-bold rounded-xl text-xs h-9 px-4 shadow-md shadow-orange-500/20 self-start sm:self-auto">
+                        Gerenciar plano
+                    </Button>
+                </div>
+            </div>
+
+            {/* Preferências Section matching Screen 8 */}
+            <div>
+                <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5">
+                    Preferências
+                </h2>
+                <div className="bg-white rounded-2xl border border-slate-200/90 divide-y divide-slate-100 shadow-xs overflow-hidden">
+                    <div className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer">
+                        <div className="flex items-center gap-3.5">
+                            <div className="h-9 w-9 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center flex-shrink-0">
+                                <Bell className="h-4 w-4" />
+                            </div>
+                            <div>
+                                <p className="text-xs sm:text-sm font-bold text-slate-800">Notificações</p>
+                                <p className="text-[11px] text-slate-400 mt-0.5">Configure como receber notificações</p>
+                            </div>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-slate-400" />
+                    </div>
+
+                    <div className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer">
+                        <div className="flex items-center gap-3.5">
+                            <div className="h-9 w-9 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center flex-shrink-0">
+                                <Clock className="h-4 w-4" />
+                            </div>
+                            <div>
+                                <p className="text-xs sm:text-sm font-bold text-slate-800">Horário de atendimento</p>
+                                <p className="text-[11px] text-slate-400 mt-0.5">Defina o horário de funcionamento</p>
+                            </div>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-slate-400" />
+                    </div>
+
+                    <div className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer">
+                        <div className="flex items-center gap-3.5">
+                            <div className="h-9 w-9 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center flex-shrink-0">
+                                <Layers className="h-4 w-4" />
+                            </div>
+                            <div>
+                                <p className="text-xs sm:text-sm font-bold text-slate-800">Integrações</p>
+                                <p className="text-[11px] text-slate-400 mt-0.5">Conecte outras ferramentas</p>
+                            </div>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-slate-400" />
+                    </div>
+
+                    <div className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer">
+                        <div className="flex items-center gap-3.5">
+                            <div className="h-9 w-9 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center flex-shrink-0">
+                                <Shield className="h-4 w-4" />
+                            </div>
+                            <div>
+                                <p className="text-xs sm:text-sm font-bold text-slate-800">Segurança</p>
+                                <p className="text-[11px] text-slate-400 mt-0.5">Gerencie acessos e permissões</p>
+                            </div>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-slate-400" />
+                    </div>
+                </div>
             </div>
 
             {!isSuperAdmin && (
@@ -95,7 +187,7 @@ export default function SettingsPage() {
                             <div>
                                 <p className="text-sm font-medium text-yellow-900">Modo somente leitura</p>
                                 <p className="text-xs text-yellow-700 mt-1">
-                                    Apenas superadministradores podem modificar as configurações. Você pode visualizá-las, mas não alterá-las.
+                                    Apenas superadministradores podem modificar as configurações do sistema.
                                 </p>
                             </div>
                         </div>

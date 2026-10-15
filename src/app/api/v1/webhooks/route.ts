@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { badRequest, forbidden, requireUser, v1Created, v1ErrorResponse, v1Ok } from "@/lib/v1/http";
 import { requireInstance } from "@/lib/v1/instance";
 import { assertHttpUrl, createWebhookSchema, mapWebhook } from "@/lib/v1/webhook";
+import { encryptWebhookSecret } from "@/lib/webhook";
 
 export const dynamic = "force-dynamic";
 
@@ -59,11 +60,20 @@ export async function POST(request: NextRequest) {
                 sessionId: sessionPk,
                 name: body.name,
                 url: body.url,
-                secret: body.secret ?? null,
+                secret: null,
                 events: body.events,
                 isActive: true,
             },
         });
+
+        if (body.secret) {
+            const encrypted = encryptWebhookSecret(webhook.id, body.secret);
+            await prisma.webhook.update({
+                where: { id: webhook.id },
+                data: { secret: encrypted },
+            });
+            webhook.secret = encrypted;
+        }
 
         return v1Created(mapWebhook(webhook));
     } catch (error) {

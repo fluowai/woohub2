@@ -58,7 +58,7 @@ export default function BroadcastPage() {
     const [delay, setDelay] = useState([2000]);
     const [loading, setLoading] = useState(false);
     const [broadcastProgress, setBroadcastProgress] = useState<BroadcastProgress | null>(null);
-    const [activeTab, setActiveTab] = useState<"new" | "history">("new");
+    const [activeTab, setActiveTab] = useState<"new" | "templates" | "history">("new");
 
     // History
     const [history, setHistory] = useState<BroadcastLog[]>([]);
@@ -195,28 +195,35 @@ export default function BroadcastPage() {
     };
 
     const tabs = [
-        { id: "new" as const, label: "Novo disparo", icon: Send },
+        { id: "new" as const, label: "Nova campanha", icon: Send },
+        { id: "templates" as const, label: "Modelos", icon: Eye },
         { id: "history" as const, label: "Histórico", icon: History },
     ];
 
     return (
         <SessionGuard>
-            <div className="space-y-6">
-                <div>
-                    <h2 className="text-xl sm:text-3xl font-bold tracking-tight">Disparo em massa</h2>
-                    <p className="text-muted-foreground text-sm mt-1">Envie mensagens em massa para vários destinatários de uma vez.</p>
+            <div className="space-y-6 max-w-7xl mx-auto">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div>
+                        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+                            Campanhas
+                        </h1>
+                        <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                            Envie mensagens em massa para seus contatos.
+                        </p>
+                    </div>
                 </div>
 
-                {/* Tabs */}
-                <div className="flex gap-1 bg-muted/50 p-1 rounded-lg w-fit">
+                {/* Tabs matching Screen 5 */}
+                <div className="flex items-center gap-2 border-b border-slate-200">
                     {tabs.map(tab => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                            className={`flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 transition-all ${
                                 activeTab === tab.id
-                                    ? "bg-background shadow-sm text-foreground"
-                                    : "text-muted-foreground hover:text-foreground"
+                                    ? "border-[#FF6600] text-[#FF6600]"
+                                    : "border-transparent text-slate-500 hover:text-slate-800"
                             }`}
                         >
                             <tab.icon className="h-4 w-4" />
@@ -225,8 +232,46 @@ export default function BroadcastPage() {
                     ))}
                 </div>
 
+                {activeTab === "templates" && (
+                    <Card className="rounded-2xl border-slate-200/90 p-8 text-center bg-white shadow-xs">
+                        <div className="h-16 w-16 rounded-2xl bg-orange-50 border border-orange-100 flex items-center justify-center text-[#FF6600] mx-auto mb-4">
+                            <Send className="h-8 w-8" />
+                        </div>
+                        <h3 className="text-base font-bold text-slate-900">Modelos de Mensagem</h3>
+                        <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                            Salve mensagens pré-formatadas com variáveis personalizadas para disparar com 1 clique.
+                        </p>
+                    </Card>
+                )}
+
                 {activeTab === "new" && (
                     <>
+                        {/* Intro Feature Card matching Screen 5 */}
+                        <div className="bg-white rounded-2xl border border-slate-200/90 p-6 sm:p-8 shadow-xs text-center flex flex-col items-center">
+                            <div className="h-16 w-16 rounded-2xl bg-orange-50 border border-orange-100 flex items-center justify-center text-[#FF6600] shadow-xs mb-4">
+                                <Send className="h-7 w-7" />
+                            </div>
+                            <h2 className="text-lg sm:text-xl font-extrabold text-slate-900">
+                                Crie sua campanha
+                            </h2>
+                            <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-lg">
+                                Envie mensagens em massa para seus contatos de forma rápida, segura e eficiente.
+                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-2xl mt-6 pt-6 border-t border-slate-100 text-left">
+                                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                                    <p className="text-xs font-bold text-slate-800">Listas de contatos</p>
+                                    <p className="text-[11px] text-slate-500 mt-0.5">Segmentação inteligente</p>
+                                </div>
+                                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                                    <p className="text-xs font-bold text-slate-800">Agendamento</p>
+                                    <p className="text-[11px] text-slate-500 mt-0.5">Envie no melhor horário</p>
+                                </div>
+                                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                                    <p className="text-xs font-bold text-slate-800">Relatórios</p>
+                                    <p className="text-[11px] text-slate-500 mt-0.5">Acompanhe os resultados</p>
+                                </div>
+                            </div>
+                        </div>
                         <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2">
                             {/* Recipients Card */}
                             <Card>

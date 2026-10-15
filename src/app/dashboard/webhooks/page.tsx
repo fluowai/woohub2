@@ -60,15 +60,15 @@ interface WebhookLog {
 
 const AVAILABLE_EVENTS = [
     { id: "message.received", label: "Mensagem recebida", description: "Quando uma nova mensagem é recebida" },
-    { id: "message.sent", label: "Mensagem enviada", description: "Quando uma mensagem é enviada" },
-    { id: "message.status", label: "Status da mensagem", description: "Quando o status da mensagem muda (entregue, lida)" },
-    { id: "connection.update", label: "Atualização de conexão", description: "Quando a sessão conecta/desconecta" },
-    { id: "group.update", label: "Atualização de grupo", description: "Quando as informações do grupo mudam" },
-    { id: "group.participant", label: "Membro do grupo", description: "Quando participantes entram, saem ou mudam de cargo" },
-    { id: "contact.update", label: "Atualização de contato", description: "Quando as informações do contato mudam" },
-    { id: "status.update", label: "Status/História", description: "Quando um status é publicado ou visualizado" },
+    { id: "message.sent", label: "Mensagem enviada", description: "Quando uma mensagem é enviada pela sessão" },
+    { id: "message.status", label: "Status da mensagem", description: "Quando o status muda (entregue, lida)" },
+    { id: "connection.update", label: "Atualização de conexão", description: "Quando a sessão conecta ou desconecta" },
+    { id: "group.update", label: "Atualização de grupo", description: "Quando informações do grupo mudam" },
+    { id: "group.participant", label: "Participante do grupo", description: "Quando participantes entram, saem ou mudam papel" },
+    { id: "contact.update", label: "Atualização de contato", description: "Quando informações do contato são alteradas" },
+    { id: "status.update", label: "Status / Stories", description: "Quando um status/story é postado ou visualizado" },
     { id: "message.edited", label: "Mensagem editada", description: "Quando uma mensagem é editada" },
-    { id: "message.deleted", label: "Mensagem excluída", description: "Quando uma mensagem é revogada/excluída" },
+    { id: "message.deleted", label: "Mensagem apagada", description: "Quando uma mensagem é excluída para todos" },
 ];
 
 import { useSession } from "@/components/dashboard/session-provider";
@@ -146,10 +146,10 @@ export default function WebhooksPage() {
             if (res.ok) {
                 const data = await res.json();
                 setApiKey(data?.data?.apiKey);
-                toast.success("Nova chave de API gerada!");
+                toast.success("Nova chave de API gerada com sucesso!");
             }
         } catch (error) {
-            toast.error("Falha ao gerar a chave de API");
+            toast.error("Falha ao gerar chave de API");
         }
     };
 
@@ -164,11 +164,11 @@ export default function WebhooksPage() {
             if (data?.data?.success) {
                 toast.success("Teste de webhook bem-sucedido!");
             } else {
-                toast.error(`Falha no teste do webhook: ${data?.data?.error || "Erro desconhecido"}`);
+                toast.error(`Falha no teste de webhook: ${data?.data?.error || "Erro desconhecido"}`);
             }
         } catch (error: any) {
             setTestResults(prev => ({ ...prev, [webhook.id]: { success: false, error: error.message } }));
-            toast.error("Falha ao testar o webhook");
+            toast.error("Falha ao testar webhook");
         } finally {
             setTestingId(null);
         }
@@ -206,7 +206,7 @@ export default function WebhooksPage() {
 
     const handleSaveWebhook = async () => {
         if (!newName || !newUrl || newEvents.length === 0) {
-            toast.error("Nome, URL e pelo menos um evento são obrigatórios");
+            toast.error("Nome, URL e ao menos um evento são obrigatórios");
             return;
         }
         if (!sessionId) {
@@ -222,7 +222,7 @@ export default function WebhooksPage() {
                 body: JSON.stringify(payload)
             });
             if (res.ok) {
-                toast.success("Webhook criado!");
+                toast.success("Webhook criado com sucesso!");
                 setShowNewForm(false);
                 setNewName("");
                 setNewUrl("");
@@ -230,16 +230,16 @@ export default function WebhooksPage() {
                 setNewEvents(["message.received", "message.sent"]);
                 fetchWebhooks();
             } else {
-                toast.error("Falha ao criar o webhook");
+                toast.error("Falha ao criar webhook");
             }
         } catch (error) {
-            toast.error("Ocorreu um erro");
+            toast.error("Ocorreu um erro ao criar o webhook");
         }
     };
 
     const handleUpdateWebhook = async () => {
         if (!editName || !editUrl || editEvents.length === 0) {
-            toast.error("Nome, URL e pelo menos um evento são obrigatórios");
+            toast.error("Nome, URL e ao menos um evento são obrigatórios");
             return;
         }
         if (!sessionId || !editingId) return;
@@ -254,15 +254,15 @@ export default function WebhooksPage() {
                 body: JSON.stringify(payload)
             });
             if (res.ok) {
-                toast.success("Webhook atualizado!");
+                toast.success("Webhook atualizado com sucesso!");
                 setIsEditOpen(false);
                 setEditingId(null);
                 fetchWebhooks();
             } else {
-                toast.error("Falha ao atualizar o webhook");
+                toast.error("Falha ao atualizar webhook");
             }
         } catch (error) {
-            toast.error("Ocorreu um erro");
+            toast.error("Ocorreu um erro ao atualizar o webhook");
         }
     };
 
@@ -277,7 +277,7 @@ export default function WebhooksPage() {
             });
             setWebhooks(webhooks.map(w => w.id === id ? { ...w, isActive } : w));
         } catch (error) {
-            toast.error("Falha ao atualizar o webhook");
+            toast.error("Falha ao atualizar status do webhook");
         }
     };
 
@@ -296,7 +296,7 @@ export default function WebhooksPage() {
             });
             setWebhooks(webhooks.map(w => w.id === webhookId ? { ...w, events: newEvents } : w));
         } catch (error) {
-            toast.error("Falha ao atualizar os eventos do webhook");
+            toast.error("Falha ao atualizar eventos do webhook");
         }
     };
 
@@ -313,9 +313,9 @@ export default function WebhooksPage() {
             const targetSessionId = webhook?.sessionId || sessionId;
             await fetch(`/api/webhooks/${targetSessionId}/${deleteId}`, { method: "DELETE" });
             setWebhooks(webhooks.filter(w => w.id !== deleteId));
-            toast.success("Webhook excluído");
+            toast.success("Webhook excluído com sucesso");
         } catch (error) {
-            toast.error("Falha ao excluir o webhook");
+            toast.error("Falha ao excluir webhook");
         } finally {
             setDeleteId(null);
         }
@@ -345,16 +345,17 @@ export default function WebhooksPage() {
         <div className="space-y-6">
             <div>
                 <h1 className="text-xl sm:text-2xl font-bold">Webhooks e API</h1>
+                <p className="text-sm text-muted-foreground mt-1">Integre eventos do WhatsApp em tempo real com seu sistema ou plataformas externas.</p>
             </div>
 
             {/* API Key Section */}
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                        <Key className="h-5 w-5" /> Chave de API
+                        <Key className="h-5 w-5 text-primary" /> Chave de API
                     </CardTitle>
                     <CardDescription>
-                        Use esta chave para autenticar solicitações de API. Inclua-a no cabeçalho X-API-Key.
+                        Utilize esta chave para autenticar requisições na API pública. Inclua-a no cabeçalho <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">X-API-Key</code>.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -381,12 +382,12 @@ export default function WebhooksPage() {
                             else generateNewApiKey();
                         }}>
                             <RefreshCw className="h-4 w-4 mr-2" />
-                            {apiKey ? "Gerar novamente" : "Gerar"}
+                            {apiKey ? "Regenerar chave" : "Gerar chave"}
                         </Button>
                     </div>
                     {apiKey && (
                         <p className="text-xs text-muted-foreground mt-2">
-                            Exemplo: <code className="bg-slate-100 px-1 py-0.5 rounded">curl -H "X-API-Key: {apiKey?.slice(0, 10)}..." http://your-server/api/sessions</code>
+                            Exemplo: <code className="bg-slate-100 px-1 py-0.5 rounded font-mono">curl -H &quot;X-API-Key: {apiKey?.slice(0, 10)}...&quot; http://seu-servidor/api/sessions</code>
                         </p>
                     )}
                 </CardContent>
@@ -396,12 +397,12 @@ export default function WebhooksPage() {
                         <AlertDialogHeader>
                             <AlertDialogTitle>Gerar nova chave de API?</AlertDialogTitle>
                             <AlertDialogDescription>
-                                Isso invalidará sua chave de API atual. Todas as integrações existentes que usam a chave antiga deixarão de funcionar imediatamente. Esta ação não pode ser desfeita.
+                                Isso invalidará sua chave de API atual. Todas as integrações existentes utilizando a chave antiga deixarão de funcionar de imediato. Esta ação não pode ser desfeita.
                             </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => { setShowRegenConfirm(false); generateNewApiKey(); }} className="bg-red-600 hover:bg-red-700">Gerar novamente</AlertDialogAction>
+                            <AlertDialogAction onClick={() => { setShowRegenConfirm(false); generateNewApiKey(); }} className="bg-destructive hover:bg-destructive/90">Regenerar</AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
@@ -414,10 +415,10 @@ export default function WebhooksPage() {
                         <div className="flex justify-between items-center">
                             <div>
                                 <CardTitle className="flex items-center gap-2">
-                                    <Webhook className="h-5 w-5" /> Webhooks
+                                    <Webhook className="h-5 w-5 text-primary" /> Webhooks
                                 </CardTitle>
                                 <CardDescription>
-                                    Envie eventos em tempo real para URLs externas quando atividades acontecerem no WhatsApp.
+                                    Envie notificações HTTP automáticas quando chegarem mensagens ou eventos nesta sessão.
                                 </CardDescription>
                             </div>
                             <Button onClick={() => {
@@ -436,23 +437,23 @@ export default function WebhooksPage() {
                             <Card className="border-dashed border-2">
                                 <CardHeader><CardTitle>Novo webhook</CardTitle></CardHeader>
                                 <CardContent className="pt-4 space-y-4">
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <Label>Nome</Label>
-                                            <Input placeholder="Meu servidor" value={newName} onChange={(e) => setNewName(e.target.value)} />
+                                            <Input placeholder="Ex: n8n Produção, CRM, etc." value={newName} onChange={(e) => setNewName(e.target.value)} />
                                         </div>
                                         <div className="space-y-2">
-                                            <Label>Webhook URL</Label>
-                                            <Input placeholder="https://example.com/webhook" value={newUrl} onChange={(e) => setNewUrl(e.target.value)} />
+                                            <Label>URL do webhook</Label>
+                                            <Input placeholder="https://exemplo.com/webhook" value={newUrl} onChange={(e) => setNewUrl(e.target.value)} />
                                         </div>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>Segredo (opcional, para assinatura HMAC)</Label>
-                                        <Input placeholder="sua-chave-secreta" value={newSecret} onChange={(e) => setNewSecret(e.target.value)} />
+                                        <Label>Segredo (opcional, para assinatura HMAC SHA-256)</Label>
+                                        <Input placeholder="seu-segredo-de-validacao" value={newSecret} onChange={(e) => setNewSecret(e.target.value)} />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>Eventos</Label>
-                                        <div className="grid grid-cols-2 gap-2">
+                                        <Label>Eventos disparadores</Label>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                             {AVAILABLE_EVENTS.map(event => (
                                                 <div key={event.id} className="flex items-center gap-2 p-2 rounded border">
                                                     <Switch
@@ -479,10 +480,10 @@ export default function WebhooksPage() {
                         )}
 
                         {loading ? (
-                            <p className="text-center text-muted-foreground py-8">Carregando...</p>
+                            <p className="text-center text-muted-foreground py-8">Carregando webhooks...</p>
                         ) : webhooks.length === 0 ? (
                             <p className="text-center text-muted-foreground py-8">
-                                Nenhum webhook configurado para esta sessão. Clique em "Adicionar webhook" para criar um.
+                                Nenhum webhook configurado para esta sessão. Clique em &quot;Adicionar webhook&quot; para cadastrar.
                             </p>
                         ) : (
                             webhooks.map((webhook) => {
@@ -501,7 +502,7 @@ export default function WebhooksPage() {
                                                             {webhook.isActive ? "Ativo" : "Inativo"}
                                                         </Badge>
                                                         {webhook.sessionId && (
-                                                            <Badge variant="outline" className="text-xs">{webhook.sessionId}</Badge>
+                                                            <Badge variant="outline" className="text-xs font-mono">{webhook.sessionId}</Badge>
                                                         )}
                                                     </h3>
                                                     <p className="text-sm text-muted-foreground font-mono">{webhook.url}</p>
@@ -556,7 +557,7 @@ export default function WebhooksPage() {
                                                     onClick={() => openLogDialog(webhook)}
                                                 >
                                                     <History className="h-4 w-4 mr-1" />
-                                                    Registros
+                                                    Logs
                                                 </Button>
                                             </div>
 
@@ -574,7 +575,7 @@ export default function WebhooksPage() {
                                                         </span>
                                                     </div>
                                                     {testResult.statusCode && (
-                                                        <div>Status: {testResult.statusCode}</div>
+                                                        <div>Status HTTP: {testResult.statusCode}</div>
                                                     )}
                                                     {testResult.error && (
                                                         <div>Erro: {testResult.error}</div>
@@ -601,25 +602,25 @@ export default function WebhooksPage() {
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Editar webhook</DialogTitle>
-                        <DialogDescription>Modifique a configuração do endpoint do webhook e os eventos assinados.</DialogDescription>
+                        <DialogDescription>Modifique o endpoint do webhook e os eventos selecionados.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>Nome</Label>
-                                <Input placeholder="Meu servidor" value={editName} onChange={(e) => setEditName(e.target.value)} />
+                                <Input placeholder="Ex: n8n Produção, CRM, etc." value={editName} onChange={(e) => setEditName(e.target.value)} />
                             </div>
                             <div className="space-y-2">
-                                <Label>Webhook URL</Label>
-                                <Input placeholder="https://example.com/webhook" value={editUrl} onChange={(e) => setEditUrl(e.target.value)} />
+                                <Label>URL do webhook</Label>
+                                <Input placeholder="https://exemplo.com/webhook" value={editUrl} onChange={(e) => setEditUrl(e.target.value)} />
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <Label>Segredo (opcional, para assinatura HMAC)</Label>
-                            <Input placeholder="sua-chave-secreta" value={editSecret} onChange={(e) => setEditSecret(e.target.value)} />
+                            <Label>Segredo (opcional, para assinatura HMAC SHA-256)</Label>
+                            <Input placeholder="seu-segredo-de-validacao" value={editSecret} onChange={(e) => setEditSecret(e.target.value)} />
                         </div>
                         <div className="space-y-2">
-                            <Label>Eventos</Label>
+                            <Label>Eventos disparadores</Label>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 {AVAILABLE_EVENTS.map(event => (
                                     <div key={event.id} className="flex items-center gap-2 p-2 rounded border">
@@ -649,14 +650,14 @@ export default function WebhooksPage() {
             <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Tem certeza absoluta?</AlertDialogTitle>
+                        <AlertDialogTitle>Tem certeza que deseja excluir?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Esta ação não pode ser desfeita. Isso excluirá permanentemente a configuração do webhook.
+                            Esta ação não pode ser desfeita. A configuração do webhook será removida permanentemente.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">Excluir</AlertDialogAction>
+                        <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">Excluir</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

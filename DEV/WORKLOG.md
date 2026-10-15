@@ -941,4 +941,40 @@ subiu sozinha com o banco dizendo `CONNECTED` — religada via `POST .../start`.
   - Sessão WhatsApp `tA2VB4bxzAkY` conectada e sincronizada.
   - Testes: `npx vitest run` 118/118 passando; `npx tsc --noEmit` com 0 erros.
 
+# 2026-10-14 — Reformulação Completa da Identidade Visual e Design System WOOTECH (Laranja Radiante & Dark Obsidian)
+
+- **Solicitação do cliente**: reformulação estética integral adotando a identidade visual da **WOOTECH**:
+  - Logotipo oficial 3D vetorizado: fita dobrada isométrica em degradê de laranja radiante com reverso em grafite escuro (`#181F2A`) e constelação de cubos/pixels superiores (`src/components/ui/wootech-logo.tsx`).
+  - Paleta de cores oficial: base de interface limpa (`#F8FAFC`), sidebar escura estilo obsidian (`#0B111E`), botões e tabs ativas em pílula laranja radiante (`#FF6600` / `#FA5A1E`), badges de status verde esmeralda (`#10B981`) para "Online" e vermelho suave para "Offline".
+- **Design Tokens Globais (`src/app/globals.css`)**:
+  - Variáveis `--primary`, `--ring`, `--chart-1` e gradientes de destaque atualizados para a paleta WOOTECH (`oklch(0.66 0.22 42)` / `#FF6600`).
+  - Tokens da barra lateral (`--sidebar`) padronizados para obsidian escuro e contraste nítido em branco/cinza claro.
+- **Barra Lateral (`SidebarShell` & `SidebarNav`)**:
+  - Inclusão do logotipo WOOTECH vetorizado no topo com indicador de status "PAINEL PRINCIPAL • ONLINE".
+  - Itens de navegação alinhados às telas do mockup: Início, Instâncias, Conversas, Campanhas, Contatos, Etiquetas, Automações, Relatórios, Configurações e Administração.
+  - Links ativos com a pílula arredondada em laranja vibrante (`bg-[#FF6600] text-white font-bold shadow-md`) e itens inativos em cinza slate suave com hover iluminado.
+  - Rodapé com avatar circular laranja "WA" ("WooTech Admin", "admin@wootech.com.br", "Administrador") e botão sutil de encerramento de sessão.
+- **Barra Superior (`Navbar` & `RoleBanner`)**:
+  - Badge de papel administrativo com ícone de coroa `👑 Mega Admin` / `👑 Super Admin` em pílula branca com borda suave.
+  - Botão de notificações com ponto indicador em laranja WOOTECH.
+  - Avatar do perfil circular em gradiente laranja radiante.
+- **Painel Geral de Operações (`/dashboard`)**:
+  - Cabeçalho com saudação: "Olá, Admin!" e subtítulo "Aqui está o resumo da sua operação de hoje.".
+  - 4 cartões de estatísticas no topo com ícone em caixa laranja suave e badges verdes:
+    1. Instâncias ativas (12, "+2 desde ontem")
+    2. Conversas hoje (1.482, "+12% vs. ontem")
+    3. Contatos (8.934, "+5% vs. ontem")
+    4. Mensagens enviadas (24.781, "+18% vs. ontem")
+  - Seção intermediária em duas colunas:
+    - Esquerda: "Atividade nos últimos 7 dias" com gráfico vetorial de curvas suaves em degradê laranja e linha secundária em grafite, nós interativos e legenda colorida.
+    - Direita: "Instâncias ativas" com link "Ver todas >", ícones squircle verdes do WhatsApp, telefones formatados e pills de status "● Online" / "● Offline".
+  - Seção inferior de "Ações rápidas" com 4 cards limpos: "Criar instância", "Iniciar disparo", "Gerenciar contatos" e "Configurar automação".
+- **Gestão de Instâncias (`/dashboard/sessions`)**:
+  - Barra de ferramentas com busca rápida ("Buscar por nome ou número..."), filtros por status ("Todos os status") e botão de ação em destaque `+ Nova instância`.
+  - Tabela limpa com ícones do WhatsApp, nome, número, badge de status e ações rápidas (QR Code, configurações e opções).
+  - Modal assistente com fluxo em 3 etapas: `1 Dados da instância`, `2 QR Code` e `3 Conexão`.
+- **Campanhas (`/dashboard/broadcast`), Contatos (`/dashboard/contacts`) e Configurações (`/dashboard/settings`)**:
+  - Abas e cabeçalhos harmonizados com a paleta WOOTECH.
+  - Tela de configurações enriquecida com os blocos de "Dados da conta" (Mega Admin com botão "Gerenciar plano") e "Preferências" (Notificações, Horário de atendimento, Integrações e Segurança).
+
 

@@ -9,6 +9,8 @@ import { useRoleTheme } from "./role-theme";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { WooTechLogo } from "@/components/ui/wootech-logo";
+
 interface SidebarShellProps {
     appName: string;
     userName?: string | null;
@@ -45,72 +47,43 @@ export function SidebarShell({ appName, userName, userEmail, version, userRole }
 
     const isResellerRole = effectiveRole === "SUPER_ADMIN" || effectiveRole === "SUPERADMIN";
 
+    // Format initials and display name matching mockup "WooTech Admin" / "admin@wootech.com.br"
+    const displayName = userName || "WooTech Admin";
+    const displayEmail = userEmail || "admin@wootech.com.br";
+    const displayInitials = displayName
+        .split(" ")
+        .map((p) => p[0])
+        .slice(0, 2)
+        .join("")
+        .toUpperCase() || "WA";
+
     return (
         <aside
             className={`
-                bg-white border-r border-slate-200
+                bg-[#0B111E] border-r border-slate-800/80 text-slate-300
                 hidden md:flex flex-col h-full sticky left-0 top-0 z-20
-                shadow-xs
+                shadow-xl
                 transition-all duration-300 ease-in-out
                 ${isCollapsed ? "w-[72px]" : "w-[260px]"}
             `}
         >
             {/* Logo / Brand matching mockup */}
-            <div className={`relative border-b border-slate-100 transition-all duration-300 ${isCollapsed ? "px-2 py-4" : "px-5 py-4"}`}>
+            <div className={`relative border-b border-slate-800/60 transition-all duration-300 ${isCollapsed ? "px-2 py-4 flex justify-center" : "px-5 py-5"}`}>
                 {isCollapsed ? (
-                    <div className="flex justify-center" title="WooHub">
-                        <svg className="w-8 h-8" viewBox="0 0 48 38" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <defs>
-                                <linearGradient id="woohub-blue-grad" x1="0" y1="0" x2="1" y2="1">
-                                    <stop offset="0%" stopColor="#1d4ed8" />
-                                    <stop offset="100%" stopColor="#0284c7" />
-                                </linearGradient>
-                                <linearGradient id="woohub-cyan-grad" x1="0" y1="0" x2="1" y2="1">
-                                    <stop offset="0%" stopColor="#38bdf8" />
-                                    <stop offset="100%" stopColor="#0284c7" />
-                                </linearGradient>
-                            </defs>
-                            <path d="M4 10 L16 34 L23 18 L16 10 Z" fill="url(#woohub-blue-grad)" />
-                            <path d="M21 18 L28 34 L44 8 L35 8 L27 24 Z" fill="url(#woohub-cyan-grad)" />
-                        </svg>
+                    <div className="flex justify-center" title="WOOTECH">
+                        <WooTechLogo variant="icon" iconSize={30} />
                     </div>
                 ) : (
                     <div>
-                        <div className="flex items-center gap-3">
-                            <svg className="w-9 h-9 flex-shrink-0" viewBox="0 0 48 38" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <defs>
-                                    <linearGradient id="woohub-blue-grad-full" x1="0" y1="0" x2="1" y2="1">
-                                        <stop offset="0%" stopColor="#1d4ed8" />
-                                        <stop offset="100%" stopColor="#0284c7" />
-                                    </linearGradient>
-                                    <linearGradient id="woohub-cyan-grad-full" x1="0" y1="0" x2="1" y2="1">
-                                        <stop offset="0%" stopColor="#38bdf8" />
-                                        <stop offset="100%" stopColor="#0284c7" />
-                                    </linearGradient>
-                                </defs>
-                                <path d="M4 10 L16 34 L23 18 L16 10 Z" fill="url(#woohub-blue-grad-full)" />
-                                <path d="M21 18 L28 34 L44 8 L35 8 L27 24 Z" fill="url(#woohub-cyan-grad-full)" />
-                            </svg>
-                            <div className="min-w-0">
-                                <div className="flex items-center gap-1">
-                                    <span className="text-xl font-black tracking-tight text-slate-900 leading-none">
-                                        WooHub
-                                    </span>
-                                    <span className="text-[9px] font-semibold text-slate-400">®</span>
-                                </div>
-                                <p className="text-[7.5px] font-bold tracking-wider text-slate-500 uppercase mt-0.5 leading-tight truncate">
-                                    API DE COMUNICAÇÃO PARA NEGÓCIOS
-                                </p>
-                            </div>
+                        <div className="flex items-center justify-between">
+                            <WooTechLogo variant="sidebar" iconSize={36} colorMode="dark" />
                         </div>
-                        <p className="text-[6.5px] font-medium tracking-wide text-slate-400 uppercase mt-1 leading-tight text-center">
-                            WHATSAPP · INTEGRAÇÕES · AUTOMAÇÃO · ATENDIMENTO
-                        </p>
-                        <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
-                            <span className="text-[9px] font-bold tracking-wider text-slate-400 uppercase">
-                                CENTRAL DE OPERAÇÕES
+                        <div className="mt-3 pt-2.5 border-t border-slate-800/60 flex items-center justify-between text-[9px] font-bold tracking-wider text-slate-400 uppercase">
+                            <span>PAINEL PRINCIPAL</span>
+                            <span className="flex items-center gap-1.5 text-emerald-400">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                ONLINE
                             </span>
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" title="Operação online" />
                         </div>
                     </div>
                 )}
@@ -119,19 +92,19 @@ export function SidebarShell({ appName, userName, userEmail, version, userRole }
             {/* Navigation */}
             <SidebarNav userRole={effectiveRole} />
 
-            {/* User Footer */}
+            {/* User Footer matching mockup card */}
             <div 
                 suppressHydrationWarning={true}
-                className={`relative border-t border-slate-200 bg-white transition-all duration-300 ${isCollapsed ? "p-2" : "p-3"}`}
+                className={`relative border-t border-slate-800/80 bg-[#070B14] transition-all duration-300 ${isCollapsed ? "p-2" : "p-3.5"}`}
             >
                 {isCollapsed ? (
                     <div suppressHydrationWarning={true} className="flex flex-col items-center gap-2">
-                        <div suppressHydrationWarning={true} className="h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold bg-sky-50 text-sky-700 border border-sky-100">
-                            {userName?.charAt(0)?.toUpperCase() || "U"}
+                        <div suppressHydrationWarning={true} className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold bg-gradient-to-br from-[#FF7A1A] to-[#FF5500] text-white shadow-xs">
+                            {displayInitials}
                         </div>
                         <button
                             onClick={() => signOut({ callbackUrl: "/auth/login" })}
-                            className="p-2 rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            className="p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-800/60 transition-colors"
                             title="Sair"
                         >
                             <LogOut size={16} />
@@ -139,29 +112,27 @@ export function SidebarShell({ appName, userName, userEmail, version, userRole }
                     </div>
                 ) : (
                     <>
-                        <div suppressHydrationWarning={true} className="flex items-center gap-2.5 mb-2.5">
+                        <div suppressHydrationWarning={true} className="flex items-center gap-3 mb-3">
                             <div 
                                 suppressHydrationWarning={true}
-                                className="h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold bg-sky-50 text-sky-700 border border-sky-100 flex-shrink-0"
+                                className="h-9 w-9 rounded-full flex items-center justify-center text-xs font-extrabold bg-gradient-to-br from-[#FF7A1A] to-[#FF5500] text-white shadow-md flex-shrink-0"
                             >
-                                {userName?.charAt(0)?.toUpperCase() || "PA"}
+                                {displayInitials}
                             </div>
                             <div suppressHydrationWarning={true} className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold truncate text-slate-900">{userName || "Paulo Adriano"}</p>
-                                <p className="text-[11px] text-slate-500 truncate">{userEmail || "Comercial"}</p>
+                                <p className="text-xs font-bold truncate text-white">{displayName}</p>
+                                <p className="text-[10px] text-slate-400 truncate mt-0.5">{displayEmail}</p>
+                                <p className="text-[9px] font-semibold text-[#FF7A1A] uppercase tracking-wider mt-0.5">
+                                    {effectiveRole === "MEGA_ADMIN" ? "Mega Admin" : effectiveRole === "SUPER_ADMIN" ? "Super Admin" : "Administrador"}
+                                </p>
                             </div>
-                        </div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full flex items-center justify-center gap-2 text-xs h-8 rounded-lg border-slate-200 text-slate-700 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors"
-                            onClick={() => signOut({ callbackUrl: "/auth/login" })}
-                        >
-                            <LogOut size={14} /> Sair
-                        </Button>
-                        <div className="mt-2 text-center">
-                            <p className="text-[9px] text-slate-400 font-medium leading-tight">WooHub · Comunicação e automação</p>
-                            <p className="text-[9px] text-slate-400 font-medium leading-tight">Protótipo navegável · PT-BR</p>
+                            <button
+                                onClick={() => signOut({ callbackUrl: "/auth/login" })}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800/60 transition-colors"
+                                title="Encerrar sessão"
+                            >
+                                <LogOut size={15} />
+                            </button>
                         </div>
                     </>
                 )}
