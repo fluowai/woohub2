@@ -308,7 +308,7 @@ export default function BotSettingsPage() {
                                 <div className="flex items-center justify-between space-x-2 border p-3 rounded-lg">
                                     <Label htmlFor="always-online" className="flex flex-col space-y-1 cursor-pointer">
                                         <span className="font-medium">Sempre online</span>
-                                        <span className="font-normal text-[10px] text-muted-foreground">Permanece como "Online" continuamente no WhatsApp.</span>
+                                        <span className="font-normal text-[10px] text-muted-foreground">Permanece como “Online” continuamente no WhatsApp.</span>
                                     </Label>
                                     <Switch id="always-online" checked={botConfig.alwaysOnline}
                                         onCheckedChange={c => setBotConfig(prev => ({ ...prev, alwaysOnline: c }))} />

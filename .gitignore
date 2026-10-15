@@ -61,3 +61,6 @@ next-env.d.ts
 server.log
 dev-server.log
 /logs/
+
+/data/backup/*
+!/data/backup/.gitkeep

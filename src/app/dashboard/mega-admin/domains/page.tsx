@@ -367,7 +367,7 @@ export default function DomainsAdminPage() {
                                 <AlertCircle size={14} className="flex-shrink-0 mt-0.5 text-amber-600" />
                                 <span>
                                     Após configurar a entrada TXT no provedor DNS (Cloudflare, GoDaddy, Registro.br), clique
-                                    em "Verificar". A propagação pode levar alguns minutos.
+                                    em “Verificar”. A propagação pode levar alguns minutos.
                                 </span>
                             </div>
 

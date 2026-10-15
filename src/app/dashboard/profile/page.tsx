@@ -288,7 +288,7 @@ export default function ProfilePage() {
                                             </Button>
                                         </div>
                                     </div>
-                                    <p className="text-xs text-muted-foreground mt-2">Atualize a seção 'Sobre' do seu WhatsApp.</p>
+                                    <p className="text-xs text-muted-foreground mt-2">Atualize a seção ‘Sobre’ do seu WhatsApp.</p>
                                 </div>
                                 </Card>
                             </CardContent>

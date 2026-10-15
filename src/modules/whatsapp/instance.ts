@@ -6,7 +6,7 @@ import makeWASocket, {
     ConnectionState
 } from "@whiskeysockets/baileys";
 import { prisma } from "@/lib/prisma";
-import { usePrismaAuthState } from "./auth/usePrismaAuthState";
+import { loadPrismaAuthState } from "./auth/usePrismaAuthState";
 import { Server } from "socket.io";
 import pino from "pino";
 import { bindSessionStore } from "./store";
@@ -113,7 +113,7 @@ export class WhatsAppInstance {
             data: { qr: null }
         }).catch((err) => logger.warn("Instance", `Failed to persist session state for ${this.sessionId}:`, err));
 
-        const { state, saveCreds } = await usePrismaAuthState(this.sessionId);
+        const { state, saveCreds } = await loadPrismaAuthState(this.sessionId);
         const { version } = await fetchLatestBaileysVersion();
 
         this.socket = makeWASocket({

@@ -146,7 +146,10 @@ export function MobileNav({ appName = "Woohub", theme, userRole: propUserRole }:
         userRole = "SUPER_ADMIN";
     }
 
-    const currentTheme = theme || useRoleTheme().theme;
+    // Hook chamado incondicionalmente (regras do React): o valor so entra em
+    // uso quando `theme` nao e passado pelo pai.
+    const fallbackTheme = useRoleTheme().theme;
+    const currentTheme = theme || fallbackTheme;
 
     const activeNavGroups =
         userRole === "MEGA_ADMIN" ? megaAdminMobileGroups :

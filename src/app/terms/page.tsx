@@ -69,7 +69,7 @@ export default function TermsPage() {
                             anti-spam. Você concorda em não:
                         </p>
                         <ul>
-                            <li>Enviar mensagens de "spam" não solicitadas ou campanhas promocionais em massa para usuários que não autorizaram explicitamente o recebimento.</li>
+                            <li>Enviar mensagens de “spam” não solicitadas ou campanhas promocionais em massa para usuários que não autorizaram explicitamente o recebimento.</li>
                             <li>Usar a plataforma para distribuir software malicioso, links de phishing ou conteúdo ilegal.</li>
                             <li>Tentar fazer engenharia reversa da API principal ou sobrecarregar o serviço com requisições excessivas.</li>
                         </ul>
@@ -83,7 +83,7 @@ export default function TermsPage() {
 
                         <h2 className="mt-8 text-2xl border-b pb-2">4. Isenções e limitações</h2>
                         <p>
-                            A Woohub é fornecida "como está", sem garantias de qualquer tipo. Utilizamos bibliotecas de
+                            A Woohub é fornecida “como está”, sem garantias de qualquer tipo. Utilizamos bibliotecas de
                             terceiros para conectar aos protocolos do WhatsApp Web. Mudanças nos
                             sistemas internos do WhatsApp podem ocasionalmente interromper o serviço. Não nos
                             responsabilizamos por suspensões ou banimentos de conta impostos pelo WhatsApp em

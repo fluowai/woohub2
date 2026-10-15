@@ -274,7 +274,7 @@ export default function WebhookLogDialog({ webhookId, webhookName, targetSession
                         <div className="space-y-1">
                             <p className="font-semibold text-slate-800 text-sm">Nenhum registro de entrega ainda</p>
                             <p className="text-xs text-muted-foreground max-w-[280px]">
-                                Os registros aparecerão aqui assim que os webhooks forem enviados ou quando você clicar em "Testar".
+                                Os registros aparecerão aqui assim que os webhooks forem enviados ou quando você clicar em “Testar”.
                             </p>
                         </div>
                     </div>

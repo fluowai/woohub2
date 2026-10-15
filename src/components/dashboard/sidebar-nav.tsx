@@ -145,7 +145,7 @@ export function SidebarNav({ userRole: propUserRole }: SidebarNavProps = {}) {
         ],
     };
 
-    let activeGroups = [...operationalGroups];
+    const activeGroups = [...operationalGroups];
     if (userRole === "MEGA_ADMIN") {
         activeGroups.push(megaAdminGroup);
     } else if (userRole === "SUPER_ADMIN" || userRole === "SUPERADMIN") {

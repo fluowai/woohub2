@@ -59,7 +59,7 @@ function reviveValue<T>(value: unknown): T {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export const usePrismaAuthState = async (
+export const loadPrismaAuthState = async (
     sessionId: string
 ): Promise<{ state: AuthenticationState; saveCreds: () => Promise<void> }> => {
     /** Returns null only when the row does not exist; throws on any read/decryption error. */

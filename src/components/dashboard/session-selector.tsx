@@ -9,7 +9,10 @@ import { useRoleTheme } from "./role-theme";
 export function SessionSelector({ theme }: { theme?: any }) {
     const { sessions, sessionId, setSessionId, loading, refreshSessions } = useSession();
     const selectedSession = sessions.find(s => s.sessionId === sessionId);
-    const currentTheme = theme || useRoleTheme().theme;
+    // Hook chamado incondicionalmente (regras do React): o valor so entra em
+    // uso quando `theme` nao e passado pelo pai.
+    const fallbackTheme = useRoleTheme().theme;
+    const currentTheme = theme || fallbackTheme;
 
     return (
         <div className="flex items-center gap-1">
