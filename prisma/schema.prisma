@@ -648,7 +648,18 @@ model SystemConfig {
   // External telemetry (heartbeat). Off by default; never contains customer data.
   telemetryEnabled   Boolean  @default(false)
   telemetryUrl       String?
-  
+
+  // Gateway de pagamento (configuravel pelo painel; fallback para as variaveis
+  // de ambiente quando nulos). Secret key e webhook secret sao gravados com
+  // envelope AES-256-GCM (CREDENTIALS_ENCRYPTION_KEY) — nunca em texto puro.
+  // paymentGateway null = nunca configurado pelo painel (usa PAYMENT_GATEWAY do env).
+  paymentGateway            String?
+  paymentGatewayPublicKey   String?
+  paymentGatewaySecretKey   String? // envelope criptografado
+  paymentGatewayBaseUrl     String?
+  paymentWebhookSecret      String? // envelope criptografado (ex.: webhook_secret AsgardPay)
+  paymentGatewaySandbox     Boolean?
+
   updatedAt          DateTime @updatedAt
 }
 

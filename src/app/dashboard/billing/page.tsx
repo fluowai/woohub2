@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Check, CreditCard, Gauge, Layers, RefreshCw, Info } from "lucide-react";
+import { Check, CreditCard, Gauge, Layers, RefreshCw, Info, Copy, QrCode, X } from "lucide-react";
 import { toast } from "sonner";
 
 interface PlanRow {
@@ -93,11 +93,20 @@ function percent(used: number, limit: number): number {
     return Math.min(100, Math.round((used / limit) * 100));
 }
 
+interface PixCheckout {
+    orderId: string;
+    planName: string;
+    qrImage: string | null;
+    copyPaste: string | null;
+}
+
 export default function BillingPage() {
     const [plans, setPlans] = useState<PlanRow[]>([]);
     const [usage, setUsage] = useState<UsageSnapshot | null>(null);
     const [subscription, setSubscription] = useState<SubscriptionRow | null>(null);
     const [loading, setLoading] = useState(true);
+    const [subscribing, setSubscribing] = useState<string | null>(null);
+    const [pix, setPix] = useState<PixCheckout | null>(null);
 
     const load = useCallback(async () => {
         try {
@@ -129,6 +138,75 @@ export default function BillingPage() {
     useEffect(() => {
         load();
     }, [load]);
+
+    const handleSubscribe = async (plan: PlanRow) => {
+        setSubscribing(plan.id);
+        try {
+            const res = await fetch("/api/payments/checkout", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ planId: plan.id }),
+            });
+            const json = await res.json().catch(() => null);
+
+            if (!res.ok || !json?.status) {
+                toast.error(json?.message || "Não foi possível iniciar o pagamento.");
+                return;
+            }
+
+            const data = json.data as {
+                gateway: string;
+                checkoutUrl?: string;
+                raw?: { qrcode?: string | null; copy_paste?: string | null; order_id?: string | number | null };
+            };
+
+            if (data.gateway === "asgardpay") {
+                const orderId = String(data.raw?.order_id ?? "");
+                setPix({
+                    orderId,
+                    planName: plan.name,
+                    qrImage: data.raw?.qrcode || null,
+                    copyPaste: data.raw?.copy_paste || null,
+                });
+                return;
+            }
+
+            // Mercado Pago: redireciona para o checkout hospedado.
+            if (data.checkoutUrl) window.location.href = data.checkoutUrl;
+            else toast.error("Gateway não retornou a URL de pagamento.");
+        } catch {
+            toast.error("Erro de conexão ao iniciar o pagamento.");
+        } finally {
+            setSubscribing(null);
+        }
+    };
+
+    // Polling do pedido PIX aberto (UX) — a confirmação real vem do webhook.
+    useEffect(() => {
+        if (!pix?.orderId) return;
+        let cancelled = false;
+        const timer = setInterval(async () => {
+            try {
+                const res = await fetch(`/api/payments/status?orderId=${encodeURIComponent(pix.orderId)}`);
+                const json = await res.json().catch(() => null);
+                if (cancelled || !json?.status) return;
+                if (json.data?.paid) {
+                    cancelled = true;
+                    clearInterval(timer);
+                    setPix(null);
+                    toast.success("Pagamento confirmado! Ativando seu plano…");
+                    setLoading(true);
+                    load();
+                }
+            } catch {
+                /* proxima tentativa */
+            }
+        }, 5000);
+        return () => {
+            cancelled = true;
+            clearInterval(timer);
+        };
+    }, [pix?.orderId, load]);
 
     const activePlan = usage?.limits ? usage.planCode : null;
     const metrics = usage?.limits
@@ -318,14 +396,15 @@ export default function BillingPage() {
                                             <Button
                                                 variant={isCurrent ? "secondary" : "outline"}
                                                 className="w-full"
-                                                disabled={isCurrent}
-                                                onClick={() =>
-                                                    toast.info(
-                                                        "A ativação de plano é feita pelo administrador da plataforma nesta fase. Fale com o suporte para contratar."
-                                                    )
-                                                }
+                                                disabled={isCurrent || subscribing === plan.id}
+                                                onClick={() => handleSubscribe(plan)}
                                             >
-                                                {isCurrent ? "Em uso" : "Solicitar plano"}
+                                                {subscribing === plan.id ? (
+                                                    <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                                                ) : (
+                                                    <CreditCard className="h-4 w-4 mr-2" />
+                                                )}
+                                                {isCurrent ? "Em uso" : plan.priceCents > 0 ? "Assinar com PIX" : "Solicitar plano"}
                                             </Button>
                                         </div>
                                     </CardContent>
@@ -342,8 +421,9 @@ export default function BillingPage() {
                 </CardHeader>
                 <CardContent className="text-sm text-muted-foreground space-y-2">
                     <p>
-                        Esta plataforma ainda não possui um gateway de pagamento integrado. A ativação de planos é
-                        manual e auditada: o administrador atribui o plano à empresa e os limites passam a valer na hora.
+                        Os planos são pagos via PIX pelo gateway integrado (AsgardPay ou Mercado Pago). Ao clicar em
+                        <span className="font-medium text-foreground"> Assinar com PIX </span>
+                        um QR Code é gerado: basta pagar e a ativação acontece automaticamente após a confirmação.
                     </p>
                     <p>
                         Enquanto isso, empresas sem assinatura permanecem no modo piloto, com todos os recursos
@@ -351,6 +431,83 @@ export default function BillingPage() {
                     </p>
                 </CardContent>
             </Card>
+
+            {/* Modal PIX */}
+            {pix && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4"
+                    onClick={() => setPix(null)}
+                >
+                    <div
+                        className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                                    <QrCode className="h-5 w-5 text-emerald-600" /> Pague com PIX
+                                </h3>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                    Plano {pix.planName} · ativação automática após o pagamento
+                                </p>
+                            </div>
+                            <button
+                                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                                onClick={() => setPix(null)}
+                                aria-label="Fechar"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        {pix.qrImage ? (
+                            <div className="flex justify-center mb-4">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={`data:image/png;base64,${pix.qrImage}`}
+                                    alt="QR Code PIX"
+                                    className="h-56 w-56 rounded-xl border border-slate-200 p-2 bg-white"
+                                />
+                            </div>
+                        ) : (
+                            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
+                                O gateway não devolveu a imagem do QR Code. Use o código copia e cola abaixo.
+                            </div>
+                        )}
+
+                        {pix.copyPaste && (
+                            <div className="space-y-2 mb-4">
+                                <p className="text-xs font-medium text-slate-500">Copia e cola</p>
+                                <div className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                    <p className="text-[11px] font-mono text-slate-600 break-all flex-1 max-h-20 overflow-hidden">
+                                        {pix.copyPaste}
+                                    </p>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="shrink-0 h-8"
+                                        onClick={async () => {
+                                            try {
+                                                await navigator.clipboard.writeText(pix.copyPaste || "");
+                                                toast.success("Código copiado!");
+                                            } catch {
+                                                toast.error("Não foi possível copiar automaticamente.");
+                                            }
+                                        }}
+                                    >
+                                        <Copy className="h-3.5 w-3.5 mr-1" /> Copiar
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">
+                            <RefreshCw className="h-3.5 w-3.5 mt-0.5 animate-spin shrink-0" />
+                            <p>Verificando o pagamento automaticamente. Esta janela fecha sozinha quando o PIX for confirmado.</p>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

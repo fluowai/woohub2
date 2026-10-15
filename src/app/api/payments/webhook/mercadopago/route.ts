@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import {
     buildExternalEventId,
     confirmMercadoPagoPayment,
-    configuredGateway,
+    loadGatewaySettings,
     PaymentServiceError,
     processPaymentEvent,
+    resolveGateway,
     verifyMercadoPagoSignature,
 } from "@/lib/payments";
 import { logger } from "@/lib/logger";
@@ -36,7 +37,7 @@ function readPayload(payload: Record<string, unknown>): {
 
 export async function POST(request: NextRequest) {
     try {
-        if (!configuredGateway()) {
+        if ((await resolveGateway()) !== "mercadopago") {
             return NextResponse.json(
                 { received: false, code: "gateway_not_configured", message: "Gateway de pagamento não configurado" },
                 { status: 503 }
@@ -62,8 +63,9 @@ export async function POST(request: NextRequest) {
         const parsed = readPayload(payload);
         const queryDataId = request.nextUrl.searchParams.get("data.id") || request.nextUrl.searchParams.get("data[id]");
 
+        const settings = await loadGatewaySettings();
         const signature = verifyMercadoPagoSignature({
-            secret: process.env.PAYMENT_WEBHOOK_SECRET,
+            secret: settings.webhookSecret,
             signature: request.headers.get("x-signature"),
             requestId: request.headers.get("x-request-id"),
             queryDataId,

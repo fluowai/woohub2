@@ -1,9 +1,10 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import { InvalidWebhookSignatureError, WebhookSignatureValidator } from "mercadopago";
 import { prisma } from "@/lib/prisma";
 import { audit } from "@/lib/audit";
 import { logger } from "@/lib/logger";
+import { decryptSecret, isEncrypted } from "@/lib/security/crypto";
 
 /**
  * Provider-agnostic billing logic.
@@ -18,7 +19,7 @@ import { logger } from "@/lib/logger";
  *    `gateway_not_configured` instead of faking a checkout.
  */
 
-export type PaymentProvider = "manual" | "mercadopago" | "stripe";
+export type PaymentProvider = "manual" | "mercadopago" | "stripe" | "asgardpay";
 
 export interface CreateCheckoutInput {
     tenantId: string;
@@ -56,12 +57,136 @@ function periodDaysFor(period: string | undefined): number {
 /** Returns the configured gateway, or null when it is not usable yet. */
 export function configuredGateway(): PaymentProvider | null {
     const raw = (process.env.PAYMENT_GATEWAY || "").trim().toLowerCase();
-    if (!raw || raw === "manual") return null;
+    // Sem escolha explicita, um segredo AsgardPay presente ativa o gateway PIX.
+    if (!raw) {
+        return (process.env.ASGARDPAY_SECRET_KEY || "").trim() ? "asgardpay" : null;
+    }
+    if (raw === "manual") return null;
     if (raw === "mercadopago") {
         return (process.env.PAYMENT_GATEWAY_SECRET_KEY || "").trim() ? "mercadopago" : null;
     }
+    if (raw === "asgardpay") {
+        return (process.env.ASGARDPAY_SECRET_KEY || "").trim() ? "asgardpay" : null;
+    }
     if (raw === "stripe") return null; // interface delivered, not wired yet
     return null;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Credenciais: painel (SystemConfig) com fallback para .env                   */
+/* -------------------------------------------------------------------------- */
+
+export interface GatewaySettings {
+    /** Gateway efetivo (painel quando preenchido, senao PAYMENT_GATEWAY do env). */
+    provider: PaymentProvider | null;
+    publicKey: string;
+    secretKey: string; // texto puro em memoria; gravação usa envelope
+    baseUrl: string;
+    webhookSecret: string; // texto puro em memoria; gravação usa envelope
+    sandbox: boolean;
+    /** true quando a escolha veio do painel (SystemConfig), false = .env */
+    fromSettings: boolean;
+}
+
+const ASGARD_DEFAULT_BASE = "https://app.asgardpay.com.br/api/v1";
+
+function decryptIfEnvelope(value: string | null | undefined, aad: string): string {
+    if (!value) return "";
+    if (isEncrypted(value)) {
+        try {
+            return decryptSecret(value, aad);
+        } catch (error) {
+            logger.error("Payments", "Falha ao decifrar credencial do gateway:", error);
+            return "";
+        }
+    }
+    return value; // valor legado gravado antes da criptografia em repouso
+}
+
+export const GATEWAY_SECRET_AAD = "payment:systemconfig:secret";
+export const GATEWAY_WEBHOOK_AAD = "payment:systemconfig:webhook";
+
+/**
+ * Carrega as credenciais efetivas do gateway.
+ * Precedencia: painel (SystemConfig) quando preenchido, senao variaveis de ambiente.
+ * Nunca lança: credencial ausente vira string vazia (o chamador decide).
+ */
+export async function loadGatewaySettings(): Promise<GatewaySettings> {
+    let row: {
+        paymentGateway: string | null;
+        paymentGatewayPublicKey: string | null;
+        paymentGatewaySecretKey: string | null;
+        paymentGatewayBaseUrl: string | null;
+        paymentWebhookSecret: string | null;
+        paymentGatewaySandbox: boolean | null;
+    } | null = null;
+    try {
+        row = await prisma.systemConfig.findUnique({
+            where: { id: "default" },
+            select: {
+                paymentGateway: true,
+                paymentGatewayPublicKey: true,
+                paymentGatewaySecretKey: true,
+                paymentGatewayBaseUrl: true,
+                paymentWebhookSecret: true,
+                paymentGatewaySandbox: true,
+            },
+        });
+    } catch (error) {
+        logger.warn("Payments", "Sem acesso ao SystemConfig; usando apenas variaveis de ambiente:", error);
+    }
+
+    // Precedencia: painel (inclusive "manual" explicito), senao variavel de ambiente.
+    // Sem PAYMENT_GATEWAY definido, um ASGARDPAY_SECRET_KEY presente ativa asgardpay.
+    const panelGateway = row?.paymentGateway ? (row.paymentGateway.toLowerCase() as PaymentProvider) : null;
+    const envRaw = (process.env.PAYMENT_GATEWAY || "").trim().toLowerCase();
+    const envGateway: PaymentProvider | null = envRaw
+        ? (envRaw as PaymentProvider)
+        : (process.env.ASGARDPAY_SECRET_KEY || "").trim()
+          ? "asgardpay"
+          : null;
+    const effective: PaymentProvider | null = panelGateway ?? envGateway;
+
+    const isAsgard = effective === "asgardpay";
+    const isMp = effective === "mercadopago";
+
+    const publicKey =
+        row?.paymentGatewayPublicKey ||
+        (isMp ? process.env.PAYMENT_GATEWAY_PUBLIC_KEY || "" : isAsgard ? process.env.ASGARDPAY_PUBLIC_KEY || "" : "");
+    const secretKey =
+        decryptIfEnvelope(row?.paymentGatewaySecretKey, GATEWAY_SECRET_AAD) ||
+        (isMp ? process.env.PAYMENT_GATEWAY_SECRET_KEY || "" : isAsgard ? process.env.ASGARDPAY_SECRET_KEY || "" : "");
+    const baseUrl =
+        row?.paymentGatewayBaseUrl ||
+        (isAsgard ? (process.env.ASGARDPAY_BASE_URL || "").trim() || ASGARD_DEFAULT_BASE : "");
+    const webhookSecret =
+        decryptIfEnvelope(row?.paymentWebhookSecret, GATEWAY_WEBHOOK_AAD) ||
+        (isAsgard ? (process.env.ASGARDPAY_WEBHOOK_SECRET || "").trim() : "") ||
+        (process.env.PAYMENT_WEBHOOK_SECRET || "").trim();
+    const sandbox =
+        row?.paymentGatewaySandbox ??
+        (process.env.PAYMENT_GATEWAY_SANDBOX || "").trim() === "true";
+
+    return {
+        provider: effective,
+        publicKey: publicKey.trim(),
+        secretKey: secretKey.trim(),
+        baseUrl: baseUrl.replace(/\/$/, ""),
+        webhookSecret: webhookSecret.trim(),
+        sandbox,
+        fromSettings: Boolean(row?.paymentGateway),
+    };
+}
+
+/**
+ * Gateway efetivamente utilizavel (chave presente), ou null.
+ * Assincrono porque o painel pode ter configurado credenciais no banco.
+ */
+export async function resolveGateway(): Promise<PaymentProvider | null> {
+    const cfg = await loadGatewaySettings();
+    if (!cfg.provider || cfg.provider === "manual" || cfg.provider === "stripe") return null;
+    if (!cfg.secretKey) return null;
+    return cfg.provider;
 }
 
 function newInvoiceNumber(): string {
@@ -70,7 +195,7 @@ function newInvoiceNumber(): string {
 }
 
 export async function createCheckout(input: CreateCheckoutInput): Promise<CheckoutResult> {
-    const gateway = configuredGateway();
+    const gateway = await resolveGateway();
     if (!gateway) {
         throw new PaymentServiceError(
             "gateway_not_configured",
@@ -83,8 +208,11 @@ export async function createCheckout(input: CreateCheckoutInput): Promise<Checko
     const tenant = await prisma.tenant.findUnique({ where: { id: input.tenantId } });
     if (!tenant) throw new PaymentServiceError("tenant_not_found", "Empresa não encontrada");
 
-    if (gateway === "mercadopago") {
-        const result = await createMercadoPagoCheckout({ ...input, plan, tenant });
+    if (gateway === "mercadopago" || gateway === "asgardpay") {
+        const result =
+            gateway === "mercadopago"
+                ? await createMercadoPagoCheckout({ ...input, plan, tenant })
+                : await createAsgardpayCheckout({ ...input, plan, tenant });
         await createOpenInvoice({
             tenantId: tenant.id,
             planId: plan.id,
@@ -190,6 +318,160 @@ async function createMercadoPagoCheckout(params: {
 }
 
 /* -------------------------------------------------------------------------- */
+/* AsgardPay (PIX)                                                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Chamada autenticada a API AsgardPay (X-Public-Key / X-Secret-Key).
+ * `path` e relativo ao BASE_URL configurado (ex.: `/payments/pix`).
+ */
+async function asgardpayRequest<T>(
+    path: string,
+    init: { method?: "GET" | "POST" | "PUT"; body?: unknown; timeoutMs?: number } = {}
+): Promise<{ ok: boolean; status: number; body: T | null }> {
+    const cfg = await loadGatewaySettings();
+    if (!cfg.baseUrl) throw new PaymentServiceError("gateway_not_configured", "ASGARDPAY_BASE_URL ausente");
+    if (!cfg.publicKey || !cfg.secretKey) {
+        throw new PaymentServiceError("gateway_not_configured", "Credenciais AsgardPay ausentes (public/secret key)");
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), init.timeoutMs ?? 15_000);
+    try {
+        const res = await fetch(`${cfg.baseUrl}${path}`, {
+            method: init.method ?? "GET",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+                "X-Public-Key": cfg.publicKey,
+                "X-Secret-Key": cfg.secretKey,
+            },
+            body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
+            signal: controller.signal,
+            cache: "no-store",
+        });
+        const text = await res.text();
+        let body: T | null = null;
+        try {
+            body = text ? (JSON.parse(text) as T) : null;
+        } catch {
+            body = null;
+        }
+        return { ok: res.ok, status: res.status, body };
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+async function createAsgardpayCheckout(params: {
+    plan: { id: string; name: string; priceCents: number; currency: string };
+    tenant: { id: string; name: string };
+    returnUrl?: string;
+    cancelUrl?: string;
+}): Promise<CheckoutResult> {
+    const baseUrl = (process.env.BASE_URL || "http://localhost:3000").replace(/\/$/, "");
+
+    // Quem paga: email do dono da empresa (obrigatorio na API AsgardPay).
+    const owner = await prisma.tenantMember.findFirst({
+        where: { tenantId: params.tenant.id },
+        include: { user: { select: { email: true, name: true } } },
+        orderBy: { createdAt: "asc" },
+    });
+    const customerEmail = owner?.user?.email?.trim();
+    if (!customerEmail) {
+        throw new PaymentServiceError("tenant_without_email", "A empresa não possui um e-mail de contato para a cobrança");
+    }
+
+    const amount = params.plan.priceCents / 100;
+    if (!(amount >= 0.01)) {
+        throw new PaymentServiceError("invalid_amount", "Valor do plano inválido para cobrança PIX");
+    }
+
+    const body = {
+        customer: {
+            email: customerEmail,
+            name: owner?.user?.name?.trim() || params.tenant.name,
+        },
+        amount,
+        currency: params.plan.currency || "BRL",
+        // A API exige HTTPS: em ambiente local (http://) a URL e omitida.
+        ...(baseUrl.startsWith("https://")
+            ? { partner_checkout_url: `${baseUrl}/dashboard/billing` }
+            : {}),
+        metadata: { external_id: `${params.tenant.id}:${params.plan.id}` },
+        idempotency_key: `woohub-${params.tenant.id}-${params.plan.id}-${new Date().toISOString().slice(0, 10)}`,
+    };
+
+    const res = await asgardpayRequest<{
+        order_id?: number | string;
+        status?: string;
+        qrcode?: string | null;
+        copy_paste?: string | null;
+        message?: string;
+        error?: string;
+    }>("/payments/pix", { method: "POST", body });
+
+    if (res.status === 401 || res.status === 403) {
+        throw new PaymentServiceError("invalid_credentials", "Credenciais AsgardPay recusadas (verifique as chaves)");
+    }
+    if (!res.ok || !res.body || res.body.order_id === undefined) {
+        logger.error("Payments", "AsgardPay recusou o checkout:", res.status, res.body);
+        throw new PaymentServiceError(
+            "gateway_error",
+            res.body?.message || res.body?.error || `AsgardPay respondeu ${res.status}`
+        );
+    }
+
+    const orderId = String(res.body.order_id);
+    return {
+        gateway: "asgardpay",
+        externalId: orderId,
+        // Nao ha pagina hospedada: o front exibe o QR devolvido em `raw`.
+        checkoutUrl: `${baseUrl}/dashboard/billing?order=${encodeURIComponent(orderId)}`,
+        raw: {
+            order_id: res.body.order_id,
+            status: res.body.status || "pending",
+            qrcode: res.body.qrcode || null,
+            copy_paste: res.body.copy_paste || null,
+        },
+    };
+}
+
+/**
+ * Confirmacao server-to-server do pedido (fonte da verdade antes de qualquer
+ * efeito). Lanca em falha de transporte (webhook responde 500 e o gateway reenvia).
+ */
+async function confirmAsgardpayPayment(orderId: string): Promise<ConfirmedPayment | null> {
+    const res = await asgardpayRequest<{
+        order_id?: number | string;
+        status?: string;
+        amount?: number;
+        metadata?: { external_id?: string } | null;
+        updated_at?: string | null;
+        paid_at?: string | null;
+        email?: string | null;
+    }>(`/payments/${encodeURIComponent(orderId)}`);
+
+    if (res.status === 404) return null;
+    if (res.status === 401 || res.status === 403) {
+        throw new PaymentServiceError("invalid_credentials", "Credenciais AsgardPay recusadas");
+    }
+    if (!res.ok || !res.body) {
+        throw new Error(`gateway_http_${res.status}`);
+    }
+
+    const meta = (res.body.metadata || {}) as { external_id?: string };
+    return {
+        id: String(res.body.order_id ?? orderId),
+        status: (res.body.status || "").toLowerCase(),
+        externalReference: typeof meta.external_id === "string" ? meta.external_id : null,
+        amountCents: Math.round((res.body.amount ?? 0) * 100),
+        currency: "BRL",
+        dateApproved: res.body.paid_at || res.body.updated_at || null,
+    };
+}
+
+/* -------------------------------------------------------------------------- */
 /* Webhook signature verification (pure, unit-testable)                       */
 /* -------------------------------------------------------------------------- */
 
@@ -261,6 +543,52 @@ export function verifyMercadoPagoSignature(check: SignatureCheck): SignatureResu
     return { ok: true };
 }
 
+export interface AsgardSignatureCheck {
+    /** webhook_secret devolvido pelo PUT /webhook (ou PAYMENT_WEBHOOK_SECRET) */
+    secret: string | null | undefined;
+    /** header `x-webhook-signature`: HMAC-SHA256 hex do body bruto */
+    signature: string | null | undefined;
+    /** corpo bruto (antes de json.parse) */
+    rawBody: string;
+    /** header `x-webhook-timestamp` (unix segundos ou ms) */
+    timestamp?: string | null;
+    now?: number;
+    maxSkewMs?: number;
+}
+
+/**
+ * Validacao da assinatura AsgardPay: HMAC-SHA256(secret, body bruto) em hex,
+ * comparacao em tempo constante + janela de replay pelo timestamp.
+ * Puro e unit-testavel (sem rede nem banco).
+ */
+export function verifyAsgardpaySignature(check: AsgardSignatureCheck): SignatureResult {
+    const secret = (check.secret || "").trim();
+    if (!secret) return { ok: false, reason: "webhook_secret_missing" };
+
+    const received = (check.signature || "").trim().toLowerCase();
+    if (!received) return { ok: false, reason: "missing_signature" };
+
+    const expected = createHmac("sha256", secret).update(check.rawBody, "utf8").digest("hex");
+    const a = Buffer.from(expected, "utf8");
+    const b = Buffer.from(received, "utf8");
+    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+        return { ok: false, reason: "invalid_signature" };
+    }
+
+    const tsRaw = (check.timestamp || "").trim();
+    if (tsRaw) {
+        if (!/^\d+$/.test(tsRaw)) return { ok: false, reason: "MalformedTimestampHeader" };
+        const tsValue = Number(tsRaw);
+        const tsMs = tsValue < 1e12 ? tsValue * 1000 : tsValue;
+        const skewMs = Math.abs((check.now ?? Date.now()) - tsMs);
+        if (skewMs > (check.maxSkewMs ?? 10 * 60 * 1000)) {
+            return { ok: false, reason: "TimestampOutOfTolerance" };
+        }
+    }
+
+    return { ok: true };
+}
+
 /* -------------------------------------------------------------------------- */
 /* Event processing                                                            */
 /* -------------------------------------------------------------------------- */
@@ -278,14 +606,18 @@ const REFUND_STATES: PaymentClassification[] = ["refunded", "charged_back"];
 
 /** Normalizes gateway status/action into a small state set. Pure and testable. */
 export function classifyPaymentStatus(action?: string | null, status?: string | null): PaymentClassification {
-    const value = (action || status || "").toLowerCase().replace(/^payment[.:]/, "").trim();
+    const value = (action || status || "")
+        .toLowerCase()
+        .replace(/^payment[.:]/, "")
+        .replace(/^order[.:]/, "") // eventos AsgardPay: order.completed, order.refunded...
+        .trim();
     if (!value) return "other";
-    if (value === "approved") return "approved";
+    if (value === "approved" || value === "completed") return "approved";
     if (value === "refunded" || value === "refound") return "refunded";
     if (value === "charged_back" || value === "charge_back" || value === "chargedback") return "charged_back";
     if (value === "rejected") return "rejected";
-    if (value === "cancelled" || value === "canceled") return "cancelled";
-    if (value === "pending" || value === "in_process" || value === "in_mediation" || value === "authorized") return "pending";
+    if (value === "cancelled" || value === "canceled" || value === "expired") return "cancelled";
+    if (value === "pending" || value === "in_process" || value === "in_mediation" || value === "authorized" || value === "processing") return "pending";
     return "other";
 }
 
@@ -325,7 +657,7 @@ interface ConfirmedPayment {
  * throws on transport errors so the webhook answers 500 and is retried.
  */
 async function confirmMercadoPagoPayment(paymentId: string): Promise<ConfirmedPayment | null> {
-    const token = (process.env.PAYMENT_GATEWAY_SECRET_KEY || "").trim();
+    const token = (await loadGatewaySettings()).secretKey;
     if (!token) throw new PaymentServiceError("gateway_not_configured", "PAYMENT_WEBHOOK_SECRET/PAYMENT_GATEWAY_SECRET_KEY ausente");
 
     const controller = new AbortController();
@@ -643,7 +975,10 @@ function extractReference(payload: Record<string, unknown> | undefined): string 
     if (typeof direct === "string" && direct) return direct;
     const data = payload.data as { external_reference?: unknown } | undefined;
     if (data && typeof data.external_reference === "string" && data.external_reference) return data.external_reference;
+    // AsgardPay carrega a referencia em metadata.external_id.
+    const meta = payload.metadata as { external_id?: unknown } | undefined;
+    if (meta && typeof meta.external_id === "string" && meta.external_id) return meta.external_id;
     return null;
 }
 
-export { confirmMercadoPagoPayment };
+export { confirmMercadoPagoPayment, confirmAsgardpayPayment, extractReference };
