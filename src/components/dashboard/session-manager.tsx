@@ -21,6 +21,7 @@ import {
     Trash2,
     Smartphone,
     Share2,
+    AlertTriangle,
 } from 'lucide-react';
 import {
     Dialog,
@@ -50,6 +51,7 @@ export function SessionManager({ user }: { user: any }) {
     const [statusFilter, setStatusFilter] = useState("ALL");
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [currentStep, setCurrentStep] = useState(1);
+    const [quota, setQuota] = useState<{ mode: string; used: number; limit: number | null } | null>(null);
 
     // Form fields matching Screen 3
     const [newSessionName, setNewSessionName] = useState("");
@@ -63,6 +65,7 @@ export function SessionManager({ user }: { user: any }) {
 
     useEffect(() => {
         fetchSessions();
+        fetchQuota();
 
         const socketInstance = io({
             path: "/api/socket/io",
@@ -81,6 +84,7 @@ export function SessionManager({ user }: { user: any }) {
 
             if (data.status === 'CONNECTED') {
                 fetchSessions();
+                fetchQuota();
             }
         });
 
@@ -99,9 +103,33 @@ export function SessionManager({ user }: { user: any }) {
             .catch(() => undefined);
     };
 
+    // Cota de instâncias do plano (usado/limite) — GET /api/tenants/usage.
+    const fetchQuota = () => {
+        fetch('/api/tenants/usage')
+            .then((res) => (res.ok ? res.json() : null))
+            .then((responseData) => {
+                const data = responseData?.data;
+                if (!responseData?.status || !data) return;
+                setQuota({
+                    mode: data.mode || "pilot",
+                    used: data.usage?.instancesUsed ?? 0,
+                    limit: data.limits?.maxInstances ?? null,
+                });
+            })
+            .catch(() => undefined);
+    };
+
+    const quotaFull = Boolean(quota && quota.limit !== null && quota.used >= quota.limit);
+
     const handleCreateSubmit = async () => {
         if (!newSessionName.trim()) {
             toast.error("Informe o nome da instância");
+            return;
+        }
+        if (quotaFull) {
+            toast.error("Limite de instâncias do plano atingido.", {
+                action: { label: "Ver planos", onClick: () => router.push("/dashboard/billing") },
+            });
             return;
         }
 
@@ -120,7 +148,11 @@ export function SessionManager({ user }: { user: any }) {
             const created = responseData?.data;
 
             if (!res.ok || !created) {
-                throw new Error(responseData.error || responseData.message || "Falha ao criar");
+                const err = new Error(responseData.error || responseData.message || "Falha ao criar") as Error & {
+                    code?: string;
+                };
+                err.code = responseData?.code;
+                throw err;
             }
 
             setSessions((prev) => [...prev, created]);
@@ -132,11 +164,25 @@ export function SessionManager({ user }: { user: any }) {
             setTeamTag("");
             setWelcomeMessage("");
             setCurrentStep(1);
+            fetchQuota();
 
             // Redirect to session details for QR Code scanning
             router.push(`/dashboard/sessions/${created.sessionId}`);
         } catch (e: any) {
-            toast.error(e.message || "Falha ao criar a instância");
+            if (e?.code === "quota_exceeded") {
+                fetchQuota();
+                setIsCreateOpen(false);
+                toast.error(e.message || "Limite de instâncias do plano atingido.", {
+                    action: { label: "Ver planos", onClick: () => router.push("/dashboard/billing") },
+                });
+            } else if (e?.code === "subscription_required" || e?.code === "subscription_inactive") {
+                setIsCreateOpen(false);
+                toast.error(e.message || "Contrate um plano para criar instâncias.", {
+                    action: { label: "Ver planos", onClick: () => router.push("/dashboard/billing") },
+                });
+            } else {
+                toast.error(e.message || "Falha ao criar a instância");
+            }
         } finally {
             setLoading(false);
         }
@@ -155,26 +201,14 @@ export function SessionManager({ user }: { user: any }) {
         return matchesSearch && matchesStatus;
     });
 
-    // Mock sessions fallback for visual fidelity if empty
-    const mockList = [
-        { id: "1", name: "Comercial", sessionId: "comercial", phone: "+55 11 98765-4321", status: "CONNECTED", activity: "há 2 minutos" },
-        { id: "2", name: "Suporte", sessionId: "suporte", phone: "+55 11 91234-5678", status: "CONNECTED", activity: "há 5 minutos" },
-        { id: "3", name: "Vendas", sessionId: "vendas", phone: "+55 11 99876-5432", status: "CONNECTED", activity: "há 12 minutos" },
-        { id: "4", name: "Atendimento", sessionId: "atendimento", phone: "+55 11 99654-3210", status: "CONNECTED", activity: "há 20 minutos" },
-        { id: "5", name: "Financeiro", sessionId: "financeiro", phone: "+55 11 97654-3210", status: "DISCONNECTED", activity: "há 2 horas" },
-        { id: "6", name: "RH", sessionId: "rh", phone: "+55 11 98543-2109", status: "CONNECTED", activity: "há 1 hora" },
-    ];
-
-    const displayList = sessions.length > 0
-        ? filteredSessions.map((s) => ({
-            id: s.id,
-            name: s.name,
-            sessionId: s.sessionId,
-            phone: s.linkedPhone ? `+55 ${s.linkedPhone}` : (s.phone ? `+${s.phone}` : "-"),
-            status: s.status,
-            activity: "há 2 minutos",
-        }))
-        : mockList;
+    const displayList = filteredSessions.map((s) => ({
+        id: s.id,
+        name: s.name,
+        sessionId: s.sessionId,
+        phone: s.linkedPhone ? `+55 ${s.linkedPhone}` : (s.phone ? `+${s.phone}` : "-"),
+        status: s.status,
+        activity: "há 2 minutos",
+    }));
 
     return (
         <div className="space-y-5">
@@ -192,6 +226,27 @@ export function SessionManager({ user }: { user: any }) {
                 </div>
 
                 <div className="flex items-center gap-2.5">
+                    {/* Cota do plano: instâncias usadas / limite */}
+                    {quota && (
+                        <span
+                            className={`h-10 px-3 rounded-xl border text-xs font-bold flex items-center gap-1.5 whitespace-nowrap ${
+                                quotaFull
+                                    ? "bg-amber-50 border-amber-200 text-amber-700"
+                                    : "bg-slate-50 border-slate-200 text-slate-600"
+                            }`}
+                            title={
+                                quota.limit === null
+                                    ? "Modo piloto: sem limite de instâncias"
+                                    : `Plano atual: ${quota.used} de ${quota.limit} instâncias em uso`
+                            }
+                        >
+                            <Smartphone className="h-3.5 w-3.5" />
+                            {quota.limit === null
+                                ? `${quota.used} instância(s) · piloto`
+                                : `${quota.used} / ${quota.limit} instâncias`}
+                        </span>
+                    )}
+
                     {/* Status Dropdown Filter */}
                     <select
                         value={statusFilter}
@@ -203,14 +258,26 @@ export function SessionManager({ user }: { user: any }) {
                         <option value="OFFLINE">Offline</option>
                     </select>
 
-                    {/* Button + Nova instância */}
-                    <Button
-                        onClick={() => setIsCreateOpen(true)}
-                        className="h-10 px-4 bg-[#FF6600] hover:bg-[#FF5500] text-white font-bold rounded-xl text-xs sm:text-sm shadow-md shadow-orange-500/20 flex items-center gap-2 flex-shrink-0"
-                    >
-                        <Plus className="h-4 w-4" />
-                        <span>Nova instância</span>
-                    </Button>
+                    {/* Botão de nova instância (vira atalho de upgrade no limite) */}
+                    {quotaFull ? (
+                        <Button
+                            onClick={() => router.push("/dashboard/billing")}
+                            variant="outline"
+                            className="h-10 px-4 border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 font-bold rounded-xl text-xs sm:text-sm flex items-center gap-2 flex-shrink-0"
+                            title="Limite de instâncias do plano atingido — faça upgrade"
+                        >
+                            <AlertTriangle className="h-4 w-4" />
+                            <span>Limite atingido · Ver planos</span>
+                        </Button>
+                    ) : (
+                        <Button
+                            onClick={() => setIsCreateOpen(true)}
+                            className="h-10 px-4 bg-[#FF6600] hover:bg-[#FF5500] text-white font-bold rounded-xl text-xs sm:text-sm shadow-md shadow-orange-500/20 flex items-center gap-2 flex-shrink-0"
+                        >
+                            <Plus className="h-4 w-4" />
+                            <span>Nova instância</span>
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -228,6 +295,15 @@ export function SessionManager({ user }: { user: any }) {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
+                            {displayList.length === 0 && (
+                                <tr>
+                                    <td colSpan={5} className="py-10 text-center text-xs text-slate-400">
+                                        {sessions.length === 0
+                                            ? "Nenhuma instância criada ainda. Clique em “Nova instância” para começar."
+                                            : "Nenhuma instância encontrada com os filtros atuais."}
+                                    </td>
+                                </tr>
+                            )}
                             {displayList.map((row) => {
                                 const isOnline = row.status === "CONNECTED";
                                 return (

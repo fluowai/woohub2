@@ -18,6 +18,7 @@
     "db:push": "prisma db push && prisma generate",
     "db:studio": "prisma studio",
     "make-admin": "node scripts/setup-admin.js",
+    "plans:seed": "node scripts/seed-plans.mjs",
     "mcp": "node scripts/woohub-mcp.mjs",
     "postinstall": "patch-package"
   },

@@ -37,7 +37,8 @@ export interface QuotaSnapshot {
     subscriptionStatus: string | null;
     periodKey: string | null;
     limits: QuotaLimits | null;
-    usage: { requests: number; messagesSent: number };
+    /** instancesUsed = medidor ao vivo (sessoes do tenant); os demais sao contadores do periodo. */
+    usage: { requests: number; messagesSent: number; instancesUsed: number };
 }
 
 export class QuotaError extends Error {
@@ -218,11 +219,12 @@ export async function getQuotaSnapshot(tenantId: string | null): Promise<QuotaSn
             subscriptionStatus: null,
             periodKey: null,
             limits: null,
-            usage: { requests: 0, messagesSent: 0 },
+            usage: { requests: 0, messagesSent: 0, instancesUsed: 0 },
         };
     }
 
     const state = await getCachedState(tenantId);
+    const instancesUsed = await prisma.session.count({ where: { tenantId } });
 
     if (!state.limits || !state.periodKey) {
         return {
@@ -233,7 +235,7 @@ export async function getQuotaSnapshot(tenantId: string | null): Promise<QuotaSn
             subscriptionStatus: state.status,
             periodKey: state.periodKey,
             limits: state.limits,
-            usage: { requests: usedRequests(tenantId), messagesSent: 0 },
+            usage: { requests: usedRequests(tenantId), messagesSent: 0, instancesUsed },
         };
     }
 
@@ -253,7 +255,7 @@ export async function getQuotaSnapshot(tenantId: string | null): Promise<QuotaSn
         subscriptionStatus: state.status,
         periodKey: state.periodKey,
         limits: state.limits,
-        usage: { requests: dbRequests + (requestMemory.get(tenantId) ?? 0), messagesSent },
+        usage: { requests: dbRequests + (requestMemory.get(tenantId) ?? 0), messagesSent, instancesUsed },
     };
 }
 

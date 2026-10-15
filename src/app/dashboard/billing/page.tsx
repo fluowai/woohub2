@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Check, CreditCard, Gauge, Layers, RefreshCw, Info, Copy, QrCode, X } from "lucide-react";
+import { Check, CreditCard, Gauge, Layers, RefreshCw, Info, Copy, QrCode, X, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 
 interface PlanRow {
@@ -40,7 +40,7 @@ interface UsageSnapshot {
         storageLimitMb: number;
         retentionDays: number;
     } | null;
-    usage: { requests: number; messagesSent: number };
+    usage: { requests: number; messagesSent: number; instancesUsed: number };
 }
 
 interface SubscriptionRow {
@@ -212,6 +212,12 @@ export default function BillingPage() {
     const metrics = usage?.limits
         ? [
             {
+                label: "Instâncias",
+                used: usage.usage.instancesUsed ?? 0,
+                limit: usage.limits.maxInstances,
+                icon: Smartphone,
+            },
+            {
                 label: "Requisições na API",
                 used: usage.usage.requests,
                 limit: usage.limits.requestLimit,
@@ -347,9 +353,19 @@ export default function BillingPage() {
                                     }`}
                                 >
                                     <CardHeader>
-                                        <div className="flex items-center justify-between">
+                                        <div className="flex items-center justify-between gap-2">
                                             <CardTitle className="text-lg">{plan.name}</CardTitle>
-                                            {isCurrent && <Badge>Plano atual</Badge>}
+                                            <div className="flex items-center gap-1.5">
+                                                {plan.period === "YEARLY" && (
+                                                    <Badge
+                                                        variant="outline"
+                                                        className="border-emerald-300 bg-emerald-50 text-emerald-700 font-bold"
+                                                    >
+                                                        −10% anual
+                                                    </Badge>
+                                                )}
+                                                {isCurrent && <Badge>Plano atual</Badge>}
+                                            </div>
                                         </div>
                                         <CardDescription className="min-h-[2.5rem]">
                                             {plan.description || "Plano da plataforma Woohub."}
